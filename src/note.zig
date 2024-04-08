@@ -35,12 +35,31 @@ pub const Note = struct {
 
         return reference_frequency * @exp2(octave_difference);
     }
+
+    pub fn fromFrequency(freq: f64) Note {
+        assert(freq > 0);
+
+        const semitones_from_ref =
+            reference_pitch_class +
+            semitones_per_octave * @log2(freq / reference_frequency);
+
+        var pitch_class = @mod(@round(semitones_from_ref), semitones_per_octave);
+        if (pitch_class < 0) {
+            pitch_class += semitones_per_octave;
+        }
+
+        const octave_offset = @divTrunc(@round(semitones_from_ref), semitones_per_octave);
+        const octave = reference_octave + octave_offset;
+
+        return Note.new(@intFromFloat(pitch_class), @intFromFloat(octave));
+    }
 };
 
 test "frequency calculation" {
     const approxEqAbs = std.math.approxEqAbs;
     const epsilon = 0.001;
 
+    try testing.expect(approxEqAbs(f64, Note.new(0, -1).frequency(), 8.176, epsilon)); // C-1
     try testing.expect(approxEqAbs(f64, Note.new(0, 0).frequency(), 16.352, epsilon)); // C0
     try testing.expect(approxEqAbs(f64, Note.new(9, 0).frequency(), 27.5, epsilon)); // A0
     try testing.expect(approxEqAbs(f64, Note.new(0, 4).frequency(), 261.626, epsilon)); // C4
@@ -48,4 +67,11 @@ test "frequency calculation" {
     try testing.expect(approxEqAbs(f64, Note.new(0, 8).frequency(), 4186.009, epsilon)); // C8
     try testing.expect(approxEqAbs(f64, Note.new(11, 8).frequency(), 7902.133, epsilon)); // B8
     try testing.expect(approxEqAbs(f64, Note.new(11, 9).frequency(), 15804.266, epsilon)); // B9
+}
+
+test "from frequency" {
+    try testing.expectEqual(Note.fromFrequency(8.176), Note.new(0, -1)); // C-1
+    try testing.expectEqual(Note.fromFrequency(16.352), Note.new(0, 0)); // C0
+    try testing.expectEqual(Note.fromFrequency(440.0), Note.new(9, 4)); // A4
+    try testing.expectEqual(Note.fromFrequency(4186.009), Note.new(0, 8)); // C8
 }
