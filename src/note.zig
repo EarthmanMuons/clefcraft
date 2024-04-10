@@ -115,6 +115,81 @@ pub const Pitch = struct {
         return wrapPitchClass(base_pc + adjustment);
     }
 
+    pub fn fifthsPosition(self: Pitch) i32 {
+        // Base position for natural notes in the circle of fifths.
+        const base_position: i32 = switch (self.letter) {
+            .C => 0,
+            .G => 1,
+            .D => 2,
+            .A => 3,
+            .E => 4,
+            .B => 5,
+            .F => -1,
+        };
+
+        var position = base_position;
+        if (self.accidental) |acc| {
+            position += switch (acc) {
+                .DoubleFlat => -14,
+                .Flat => -7,
+                .Natural => 0,
+                .Sharp => 7,
+                .DoubleSharp => 14,
+            };
+        }
+
+        assert(-15 <= position and position <= 19);
+        return position;
+    }
+
+    fn fromFifthsPosition(position: i32) Pitch {
+        assert(-15 <= position and position <= 19);
+
+        // Mapping of circle of fifths positions to Pitches.
+        const mapping = [_]Pitch{
+            Pitch{ .letter = .F, .accidental = .DoubleFlat }, // -15
+            Pitch{ .letter = .C, .accidental = .DoubleFlat }, // -14
+            Pitch{ .letter = .G, .accidental = .DoubleFlat }, // -13
+            Pitch{ .letter = .D, .accidental = .DoubleFlat }, // -12
+            Pitch{ .letter = .A, .accidental = .DoubleFlat }, // -11
+            Pitch{ .letter = .E, .accidental = .DoubleFlat }, // -10
+            Pitch{ .letter = .B, .accidental = .DoubleFlat }, // -9
+            Pitch{ .letter = .F, .accidental = .Flat }, // -8
+            Pitch{ .letter = .C, .accidental = .Flat }, // -7
+            Pitch{ .letter = .G, .accidental = .Flat }, // -6
+            Pitch{ .letter = .D, .accidental = .Flat }, // -5
+            Pitch{ .letter = .A, .accidental = .Flat }, // -4
+            Pitch{ .letter = .E, .accidental = .Flat }, // -3
+            Pitch{ .letter = .B, .accidental = .Flat }, // -2
+            Pitch{ .letter = .F, .accidental = null }, // -1
+            Pitch{ .letter = .C, .accidental = null }, // 0
+            Pitch{ .letter = .G, .accidental = null }, // 1
+            Pitch{ .letter = .D, .accidental = null }, // 2
+            Pitch{ .letter = .A, .accidental = null }, // 3
+            Pitch{ .letter = .E, .accidental = null }, // 4
+            Pitch{ .letter = .B, .accidental = null }, // 5
+            Pitch{ .letter = .F, .accidental = .Sharp }, // 6
+            Pitch{ .letter = .C, .accidental = .Sharp }, // 7
+            Pitch{ .letter = .G, .accidental = .Sharp }, // 8
+            Pitch{ .letter = .D, .accidental = .Sharp }, // 9
+            Pitch{ .letter = .A, .accidental = .Sharp }, // 10
+            Pitch{ .letter = .E, .accidental = .Sharp }, // 11
+            Pitch{ .letter = .B, .accidental = .Sharp }, // 12
+            Pitch{ .letter = .F, .accidental = .DoubleSharp }, // 13
+            Pitch{ .letter = .C, .accidental = .DoubleSharp }, // 14
+            Pitch{ .letter = .G, .accidental = .DoubleSharp }, // 15
+            Pitch{ .letter = .D, .accidental = .DoubleSharp }, // 16
+            Pitch{ .letter = .A, .accidental = .DoubleSharp }, // 17
+            Pitch{ .letter = .E, .accidental = .DoubleSharp }, // 18
+            Pitch{ .letter = .B, .accidental = .DoubleSharp }, // 19
+        };
+
+        // Adjust the index for negative positions
+        const index = position + 15;
+
+        return mapping[index];
+    }
+
     pub fn format(self: Pitch, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         try self.letter.format(fmt, options, writer);
         if (self.accidental) |acc| {
@@ -241,7 +316,7 @@ pub const Note = struct {
         const octave_offset = (self.effectiveOctave() + 1) * semitones_per_octave;
         const midi_note = octave_offset + self.pitchClass();
 
-        assert(0 <= midi_note and midi_note < 128);
+        assert(0 <= midi_note and midi_note <= 127);
         return midi_note;
     }
 
