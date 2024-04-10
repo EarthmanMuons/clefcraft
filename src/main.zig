@@ -13,8 +13,9 @@ pub fn main() !void {
     var n1 = try Note.parse("C4");
     std.debug.print("{} pitch class: {}\n", .{ n1, n1.pitchClass() });
 
-    var n2 = try Note.parse("A4");
-    std.debug.print("{} pitch class: {}\n", .{ n2, n2.pitchClass() });
+    const n2 = try Note.parse("A4");
+    // std.debug.print("{} pitch class: {}\n", .{ n2, n2.pitchClass() });
+    std.debug.print("frequency: {d:.3}\n", .{n2.freq()});
 
     std.debug.print("distance from {} to {}: {}", .{ n1, n2, n1.semitoneDistance(n2) });
 }

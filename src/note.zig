@@ -1,12 +1,11 @@
 const std = @import("std");
 const assert = std.debug.assert;
 const log = std.log.scoped(.note);
-const testing = std.testing;
 
-// The international standard pitch (A4 at 440 Hz).
-const reference_pitch_class = 9;
-const reference_octave = 4;
-const reference_frequency = 440.0;
+// The international standard pitch, A440.
+const reference_pitch = Pitch{ .letter = .A, .accidental = null };
+const reference_note = Note{ .pitch = reference_pitch, .octave = 4 };
+const reference_frequency = 440.0; // hertz
 
 const semitones_per_octave = 12;
 
@@ -86,7 +85,7 @@ pub const Pitch = struct {
 
     // Creates a Pitch from a pitch class.
     pub fn new(pitch_class: u8) Pitch {
-        assert(pitch_class < 12);
+        assert(pitch_class < semitones_per_octave);
 
         // Mapping of pitch class numbers to default Letters and Accidentals.
         // 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
@@ -125,7 +124,7 @@ pub const Pitch = struct {
 
 // Utility function to wrap pitch class values within the 0-11 range.
 fn wrapPitchClass(value: i32) i32 {
-    return @mod(value + 12, 12);
+    return @mod(value + semitones_per_octave, semitones_per_octave);
 }
 
 pub const Note = struct {
@@ -194,22 +193,12 @@ pub const Note = struct {
 
         if (self.pitch.accidental) |acc| {
             switch (acc) {
-                .Flat => {
+                .Flat, .DoubleFlat => {
                     if (self.pitch.letter == .C) {
                         adjustment -= 1;
                     }
                 },
-                .DoubleFlat => {
-                    if (self.pitch.letter == .C) {
-                        adjustment -= 1;
-                    }
-                },
-                .Sharp => {
-                    if (self.pitch.letter == .B) {
-                        adjustment += 1;
-                    }
-                },
-                .DoubleSharp => {
+                .Sharp, .DoubleSharp => {
                     if (self.pitch.letter == .B) {
                         adjustment += 1;
                     }
@@ -219,6 +208,20 @@ pub const Note = struct {
         }
 
         return self.octave + adjustment;
+    }
+
+    // Returns the fundamental frequency in Hz using twelve-tone equal temperament (12-TET).
+    pub fn freq(self: Note) f64 {
+        const semitones_from_ref = reference_note.semitoneDistance(self);
+
+        const semitone_distance_ratio =
+            @as(f64, @floatFromInt(semitones_from_ref)) /
+            @as(f64, @floatFromInt(semitones_per_octave));
+
+        const frequency = reference_frequency * @exp2(semitone_distance_ratio);
+        log.debug("{} frequency: {d:.3} Hz", .{ self, frequency });
+
+        return frequency;
     }
 
     pub fn semitoneDistance(self: Note, other: Note) i32 {
@@ -245,6 +248,40 @@ test "parse basic note without accidental" {
     try std.testing.expectEqual(Letter.C, note.pitch.letter);
     try std.testing.expectEqual(null, note.pitch.accidental);
     try std.testing.expectEqual(4, note.octave);
+}
+
+test "frequency calculation" {
+    // std.testing.log_level = .debug;
+
+    const TestCase = struct {
+        n1: []const u8,
+        expected: f64,
+    };
+
+    const test_cases = [_]TestCase{
+        TestCase{ .n1 = "C-1", .expected = 8.176 },
+        TestCase{ .n1 = "C0", .expected = 16.352 },
+        TestCase{ .n1 = "A0", .expected = 27.5 },
+        TestCase{ .n1 = "C4", .expected = 261.626 },
+        TestCase{ .n1 = "A4", .expected = 440.0 },
+        TestCase{ .n1 = "C8", .expected = 4186.009 },
+        TestCase{ .n1 = "B8", .expected = 7902.133 },
+        TestCase{ .n1 = "G9", .expected = 12543.854 },
+        TestCase{ .n1 = "B9", .expected = 15804.266 },
+    };
+
+    const epsilon = 0.001;
+    for (test_cases) |test_case| {
+        const note = try Note.parse(test_case.n1);
+        const result = note.freq();
+
+        const passed = std.math.approxEqAbs(f64, test_case.expected, result, epsilon);
+
+        if (!passed) {
+            std.debug.print("\nTest case: {}, expected {d:.3}, found {d:.3}\n", .{ note, test_case.expected, result });
+        }
+        try std.testing.expect(passed);
+    }
 }
 
 test "semitoneDistance" {
@@ -302,47 +339,13 @@ test "semitoneDistance" {
         const n1 = try Note.parse(test_case.n1);
         const n2 = try Note.parse(test_case.n2);
         const result = n1.semitoneDistance(n2);
+
+        if (test_case.expected != result) {
+            std.debug.print("\nTest case: from {s} to {s}, ", .{ n1, n2 });
+        }
         try std.testing.expectEqual(test_case.expected, result);
     }
 }
-
-// pub const Note = struct {
-//     pitch_class: u8,
-//     octave: i8,
-
-//     pub fn parse(chars: []const u8) !Note {
-//         // Parse the pitch class.
-//         const pitch_class_base = pitch_map[letter - 'A'];
-
-//         // Parse the octave.
-//         const octave_str = chars[octave_start..];
-//         var octave = std.fmt.parseInt(i8, octave_str, 10) catch return error.InvalidNoteFormat;
-
-//         // Calculate the final pitch class with accidental.
-//         var pitch_class = @as(i8, @intCast(pitch_class_base)) +% accidental;
-
-//         // Handle pitch class wrap-around for octave boundaries.
-//         if (pitch_class >= semitones_per_octave) {
-//             pitch_class -= semitones_per_octave;
-//             octave += 1;
-//         } else if (pitch_class < 0) {
-//             pitch_class += semitones_per_octave;
-//             octave -= 1;
-//         }
-//     }
-
-//     // Returns the fundamental frequency in Hz using twelve-tone equal temperament (12-TET).
-//     pub fn freq(self: Note) f64 {
-//         const semitones_from_ref =
-//             @as(i32, self.pitch_class) - reference_pitch_class +
-//             (semitones_per_octave * (self.octave - reference_octave));
-
-//         const octave_difference =
-//             @as(f64, @floatFromInt(semitones_from_ref)) /
-//             @as(f64, @floatFromInt(semitones_per_octave));
-
-//         return reference_frequency * @exp2(octave_difference);
-//     }
 
 //     pub fn fromFreq(frequency: f64) Note {
 //         assert(frequency > 0);
@@ -391,40 +394,6 @@ test "semitoneDistance" {
 //         return Note.new(pitch_class, octave);
 //     }
 // };
-
-// test "create from string" {
-//     try testing.expectEqual(Note.parse("C-1"), Note.new(0, -1));
-//     try testing.expectEqual(Note.parse("A4"), Note.new(9, 4));
-//     try testing.expectEqual(Note.parse("a4"), Note.new(9, 4));
-//     try testing.expectEqual(Note.parse("B9"), Note.new(11, 9));
-
-//     try testing.expectEqual(Note.parse("C4"), Note.new(0, 4));
-//     try testing.expectEqual(Note.parse("C#4"), Note.new(1, 4));
-
-//     try testing.expectEqual(Note.parse("B4"), Note.new(11, 4));
-//     try testing.expectEqual(Note.parse("Bb4"), Note.new(10, 4));
-
-//     try testing.expectEqual(Note.parse("Cb4"), Note.new(11, 3));
-//     try testing.expectEqual(Note.parse("B3"), Note.new(11, 3));
-
-//     try testing.expectEqual(Note.parse("B#4"), Note.new(0, 5));
-//     try testing.expectEqual(Note.parse("C5"), Note.new(0, 5));
-// }
-
-// test "frequency calculation" {
-//     const approxEqAbs = std.math.approxEqAbs;
-//     const epsilon = 0.001;
-
-//     try testing.expect(approxEqAbs(f64, Note.new(0, -1).freq(), 8.176, epsilon)); // C-1
-//     try testing.expect(approxEqAbs(f64, Note.new(0, 0).freq(), 16.352, epsilon)); // C0
-//     try testing.expect(approxEqAbs(f64, Note.new(9, 0).freq(), 27.5, epsilon)); // A0
-//     try testing.expect(approxEqAbs(f64, Note.new(0, 4).freq(), 261.626, epsilon)); // C4
-//     try testing.expect(approxEqAbs(f64, Note.new(9, 4).freq(), 440.0, epsilon)); // A4
-//     try testing.expect(approxEqAbs(f64, Note.new(0, 8).freq(), 4186.009, epsilon)); // C8
-//     try testing.expect(approxEqAbs(f64, Note.new(11, 8).freq(), 7902.133, epsilon)); // B8
-//     try testing.expect(approxEqAbs(f64, Note.new(7, 9).freq(), 12543.854, epsilon)); // G9
-//     try testing.expect(approxEqAbs(f64, Note.new(11, 9).freq(), 15804.266, epsilon)); // B9
-// }
 
 // test "create from frequency" {
 //     std.testing.log_level = .debug;
