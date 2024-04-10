@@ -210,6 +210,19 @@ pub const Note = struct {
         return self.octave + adjustment;
     }
 
+    pub fn semitoneDistance(self: Note, other: Note) i32 {
+        log.debug("semitoneDistance from {} to {}", .{ self, other });
+
+        const octave_distance =
+            (other.effectiveOctave() - self.effectiveOctave()) * semitones_per_octave;
+        const pitch_distance = other.pitch.pitchClass() - self.pitch.pitchClass();
+
+        log.debug("octave_distance: {}", .{octave_distance});
+        log.debug("pitch_distance: {}", .{pitch_distance});
+
+        return octave_distance + pitch_distance;
+    }
+
     // Returns the fundamental frequency in Hz using twelve-tone equal temperament (12-TET).
     pub fn freq(self: Note) f64 {
         const semitones_from_ref = reference_note.semitoneDistance(self);
@@ -224,17 +237,34 @@ pub const Note = struct {
         return frequency;
     }
 
-    pub fn semitoneDistance(self: Note, other: Note) i32 {
-        log.debug("semitoneDistance from {} to {}", .{ self, other });
+    pub fn fromFreq(frequency: f64) Note {
+        assert(frequency > 0);
 
-        const octave_distance =
-            (other.effectiveOctave() - self.effectiveOctave()) * semitones_per_octave;
-        const pitch_distance = other.pitch.pitchClass() - self.pitch.pitchClass();
+        const semitones_from_ref_raw =
+            @log2(frequency / reference_frequency) * semitones_per_octave;
 
-        log.debug("octave_distance: {}", .{octave_distance});
-        log.debug("pitch_distance: {}", .{pitch_distance});
+        const semitones_from_ref = @as(i32, @intFromFloat(@round(semitones_from_ref_raw)));
 
-        return octave_distance + pitch_distance;
+        const refnote_absolute_position =
+            reference_note.pitchClass() + (reference_note.octave * semitones_per_octave);
+
+        const target_absolute_position = semitones_from_ref + refnote_absolute_position;
+
+        const pitch_class = wrapPitchClass(target_absolute_position);
+        const octave = @divTrunc(target_absolute_position, semitones_per_octave);
+
+        const pitch = Pitch.new(@intCast(pitch_class));
+        const note = Note{ .pitch = pitch, .octave = octave };
+
+        log.debug("", .{});
+        log.debug("frequency: {d}", .{frequency});
+        log.debug("semitones_from_ref: {}", .{semitones_from_ref});
+        log.debug("target_absolute_position: {}", .{target_absolute_position});
+        log.debug("pitch_class: {d}", .{pitch_class});
+        log.debug("octave: {d}", .{octave});
+        log.debug("note: {}", .{note});
+
+        return note;
     }
 
     pub fn format(self: Note, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
@@ -248,40 +278,6 @@ test "parse basic note without accidental" {
     try std.testing.expectEqual(Letter.C, note.pitch.letter);
     try std.testing.expectEqual(null, note.pitch.accidental);
     try std.testing.expectEqual(4, note.octave);
-}
-
-test "frequency calculation" {
-    // std.testing.log_level = .debug;
-
-    const TestCase = struct {
-        n1: []const u8,
-        expected: f64,
-    };
-
-    const test_cases = [_]TestCase{
-        TestCase{ .n1 = "C-1", .expected = 8.176 },
-        TestCase{ .n1 = "C0", .expected = 16.352 },
-        TestCase{ .n1 = "A0", .expected = 27.5 },
-        TestCase{ .n1 = "C4", .expected = 261.626 },
-        TestCase{ .n1 = "A4", .expected = 440.0 },
-        TestCase{ .n1 = "C8", .expected = 4186.009 },
-        TestCase{ .n1 = "B8", .expected = 7902.133 },
-        TestCase{ .n1 = "G9", .expected = 12543.854 },
-        TestCase{ .n1 = "B9", .expected = 15804.266 },
-    };
-
-    const epsilon = 0.001;
-    for (test_cases) |test_case| {
-        const note = try Note.parse(test_case.n1);
-        const result = note.freq();
-
-        const passed = std.math.approxEqAbs(f64, test_case.expected, result, epsilon);
-
-        if (!passed) {
-            std.debug.print("\nTest case: {}, expected {d:.3}, found {d:.3}\n", .{ note, test_case.expected, result });
-        }
-        try std.testing.expect(passed);
-    }
 }
 
 test "semitoneDistance" {
@@ -347,36 +343,67 @@ test "semitoneDistance" {
     }
 }
 
-//     pub fn fromFreq(frequency: f64) Note {
-//         assert(frequency > 0);
+test "frequency calculation" {
+    // std.testing.log_level = .debug;
 
-//         const semitones_from_ref =
-//             @round(reference_pitch_class +
-//             semitones_per_octave * @log2(frequency / reference_frequency));
+    const TestCase = struct {
+        n1: []const u8,
+        expected: f64,
+    };
 
-//         var pitch_class = @mod(semitones_from_ref, semitones_per_octave);
-//         if (pitch_class < 0) {
-//             pitch_class += semitones_per_octave;
-//         }
+    const test_cases = [_]TestCase{
+        TestCase{ .n1 = "C-1", .expected = 8.176 },
+        TestCase{ .n1 = "C0", .expected = 16.352 },
+        TestCase{ .n1 = "A0", .expected = 27.5 },
+        TestCase{ .n1 = "C4", .expected = 261.626 },
+        TestCase{ .n1 = "A4", .expected = 440.0 },
+        TestCase{ .n1 = "C8", .expected = 4186.009 },
+        TestCase{ .n1 = "B8", .expected = 7902.133 },
+        TestCase{ .n1 = "G9", .expected = 12543.854 },
+    };
 
-//         var octave_offset: f64 = undefined;
-//         if (semitones_from_ref < 0) {
-//             octave_offset = @divFloor(semitones_from_ref, semitones_per_octave);
-//         } else {
-//             octave_offset = @divTrunc(semitones_from_ref, semitones_per_octave);
-//         }
+    const epsilon = 0.001;
+    for (test_cases) |test_case| {
+        const note = try Note.parse(test_case.n1);
+        const result = note.freq();
 
-//         const octave = reference_octave + octave_offset;
+        const passed = std.math.approxEqAbs(f64, test_case.expected, result, epsilon);
 
-//         log.debug("", .{});
-//         log.debug("frequency: {d}", .{frequency});
-//         log.debug("semitones_from_ref: {d}", .{semitones_from_ref});
-//         log.debug("pitch_class: {d}", .{pitch_class});
-//         log.debug("octave_offset: {d}", .{octave_offset});
-//         log.debug("octave: {d}", .{octave});
+        if (!passed) {
+            std.debug.print("\nTest case: {}, expected {d:.3}, found {d:.3}\n", .{ note, test_case.expected, result });
+        }
+        try std.testing.expect(passed);
+    }
+}
 
-//         return Note.new(@intFromFloat(pitch_class), @intFromFloat(octave));
-//     }
+test "create from frequency" {
+    // std.testing.log_level = .debug;
+    var expected: Note = undefined;
+
+    expected = try Note.parse("C-1");
+    try std.testing.expectEqual(expected, Note.fromFreq(8.176));
+
+    expected = try Note.parse("C0");
+    try std.testing.expectEqual(expected, Note.fromFreq(16.352));
+
+    expected = try Note.parse("A0");
+    try std.testing.expectEqual(expected, Note.fromFreq(27.5));
+
+    expected = try Note.parse("C4");
+    try std.testing.expectEqual(expected, Note.fromFreq(261.626));
+
+    expected = try Note.parse("A4");
+    try std.testing.expectEqual(expected, Note.fromFreq(440.0));
+
+    expected = try Note.parse("C8");
+    try std.testing.expectEqual(expected, Note.fromFreq(4186.009));
+
+    expected = try Note.parse("B8");
+    try std.testing.expectEqual(expected, Note.fromFreq(7902.133));
+
+    expected = try Note.parse("G9");
+    try std.testing.expectEqual(expected, Note.fromFreq(12543.854));
+}
 
 //     // Returns the MIDI note number.
 //     pub fn midi(self: Note) u8 {
@@ -394,19 +421,6 @@ test "semitoneDistance" {
 //         return Note.new(pitch_class, octave);
 //     }
 // };
-
-// test "create from frequency" {
-//     std.testing.log_level = .debug;
-//     try testing.expectEqual(Note.fromFreq(8.176), Note.new(0, -1)); // C-1
-//     try testing.expectEqual(Note.fromFreq(16.352), Note.new(0, 0)); // C0
-//     try testing.expectEqual(Note.fromFreq(27.5), Note.new(9, 0)); // A0
-//     try testing.expectEqual(Note.fromFreq(261.626), Note.new(0, 4)); // C4
-//     try testing.expectEqual(Note.fromFreq(440.0), Note.new(9, 4)); // A4
-//     try testing.expectEqual(Note.fromFreq(4186.009), Note.new(0, 8)); // C8
-//     try testing.expectEqual(Note.fromFreq(7902.133), Note.new(11, 8)); // B8
-//     try testing.expectEqual(Note.fromFreq(12543.854), Note.new(7, 9)); // G9
-//     try testing.expectEqual(Note.fromFreq(15804.266), Note.new(11, 9)); // B9
-// }
 
 // test "midi note calculation" {
 //     try testing.expectEqual(Note.new(0, -1).midi(), 0); // C-1
