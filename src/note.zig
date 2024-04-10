@@ -267,6 +267,25 @@ pub const Note = struct {
         return note;
     }
 
+    // Returns the MIDI note number.
+    pub fn midi(self: Note) i32 {
+        const octave_offset = (self.effectiveOctave() + 1) * semitones_per_octave;
+        const midi_note = octave_offset + self.pitchClass();
+
+        assert(0 <= midi_note and midi_note < 128);
+        return midi_note;
+    }
+
+    pub fn fromMidi(midi_note: i32) Note {
+        const pitch_class = @mod(midi_note, semitones_per_octave);
+        const octave = @divTrunc(midi_note, semitones_per_octave) - 1;
+
+        const pitch = Pitch.new(@intCast(pitch_class));
+        const note = Note{ .pitch = pitch, .octave = octave };
+
+        return note;
+    }
+
     pub fn format(self: Note, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         try self.pitch.format(fmt, options, writer);
         try writer.print("{d}", .{self.octave});
@@ -382,56 +401,57 @@ test "create from frequency" {
 
     expected = try Note.parse("C-1");
     try std.testing.expectEqual(expected, Note.fromFreq(8.176));
-
     expected = try Note.parse("C0");
     try std.testing.expectEqual(expected, Note.fromFreq(16.352));
-
     expected = try Note.parse("A0");
     try std.testing.expectEqual(expected, Note.fromFreq(27.5));
-
     expected = try Note.parse("C4");
     try std.testing.expectEqual(expected, Note.fromFreq(261.626));
-
     expected = try Note.parse("A4");
     try std.testing.expectEqual(expected, Note.fromFreq(440.0));
-
     expected = try Note.parse("C8");
     try std.testing.expectEqual(expected, Note.fromFreq(4186.009));
-
     expected = try Note.parse("B8");
     try std.testing.expectEqual(expected, Note.fromFreq(7902.133));
-
     expected = try Note.parse("G9");
     try std.testing.expectEqual(expected, Note.fromFreq(12543.854));
 }
 
-//     // Returns the MIDI note number.
-//     pub fn midi(self: Note) u8 {
-//         const octave_offset = @as(u8, @intCast(self.octave + 1)) * semitones_per_octave;
-//         const midi_note = octave_offset + self.pitch_class;
+test "midi note calculation" {
+    const TestCase = struct {
+        n1: []const u8,
+        expected: i32,
+    };
 
-//         assert(midi_note < 128);
-//         return midi_note;
-//     }
+    const test_cases = [_]TestCase{
+        TestCase{ .n1 = "C-1", .expected = 0 },
+        TestCase{ .n1 = "B3", .expected = 59 },
+        TestCase{ .n1 = "Cb4", .expected = 59 },
+        TestCase{ .n1 = "C4", .expected = 60 },
+        TestCase{ .n1 = "A4", .expected = 69 },
+        TestCase{ .n1 = "G9", .expected = 127 },
+    };
 
-//     pub fn fromMidi(midi_note: u8) Note {
-//         const pitch_class = midi_note % semitones_per_octave;
-//         const octave = @as(i8, @intCast(midi_note / semitones_per_octave)) - 1;
+    for (test_cases) |test_case| {
+        const n1 = try Note.parse(test_case.n1);
+        const result = n1.midi();
 
-//         return Note.new(pitch_class, octave);
-//     }
-// };
+        if (test_case.expected != result) {
+            std.debug.print("\nTest case: {}, ", .{n1});
+        }
+        try std.testing.expectEqual(test_case.expected, result);
+    }
+}
 
-// test "midi note calculation" {
-//     try testing.expectEqual(Note.new(0, -1).midi(), 0); // C-1
-//     try testing.expectEqual(Note.new(0, 4).midi(), 60); // C4
-//     try testing.expectEqual(Note.new(9, 4).midi(), 69); // A4
-//     try testing.expectEqual(Note.new(7, 9).midi(), 127); // G9
-// }
+test "create from midi note" {
+    var expected: Note = undefined;
 
-// test "create from midi note" {
-//     try testing.expectEqual(Note.fromMidi(0), Note.new(0, -1)); // C-1
-//     try testing.expectEqual(Note.fromMidi(60), Note.new(0, 4)); // C4
-//     try testing.expectEqual(Note.fromMidi(69), Note.new(9, 4)); // A4
-//     try testing.expectEqual(Note.fromMidi(127), Note.new(7, 9)); // G9
-// }
+    expected = try Note.parse("C-1");
+    try std.testing.expectEqual(expected, Note.fromMidi(0));
+    expected = try Note.parse("C4");
+    try std.testing.expectEqual(expected, Note.fromMidi(60));
+    expected = try Note.parse("A4");
+    try std.testing.expectEqual(expected, Note.fromMidi(69));
+    expected = try Note.parse("G9");
+    try std.testing.expectEqual(expected, Note.fromMidi(127));
+}
