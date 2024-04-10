@@ -86,7 +86,7 @@ pub const Pitch = struct {
 
     // Creates a Pitch from a pitch class.
     pub fn new(pitch_class: u8) Pitch {
-        const normalized_pc = @as(usize, @intCast(wrapPitchClass(pitch_class)));
+        assert(pitch_class < 12);
 
         // Mapping of pitch class numbers to default Letters and Accidentals.
         // 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
@@ -105,7 +105,7 @@ pub const Pitch = struct {
             Pitch{ .letter = .B, .accidental = null },
         };
 
-        return mapping[normalized_pc];
+        return mapping[pitch_class];
     }
 
     // Returns the pitch class value of the Pitch.
@@ -133,7 +133,6 @@ pub const Note = struct {
     octave: i32,
 
     pub fn parse(chars: []const u8) !Note {
-        log.debug("Note.parse(\"{s}\")", .{chars});
         if (chars.len < 2) return error.InvalidNoteFormat;
 
         // Parse the note letter.
@@ -189,6 +188,52 @@ pub const Note = struct {
         return self.pitch.pitchClass();
     }
 
+    // Returns the effective octave, considering pitch and accidentals.
+    pub fn effectiveOctave(self: Note) i32 {
+        var adjustment: i32 = 0;
+
+        if (self.pitch.accidental) |acc| {
+            switch (acc) {
+                .Flat => {
+                    if (self.pitch.letter == .C) {
+                        adjustment -= 1;
+                    }
+                },
+                .DoubleFlat => {
+                    if (self.pitch.letter == .C) {
+                        adjustment -= 1;
+                    }
+                },
+                .Sharp => {
+                    if (self.pitch.letter == .B) {
+                        adjustment += 1;
+                    }
+                },
+                .DoubleSharp => {
+                    if (self.pitch.letter == .B) {
+                        adjustment += 1;
+                    }
+                },
+                else => {},
+            }
+        }
+
+        return self.octave + adjustment;
+    }
+
+    pub fn semitoneDistance(self: Note, other: Note) i32 {
+        log.debug("semitoneDistance from {} to {}", .{ self, other });
+
+        const octave_distance =
+            (other.effectiveOctave() - self.effectiveOctave()) * semitones_per_octave;
+        const pitch_distance = other.pitch.pitchClass() - self.pitch.pitchClass();
+
+        log.debug("octave_distance: {}", .{octave_distance});
+        log.debug("pitch_distance: {}", .{pitch_distance});
+
+        return octave_distance + pitch_distance;
+    }
+
     pub fn format(self: Note, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         try self.pitch.format(fmt, options, writer);
         try writer.print("{d}", .{self.octave});
@@ -202,48 +247,72 @@ test "parse basic note without accidental" {
     try std.testing.expectEqual(4, note.octave);
 }
 
+test "semitoneDistance" {
+    // std.testing.log_level = .debug;
+
+    const TestCase = struct {
+        n1: []const u8,
+        n2: []const u8,
+        expected: i32,
+    };
+
+    const test_cases = [_]TestCase{
+        TestCase{ .n1 = "C1", .n2 = "C8", .expected = 84 },
+        TestCase{ .n1 = "A0", .n2 = "C8", .expected = 87 },
+        TestCase{ .n1 = "C0", .n2 = "B8", .expected = 107 },
+
+        TestCase{ .n1 = "A0", .n2 = "C4", .expected = 39 },
+        TestCase{ .n1 = "C4", .n2 = "A0", .expected = -39 },
+        TestCase{ .n1 = "C4", .n2 = "C5", .expected = 12 },
+        TestCase{ .n1 = "C4", .n2 = "C3", .expected = -12 },
+        TestCase{ .n1 = "C4", .n2 = "A4", .expected = 9 },
+        TestCase{ .n1 = "C4", .n2 = "A3", .expected = -3 },
+
+        TestCase{ .n1 = "B3", .n2 = "B#3", .expected = 1 },
+        TestCase{ .n1 = "B3", .n2 = "C4", .expected = 1 },
+        TestCase{ .n1 = "C4", .n2 = "B3", .expected = -1 },
+        TestCase{ .n1 = "C4", .n2 = "Cb4", .expected = -1 },
+
+        TestCase{ .n1 = "B#3", .n2 = "C4", .expected = 0 },
+        TestCase{ .n1 = "Cb4", .n2 = "B3", .expected = 0 },
+        TestCase{ .n1 = "C##4", .n2 = "D4", .expected = 0 },
+        TestCase{ .n1 = "Dbb4", .n2 = "C4", .expected = 0 },
+        TestCase{ .n1 = "E#4", .n2 = "F4", .expected = 0 },
+        TestCase{ .n1 = "Fb4", .n2 = "E4", .expected = 0 },
+        TestCase{ .n1 = "F#4", .n2 = "Gb4", .expected = 0 },
+
+        TestCase{ .n1 = "C4", .n2 = "Cbb4", .expected = -2 },
+        TestCase{ .n1 = "C4", .n2 = "Cb4", .expected = -1 },
+        TestCase{ .n1 = "C4", .n2 = "C4", .expected = 0 },
+        TestCase{ .n1 = "C4", .n2 = "C#4", .expected = 1 },
+        TestCase{ .n1 = "C4", .n2 = "C##4", .expected = 2 },
+
+        TestCase{ .n1 = "G4", .n2 = "G#4", .expected = 1 },
+        TestCase{ .n1 = "G4", .n2 = "G##4", .expected = 2 },
+        TestCase{ .n1 = "Gb4", .n2 = "G4", .expected = 1 },
+        TestCase{ .n1 = "Gb4", .n2 = "G#4", .expected = 2 },
+        TestCase{ .n1 = "Gb4", .n2 = "G##4", .expected = 3 },
+        TestCase{ .n1 = "Gbb4", .n2 = "Gb4", .expected = 1 },
+        TestCase{ .n1 = "Gbb4", .n2 = "G4", .expected = 2 },
+        TestCase{ .n1 = "Gbb4", .n2 = "G#4", .expected = 3 },
+        TestCase{ .n1 = "Gbb4", .n2 = "G##4", .expected = 4 },
+    };
+
+    for (test_cases) |test_case| {
+        const n1 = try Note.parse(test_case.n1);
+        const n2 = try Note.parse(test_case.n2);
+        const result = n1.semitoneDistance(n2);
+        try std.testing.expectEqual(test_case.expected, result);
+    }
+}
+
 // pub const Note = struct {
 //     pitch_class: u8,
 //     octave: i8,
 
-//     pub fn new(pitch_class: u8, octave: i8) Note {
-//         assert(pitch_class < semitones_per_octave);
-//         assert(octave >= -1 and octave <= 9);
-
-//         return Note{
-//             .pitch_class = pitch_class,
-//             .octave = octave,
-//         };
-//     }
-
 //     pub fn parse(chars: []const u8) !Note {
-//         assert(chars.len > 1);
-
-//         const letter = std.ascii.toUpper(chars[0]);
-
-//         var pitch_map: [26]u8 = undefined;
-//         pitch_map['C' - 'A'] = 0;
-//         pitch_map['D' - 'A'] = 2;
-//         pitch_map['E' - 'A'] = 4;
-//         pitch_map['F' - 'A'] = 5;
-//         pitch_map['G' - 'A'] = 7;
-//         pitch_map['A' - 'A'] = 9;
-//         pitch_map['B' - 'A'] = 11;
-
 //         // Parse the pitch class.
-//         if (letter < 'A' or letter > 'G') return error.InvalidNoteFormat;
 //         const pitch_class_base = pitch_map[letter - 'A'];
-
-//         // Check for accidentals.
-//         var accidental: i8 = 0;
-//         var octave_start: usize = 1;
-
-//         if (chars.len > 2) {
-//             if (chars[1] == '#' or chars[1] == 'b') {
-//                 accidental = if (chars[1] == '#') 1 else -1;
-//                 octave_start += 1;
-//             }
-//         }
 
 //         // Parse the octave.
 //         const octave_str = chars[octave_start..];
@@ -260,17 +329,6 @@ test "parse basic note without accidental" {
 //             pitch_class += semitones_per_octave;
 //             octave -= 1;
 //         }
-
-//         log.debug("", .{});
-//         log.debug("chars: {s}", .{chars});
-//         log.debug("letter: {c}", .{letter});
-//         log.debug("accidental: {}", .{accidental});
-//         log.debug("octave_start: {}", .{octave_start});
-//         log.debug("octave: {}", .{octave});
-//         log.debug("pitch_class_base: {}", .{pitch_class_base});
-//         log.debug("pitch_class: {}", .{pitch_class});
-
-//         return Note.new(@as(u8, @intCast(pitch_class)), octave);
 //     }
 
 //     // Returns the fundamental frequency in Hz using twelve-tone equal temperament (12-TET).
