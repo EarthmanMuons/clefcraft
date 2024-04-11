@@ -55,7 +55,7 @@ pub const Accidental = enum {
     DoubleSharp,
 
     // Returns the pitch class adjustment for the Accidental.
-    pub fn adjustment(self: Accidental) i32 {
+    pub fn pitchClassAdjustment(self: Accidental) i32 {
         return switch (self) {
             .DoubleFlat => -2,
             .Flat => -1,
@@ -110,7 +110,7 @@ pub const Pitch = struct {
     // Returns the pitch class value of the Pitch.
     pub fn pitchClass(self: Pitch) i32 {
         const base_pc = self.letter.pitchClass();
-        const adjustment = if (self.accidental) |acc| acc.adjustment() else 0;
+        const adjustment = if (self.accidental) |acc| acc.pitchClassAdjustment() else 0;
 
         return wrapPitchClass(base_pc + adjustment);
     }
