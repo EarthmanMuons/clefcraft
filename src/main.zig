@@ -1,21 +1,24 @@
 const std = @import("std");
 
-const clefcraft = @import("root.zig");
-const Note = clefcraft.Note;
-const Pitch = clefcraft.Pitch;
-
 pub fn main() !void {
-    // for (0..12) |pitch| {
-    //     const note = clefcraft.Note.new(@intCast(pitch), 4);
-    //     std.debug.print("Note: {}\tFrequency: {d:.3} Hz\n", .{ note, note.freq() });
-    // }
+    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
+    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
 
-    var n1 = try Note.parse("C4");
-    std.debug.print("{} pitch class: {}\n", .{ n1, n1.pitchClass() });
+    // stdout is for the actual output of your application, for example if you
+    // are implementing gzip, then only the compressed bytes should be sent to
+    // stdout, not any debugging messages.
+    const stdout_file = std.io.getStdOut().writer();
+    var bw = std.io.bufferedWriter(stdout_file);
+    const stdout = bw.writer();
 
-    const n2 = try Note.parse("A4");
-    // std.debug.print("{} pitch class: {}\n", .{ n2, n2.pitchClass() });
-    std.debug.print("frequency: {d:.3}\n", .{n2.freq()});
+    try stdout.print("Run `zig build test` to run the tests.\n", .{});
 
-    std.debug.print("distance from {} to {}: {}", .{ n1, n2, n1.semitoneDistance(n2) });
+    try bw.flush(); // don't forget to flush!
+}
+
+test "simple test" {
+    var list = std.ArrayList(i32).init(std.testing.allocator);
+    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
+    try list.append(42);
+    try std.testing.expectEqual(@as(i32, 42), list.pop());
 }
