@@ -209,6 +209,7 @@ pub const Note = struct {
     pitch: Pitch,
     octave: i32,
 
+    // Creates a Note from a string representaion.
     pub fn parse(chars: []const u8) !Note {
         if (chars.len < 2) return error.InvalidNoteFormat;
 
