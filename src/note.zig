@@ -87,7 +87,7 @@ pub const Pitch = struct {
     pub fn new(pitch_class: u8) Pitch {
         assert(pitch_class < semitones_per_octave);
 
-        // Mapping of pitch class numbers to default Letters and Accidentals.
+        // Mapping of a pitch class to its default Pitch.
         // 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
         const mapping = [_]Pitch{
             Pitch{ .letter = .C, .accidental = null },
@@ -107,7 +107,7 @@ pub const Pitch = struct {
         return mapping[pitch_class];
     }
 
-    // Returns the pitch class value of the Pitch.
+    // Returns the pitch class of the Pitch.
     pub fn pitchClass(self: Pitch) i32 {
         const base_pc = self.letter.pitchClass();
         const adjustment = if (self.accidental) |acc| acc.pitchClassAdjustment() else 0;
@@ -115,6 +115,7 @@ pub const Pitch = struct {
         return wrapPitchClass(base_pc + adjustment);
     }
 
+    // Returns the circle of fifths position of the Pitch.
     pub fn fifthsPosition(self: Pitch) i32 {
         // Base position for natural notes in the circle of fifths.
         const base_position: i32 = switch (self.letter) {
@@ -142,10 +143,11 @@ pub const Pitch = struct {
         return position;
     }
 
+    // Creates a Pitch from a circle of fifths position.
     fn fromFifthsPosition(position: i32) Pitch {
         assert(-15 <= position and position <= 19);
 
-        // Mapping of circle of fifths positions to Pitches.
+        // Mapping of a circle of fifths position to its Pitch.
         const mapping = [_]Pitch{
             Pitch{ .letter = .F, .accidental = .DoubleFlat }, // -15
             Pitch{ .letter = .C, .accidental = .DoubleFlat }, // -14
@@ -184,7 +186,7 @@ pub const Pitch = struct {
             Pitch{ .letter = .B, .accidental = .DoubleSharp }, // 19
         };
 
-        // Adjust the index for negative positions
+        // Adjust the index for negative positions.
         const index = position + 15;
 
         return mapping[index];
@@ -226,20 +228,20 @@ pub const Note = struct {
         var octave_start: usize = 1;
         if (chars.len > 2) {
             accidental = switch (chars[1]) {
-                '#' => Accidental.Sharp,
                 'b' => Accidental.Flat,
                 'n' => Accidental.Natural,
+                '#' => Accidental.Sharp,
                 'x' => Accidental.DoubleSharp,
                 else => null,
             };
             if (accidental != null) octave_start += 1;
         }
         if (chars.len > 3) {
-            if (chars[1] == '#' and chars[2] == '#') {
-                accidental = Accidental.DoubleSharp;
-                octave_start += 1;
-            } else if (chars[1] == 'b' and chars[2] == 'b') {
+            if (chars[1] == 'b' and chars[2] == 'b') {
                 accidental = Accidental.DoubleFlat;
+                octave_start += 1;
+            } else if (chars[1] == '#' and chars[2] == '#') {
+                accidental = Accidental.DoubleSharp;
                 octave_start += 1;
             }
         }
@@ -255,7 +257,7 @@ pub const Note = struct {
         return self.pitch.pitchClass();
     }
 
-    // Returns the effective octave, considering pitch and accidentals.
+    // Returns the effective octave of the Note, considering pitch and accidentals.
     pub fn effectiveOctave(self: Note) i32 {
         var adjustment: i32 = 0;
 
@@ -279,13 +281,14 @@ pub const Note = struct {
     }
 
     pub fn semitoneDistance(self: Note, other: Note) i32 {
-        const octave_distance = (other.effectiveOctave() - self.effectiveOctave()) * semitones_per_octave;
+        const octave_distance =
+            (other.effectiveOctave() - self.effectiveOctave()) * semitones_per_octave;
         const pitch_distance = other.pitch.pitchClass() - self.pitch.pitchClass();
 
         return octave_distance + pitch_distance;
     }
 
-    // Returns the fundamental frequency in Hz using twelve-tone equal temperament (12-TET).
+    // Returns the frequency of the Note in Hz, using twelve-tone equal temperament (12-TET).
     pub fn freq(self: Note) f64 {
         const semitones_from_ref = reference_note.semitoneDistance(self);
         const semitone_distance_ratio =
@@ -295,13 +298,16 @@ pub const Note = struct {
         return reference_frequency * @exp2(semitone_distance_ratio);
     }
 
+    // Creates a Note from a frequency in Hz, using twelve-tone equal temperament (12-TET).
     pub fn fromFreq(frequency: f64) Note {
         assert(frequency > 0);
 
-        const semitones_from_ref_raw = @log2(frequency / reference_frequency) * semitones_per_octave;
+        const semitones_from_ref_raw =
+            @log2(frequency / reference_frequency) * semitones_per_octave;
         const semitones_from_ref = @as(i32, @intFromFloat(@round(semitones_from_ref_raw)));
 
-        const refnote_absolute_position = reference_note.pitchClass() + (reference_note.octave * semitones_per_octave);
+        const refnote_absolute_position =
+            reference_note.pitchClass() + (reference_note.octave * semitones_per_octave);
         const target_absolute_position = semitones_from_ref + refnote_absolute_position;
 
         const pitch_class = wrapPitchClass(target_absolute_position);
@@ -311,7 +317,7 @@ pub const Note = struct {
         return Note{ .pitch = pitch, .octave = octave };
     }
 
-    // Returns the MIDI note number.
+    // Returns the MIDI note number of the Note.
     pub fn midi(self: Note) i32 {
         const octave_offset = (self.effectiveOctave() + 1) * semitones_per_octave;
         const midi_note = octave_offset + self.pitchClass();
@@ -320,6 +326,7 @@ pub const Note = struct {
         return midi_note;
     }
 
+    // Creates a Note from a MIDI note number.
     pub fn fromMidi(midi_note: i32) Note {
         const pitch_class = @mod(midi_note, semitones_per_octave);
         const octave = @divTrunc(midi_note, semitones_per_octave) - 1;
@@ -403,8 +410,6 @@ test "semitoneDistance" {
 }
 
 test "frequency calculation" {
-    // std.testing.log_level = .debug;
-
     const TestCase = struct {
         n1: []const u8,
         expected: f64,
@@ -428,7 +433,8 @@ test "frequency calculation" {
 
         const passed = std.math.approxEqAbs(f64, test_case.expected, result, epsilon);
         if (!passed) {
-            std.debug.print("\nTest case: {}, expected {d:.3}, found {d:.3}\n", .{ note, test_case.expected, result });
+            const fmt = "\nTest case: {}, expected {d:.3}, found {d:.3}\n";
+            std.debug.print(fmt, .{ note, test_case.expected, result });
         }
         try std.testing.expect(passed);
     }
