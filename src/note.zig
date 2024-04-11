@@ -281,6 +281,10 @@ pub const Note = struct {
         return self.octave + adjustment;
     }
 
+    pub fn isEnharmonic(self: Note, other: Note) bool {
+        return self.pitchClass() == other.pitchClass();
+    }
+
     pub fn semitoneDistance(self: Note, other: Note) i32 {
         const octave_distance =
             (other.effectiveOctave() - self.effectiveOctave()) * semitones_per_octave;
