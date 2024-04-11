@@ -97,7 +97,7 @@ pub const Note = struct {
     pub fn semitoneDistance(self: Note, other: Note) i32 {
         const octave_distance =
             (other.effectiveOctave() - self.effectiveOctave()) * semitones_per_octave;
-        const pitch_distance = other.pitch.pitchClass() - self.pitch.pitchClass();
+        const pitch_distance = other.pitchClass() - self.pitchClass();
 
         return octave_distance + pitch_distance;
     }
@@ -127,7 +127,7 @@ pub const Note = struct {
         const pitch_class = wrapPitchClass(target_absolute_position);
         const octave = @divTrunc(target_absolute_position, semitones_per_octave);
 
-        const pitch = Pitch.new(@intCast(pitch_class));
+        const pitch = Pitch.new(pitch_class);
         return Note{ .pitch = pitch, .octave = octave };
     }
 
@@ -145,7 +145,7 @@ pub const Note = struct {
         const pitch_class = @mod(midi_note, semitones_per_octave);
         const octave = @divTrunc(midi_note, semitones_per_octave) - 1;
 
-        const pitch = Pitch.new(@intCast(pitch_class));
+        const pitch = Pitch.new(pitch_class);
         return Note{ .pitch = pitch, .octave = octave };
     }
 
@@ -160,8 +160,8 @@ pub const Pitch = struct {
     accidental: ?Accidental,
 
     // Creates a Pitch from a pitch class.
-    pub fn new(pitch_class: u8) Pitch {
-        assert(pitch_class < semitones_per_octave);
+    pub fn new(pitch_class: i32) Pitch {
+        assert(0 <= pitch_class and pitch_class < semitones_per_octave);
 
         // Mapping of a pitch class to its default Pitch.
         // 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
@@ -180,7 +180,7 @@ pub const Pitch = struct {
             Pitch{ .letter = .B, .accidental = null },
         };
 
-        return mapping[pitch_class];
+        return mapping[@intCast(pitch_class)];
     }
 
     // Returns the pitch class value of the Pitch.
