@@ -7,7 +7,7 @@ const reference_pitch = Pitch{ .letter = .A, .accidental = null };
 const reference_note = Note{ .pitch = reference_pitch, .octave = 4 };
 const reference_frequency = 440.0; // hertz
 
-const semitones_per_octave = 12;
+pub const semitones_per_octave = 12;
 
 pub const Note = struct {
     const Self = @This();
@@ -165,6 +165,7 @@ pub const Note = struct {
         return Self{ .pitch = pitch, .octave = octave };
     }
 
+    // Formats the Note as a string.
     pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         try self.pitch.format(fmt, options, writer);
         try writer.print("{d}", .{self.octave});
@@ -286,6 +287,7 @@ pub const Pitch = struct {
         return mapping[index];
     }
 
+    // Formats the Pitch as a string.
     pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         try self.letter.format(fmt, options, writer);
         if (self.accidental) |acc| {
@@ -318,6 +320,7 @@ pub const Letter = enum {
         };
     }
 
+    // Formats the Letter as a string.
     pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
         _ = options;
@@ -354,6 +357,7 @@ pub const Accidental = enum {
         };
     }
 
+    // Formats the Accidental as a string.
     pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
         _ = options;
