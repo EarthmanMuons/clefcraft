@@ -9,73 +9,146 @@ const reference_frequency = 440.0; // hertz
 
 const semitones_per_octave = 12;
 
-pub const Letter = enum {
-    A,
-    B,
-    C,
-    D,
-    E,
-    F,
-    G,
+pub const Note = struct {
+    pitch: Pitch,
+    octave: i32,
 
-    // Returns the pitch class value for the Letter.
-    pub fn pitchClass(self: Letter) i32 {
-        return switch (self) {
-            .C => 0,
-            .D => 2,
-            .E => 4,
-            .F => 5,
-            .G => 7,
-            .A => 9,
-            .B => 11,
+    // Creates a Note from a string representation.
+    pub fn parse(chars: []const u8) !Note {
+        if (chars.len < 2) return error.InvalidNoteFormat;
+
+        const letter = std.ascii.toUpper(chars[0]);
+        const note_letter = switch (letter) {
+            'A' => Letter.A,
+            'B' => Letter.B,
+            'C' => Letter.C,
+            'D' => Letter.D,
+            'E' => Letter.E,
+            'F' => Letter.F,
+            'G' => Letter.G,
+            else => return error.InvalidLetter,
         };
+
+        var accidental: ?Accidental = null;
+        var octave_start: usize = 1;
+        if (chars.len > 2) {
+            accidental = switch (chars[1]) {
+                'b' => Accidental.Flat,
+                'n' => Accidental.Natural,
+                '#' => Accidental.Sharp,
+                'x' => Accidental.DoubleSharp,
+                else => null,
+            };
+            if (accidental != null) octave_start += 1;
+        }
+        if (chars.len > 3) {
+            if (chars[1] == 'b' and chars[2] == 'b') {
+                accidental = Accidental.DoubleFlat;
+                octave_start += 1;
+            } else if (chars[1] == '#' and chars[2] == '#') {
+                accidental = Accidental.DoubleSharp;
+                octave_start += 1;
+            }
+        }
+        const octave_str = chars[octave_start..];
+        const octave = std.fmt.parseInt(i32, octave_str, 10) catch return error.InvalidOctave;
+
+        const pitch = Pitch{ .letter = note_letter, .accidental = accidental };
+        return Note{ .pitch = pitch, .octave = octave };
     }
 
-    pub fn format(self: Letter, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        _ = fmt;
-        _ = options;
-        const letter = switch (self) {
-            .A => "A",
-            .B => "B",
-            .C => "C",
-            .D => "D",
-            .E => "E",
-            .F => "F",
-            .G => "G",
-        };
-        try writer.print("{s}", .{letter});
-    }
-};
+    // Returns the effective octave of the Note, considering pitch and accidentals.
+    pub fn effectiveOctave(self: Note) i32 {
+        var adjustment: i32 = 0;
 
-pub const Accidental = enum {
-    DoubleFlat,
-    Flat,
-    Natural,
-    Sharp,
-    DoubleSharp,
+        if (self.pitch.accidental) |acc| {
+            switch (acc) {
+                .Flat, .DoubleFlat => {
+                    if (self.pitch.letter == .C) {
+                        adjustment -= 1;
+                    }
+                },
+                .Sharp, .DoubleSharp => {
+                    if (self.pitch.letter == .B) {
+                        adjustment += 1;
+                    }
+                },
+                else => {},
+            }
+        }
 
-    // Returns the pitch class adjustment for the Accidental.
-    pub fn pitchClassAdjustment(self: Accidental) i32 {
-        return switch (self) {
-            .DoubleFlat => -2,
-            .Flat => -1,
-            .Natural => 0,
-            .Sharp => 1,
-            .DoubleSharp => 2,
-        };
+        return self.octave + adjustment;
     }
 
-    pub fn format(self: Accidental, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        _ = fmt;
-        _ = options;
-        const symbol = switch (self) {
-            .DoubleFlat => "𝄫",
-            .Flat => "♭",
-            .Natural => "♮",
-            .Sharp => "♯",
-            .DoubleSharp => "𝄪",
-        };
-        try writer.print("{s}", .{symbol});
+    // Returns the pitch class value of the Note.
+    pub fn pitchClass(self: Note) i32 {
+        return self.pitch.pitchClass();
+    }
+
+    // Returns if the Note is enharmonic to another Note.
+    pub fn isEnharmonic(self: Note, other: Note) bool {
+        return self.pitchClass() == other.pitchClass();
+    }
+
+    // Returns the distance in semitones from the Note to another Note.
+    pub fn semitoneDistance(self: Note, other: Note) i32 {
+        const octave_distance =
+            (other.effectiveOctave() - self.effectiveOctave()) * semitones_per_octave;
+        const pitch_distance = other.pitch.pitchClass() - self.pitch.pitchClass();
+
+        return octave_distance + pitch_distance;
+    }
+
+    // Returns the frequency of the Note in Hz, using twelve-tone equal temperament (12-TET).
+    pub fn freq(self: Note) f64 {
+        const semitones_from_ref = reference_note.semitoneDistance(self);
+        const semitone_distance_ratio =
+            @as(f64, @floatFromInt(semitones_from_ref)) /
+            @as(f64, @floatFromInt(semitones_per_octave));
+
+        return reference_frequency * @exp2(semitone_distance_ratio);
+    }
+
+    // Creates a Note from a frequency in Hz, using twelve-tone equal temperament (12-TET).
+    pub fn fromFreq(frequency: f64) Note {
+        assert(frequency > 0);
+
+        const semitones_from_ref_raw =
+            @log2(frequency / reference_frequency) * semitones_per_octave;
+        const semitones_from_ref = @as(i32, @intFromFloat(@round(semitones_from_ref_raw)));
+
+        const refnote_absolute_position =
+            reference_note.pitchClass() + (reference_note.octave * semitones_per_octave);
+        const target_absolute_position = semitones_from_ref + refnote_absolute_position;
+
+        const pitch_class = wrapPitchClass(target_absolute_position);
+        const octave = @divTrunc(target_absolute_position, semitones_per_octave);
+
+        const pitch = Pitch.new(@intCast(pitch_class));
+        return Note{ .pitch = pitch, .octave = octave };
+    }
+
+    // Returns the MIDI note number of the Note.
+    pub fn midi(self: Note) i32 {
+        const octave_offset = (self.effectiveOctave() + 1) * semitones_per_octave;
+        const midi_note = octave_offset + self.pitchClass();
+
+        assert(0 <= midi_note and midi_note <= 127);
+        return midi_note;
+    }
+
+    // Creates a Note from a MIDI note number.
+    pub fn fromMidi(midi_note: i32) Note {
+        const pitch_class = @mod(midi_note, semitones_per_octave);
+        const octave = @divTrunc(midi_note, semitones_per_octave) - 1;
+
+        const pitch = Pitch.new(@intCast(pitch_class));
+        return Note{ .pitch = pitch, .octave = octave };
+    }
+
+    pub fn format(self: Note, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        try self.pitch.format(fmt, options, writer);
+        try writer.print("{d}", .{self.octave});
     }
 };
 
@@ -200,160 +273,89 @@ pub const Pitch = struct {
     }
 };
 
-// Utility function to wrap pitch class values within the 0-11 range.
+pub const Letter = enum {
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+
+    // Returns the pitch class value for the Letter.
+    pub fn pitchClass(self: Letter) i32 {
+        return switch (self) {
+            .C => 0,
+            .D => 2,
+            .E => 4,
+            .F => 5,
+            .G => 7,
+            .A => 9,
+            .B => 11,
+        };
+    }
+
+    pub fn format(self: Letter, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        const letter = switch (self) {
+            .A => "A",
+            .B => "B",
+            .C => "C",
+            .D => "D",
+            .E => "E",
+            .F => "F",
+            .G => "G",
+        };
+        try writer.print("{s}", .{letter});
+    }
+};
+
+pub const Accidental = enum {
+    DoubleFlat,
+    Flat,
+    Natural,
+    Sharp,
+    DoubleSharp,
+
+    // Returns the pitch class adjustment for the Accidental.
+    pub fn pitchClassAdjustment(self: Accidental) i32 {
+        return switch (self) {
+            .DoubleFlat => -2,
+            .Flat => -1,
+            .Natural => 0,
+            .Sharp => 1,
+            .DoubleSharp => 2,
+        };
+    }
+
+    pub fn format(self: Accidental, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+        _ = fmt;
+        _ = options;
+        const symbol = switch (self) {
+            .DoubleFlat => "𝄫",
+            .Flat => "♭",
+            .Natural => "♮",
+            .Sharp => "♯",
+            .DoubleSharp => "𝄪",
+        };
+        try writer.print("{s}", .{symbol});
+    }
+};
+
+// Wraps the pitch class value within the 0-11 range.
 fn wrapPitchClass(value: i32) i32 {
     return @mod(value + semitones_per_octave, semitones_per_octave);
 }
 
-pub const Note = struct {
-    pitch: Pitch,
-    octave: i32,
-
-    // Creates a Note from a string representaion.
-    pub fn parse(chars: []const u8) !Note {
-        if (chars.len < 2) return error.InvalidNoteFormat;
-
-        const letter = std.ascii.toUpper(chars[0]);
-        const note_letter = switch (letter) {
-            'A' => Letter.A,
-            'B' => Letter.B,
-            'C' => Letter.C,
-            'D' => Letter.D,
-            'E' => Letter.E,
-            'F' => Letter.F,
-            'G' => Letter.G,
-            else => return error.InvalidLetter,
-        };
-
-        var accidental: ?Accidental = null;
-        var octave_start: usize = 1;
-        if (chars.len > 2) {
-            accidental = switch (chars[1]) {
-                'b' => Accidental.Flat,
-                'n' => Accidental.Natural,
-                '#' => Accidental.Sharp,
-                'x' => Accidental.DoubleSharp,
-                else => null,
-            };
-            if (accidental != null) octave_start += 1;
-        }
-        if (chars.len > 3) {
-            if (chars[1] == 'b' and chars[2] == 'b') {
-                accidental = Accidental.DoubleFlat;
-                octave_start += 1;
-            } else if (chars[1] == '#' and chars[2] == '#') {
-                accidental = Accidental.DoubleSharp;
-                octave_start += 1;
-            }
-        }
-        const octave_str = chars[octave_start..];
-        const octave = std.fmt.parseInt(i32, octave_str, 10) catch return error.InvalidOctave;
-
-        const pitch = Pitch{ .letter = note_letter, .accidental = accidental };
-        return Note{ .pitch = pitch, .octave = octave };
-    }
-
-    // Returns the pitch class value of the Note.
-    pub fn pitchClass(self: Note) i32 {
-        return self.pitch.pitchClass();
-    }
-
-    // Returns the effective octave of the Note, considering pitch and accidentals.
-    pub fn effectiveOctave(self: Note) i32 {
-        var adjustment: i32 = 0;
-
-        if (self.pitch.accidental) |acc| {
-            switch (acc) {
-                .Flat, .DoubleFlat => {
-                    if (self.pitch.letter == .C) {
-                        adjustment -= 1;
-                    }
-                },
-                .Sharp, .DoubleSharp => {
-                    if (self.pitch.letter == .B) {
-                        adjustment += 1;
-                    }
-                },
-                else => {},
-            }
-        }
-
-        return self.octave + adjustment;
-    }
-
-    pub fn isEnharmonic(self: Note, other: Note) bool {
-        return self.pitchClass() == other.pitchClass();
-    }
-
-    pub fn semitoneDistance(self: Note, other: Note) i32 {
-        const octave_distance =
-            (other.effectiveOctave() - self.effectiveOctave()) * semitones_per_octave;
-        const pitch_distance = other.pitch.pitchClass() - self.pitch.pitchClass();
-
-        return octave_distance + pitch_distance;
-    }
-
-    // Returns the frequency of the Note in Hz, using twelve-tone equal temperament (12-TET).
-    pub fn freq(self: Note) f64 {
-        const semitones_from_ref = reference_note.semitoneDistance(self);
-        const semitone_distance_ratio =
-            @as(f64, @floatFromInt(semitones_from_ref)) /
-            @as(f64, @floatFromInt(semitones_per_octave));
-
-        return reference_frequency * @exp2(semitone_distance_ratio);
-    }
-
-    // Creates a Note from a frequency in Hz, using twelve-tone equal temperament (12-TET).
-    pub fn fromFreq(frequency: f64) Note {
-        assert(frequency > 0);
-
-        const semitones_from_ref_raw =
-            @log2(frequency / reference_frequency) * semitones_per_octave;
-        const semitones_from_ref = @as(i32, @intFromFloat(@round(semitones_from_ref_raw)));
-
-        const refnote_absolute_position =
-            reference_note.pitchClass() + (reference_note.octave * semitones_per_octave);
-        const target_absolute_position = semitones_from_ref + refnote_absolute_position;
-
-        const pitch_class = wrapPitchClass(target_absolute_position);
-        const octave = @divTrunc(target_absolute_position, semitones_per_octave);
-
-        const pitch = Pitch.new(@intCast(pitch_class));
-        return Note{ .pitch = pitch, .octave = octave };
-    }
-
-    // Returns the MIDI note number of the Note.
-    pub fn midi(self: Note) i32 {
-        const octave_offset = (self.effectiveOctave() + 1) * semitones_per_octave;
-        const midi_note = octave_offset + self.pitchClass();
-
-        assert(0 <= midi_note and midi_note <= 127);
-        return midi_note;
-    }
-
-    // Creates a Note from a MIDI note number.
-    pub fn fromMidi(midi_note: i32) Note {
-        const pitch_class = @mod(midi_note, semitones_per_octave);
-        const octave = @divTrunc(midi_note, semitones_per_octave) - 1;
-
-        const pitch = Pitch.new(@intCast(pitch_class));
-        return Note{ .pitch = pitch, .octave = octave };
-    }
-
-    pub fn format(self: Note, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        try self.pitch.format(fmt, options, writer);
-        try writer.print("{d}", .{self.octave});
-    }
-};
-
-test "parse basic note without accidental" {
+test "parse note without accidental" {
     const note = try Note.parse("C4");
     try std.testing.expectEqual(Letter.C, note.pitch.letter);
     try std.testing.expectEqual(null, note.pitch.accidental);
     try std.testing.expectEqual(4, note.octave);
 }
 
-test "semitoneDistance" {
+test "semitone distance" {
     const TestCase = struct {
         n1: []const u8,
         n2: []const u8,
@@ -466,7 +468,7 @@ test "create from frequency" {
     try std.testing.expectEqual(expected, Note.fromFreq(12543.854));
 }
 
-test "midi note calculation" {
+test "midi note number calculation" {
     const TestCase = struct {
         n1: []const u8,
         expected: i32,
@@ -492,7 +494,7 @@ test "midi note calculation" {
     }
 }
 
-test "create from midi note" {
+test "create from midi note number" {
     var expected: Note = undefined;
 
     expected = try Note.parse("C-1");
