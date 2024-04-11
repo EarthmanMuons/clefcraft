@@ -17,8 +17,8 @@ pub const Note = struct {
     pub fn parse(chars: []const u8) !Note {
         if (chars.len < 2) return error.InvalidNoteFormat;
 
-        const letter = std.ascii.toUpper(chars[0]);
-        const note_letter = switch (letter) {
+        const letter_char = std.ascii.toUpper(chars[0]);
+        const letter = switch (letter_char) {
             'A' => Letter.A,
             'B' => Letter.B,
             'C' => Letter.C,
@@ -53,11 +53,11 @@ pub const Note = struct {
         const octave_str = chars[octave_start..];
         const octave = std.fmt.parseInt(i32, octave_str, 10) catch return error.InvalidOctave;
 
-        const pitch = Pitch{ .letter = note_letter, .accidental = accidental };
+        const pitch = Pitch{ .letter = letter, .accidental = accidental };
         return Note{ .pitch = pitch, .octave = octave };
     }
 
-    // Returns the effective octave of the Note, considering pitch and accidentals.
+    // Returns the effective octave of the Note, considering accidentals.
     pub fn effectiveOctave(self: Note) i32 {
         var adjustment: i32 = 0;
 
@@ -87,7 +87,10 @@ pub const Note = struct {
 
     // Returns if the Note is enharmonic to another Note.
     pub fn isEnharmonic(self: Note, other: Note) bool {
-        return self.pitchClass() == other.pitchClass();
+        const same_octave = self.effectiveOctave() == other.effectiveOctave();
+        const same_pitch_class = self.pitchClass() == other.pitchClass();
+
+        return same_octave and same_pitch_class;
     }
 
     // Returns the distance in semitones from the Note to another Note.
@@ -180,12 +183,12 @@ pub const Pitch = struct {
         return mapping[pitch_class];
     }
 
-    // Returns the pitch class of the Pitch.
+    // Returns the pitch class value of the Pitch.
     pub fn pitchClass(self: Pitch) i32 {
-        const base_pc = self.letter.pitchClass();
+        const base_pitch_class = self.letter.pitchClass();
         const adjustment = if (self.accidental) |acc| acc.pitchClassAdjustment() else 0;
 
-        return wrapPitchClass(base_pc + adjustment);
+        return wrapPitchClass(base_pitch_class + adjustment);
     }
 
     // Returns the circle of fifths position of the Pitch.
