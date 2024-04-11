@@ -11,5 +11,6 @@ test "basic add functionality" {
 
 test {
     // Run all unit tests.
+    _ = @import("interval.zig");
     _ = @import("note.zig");
 }
