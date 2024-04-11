@@ -80,7 +80,7 @@ pub const Note = struct {
         return self.octave + adjustment;
     }
 
-    // Returns the pitch class value of the Note.
+    // Returns the pitch class of the Note.
     pub fn pitchClass(self: Note) i32 {
         return self.pitch.pitchClass();
     }
@@ -102,27 +102,41 @@ pub const Note = struct {
         return octave_distance + pitch_distance;
     }
 
-    // Returns the frequency of the Note in Hz, using twelve-tone equal temperament (12-TET).
+    // Returns the frequency of the Note in Hz, using twelve-tone equal temperament (12-TET)
+    // and the standard A440 reference pitch.
     pub fn freq(self: Note) f64 {
-        const semitones_from_ref = reference_note.semitoneDistance(self);
+        return self.freqUsingReference(reference_note, reference_frequency);
+    }
+
+    // Returns the frequency of the Note in Hz, using twelve-tone equal temperament (12-TET)
+    // and the custom reference pitch.
+    pub fn freqUsingReference(self: Note, ref_note: Note, ref_frequency: f64) f64 {
+        const semitones_from_ref = ref_note.semitoneDistance(self);
         const semitone_distance_ratio =
             @as(f64, @floatFromInt(semitones_from_ref)) /
             @as(f64, @floatFromInt(semitones_per_octave));
 
-        return reference_frequency * @exp2(semitone_distance_ratio);
+        return ref_frequency * @exp2(semitone_distance_ratio);
     }
 
-    // Creates a Note from a frequency in Hz, using twelve-tone equal temperament (12-TET).
+    // Creates a Note from a frequency in Hz, using twelve-tone equal temperament (12-TET)
+    // and the standard A440 reference pitch.
     pub fn fromFreq(frequency: f64) Note {
+        return Note.fromFreqUsingReference(frequency, reference_note, reference_frequency);
+    }
+
+    // Creates a Note from a frequency in Hz, using twelve-tone equal temperament (12-TET)
+    // and the standard A440 reference pitch.
+    pub fn fromFreqUsingReference(frequency: f64, ref_note: Note, ref_frequency: f64) Note {
         assert(frequency > 0);
 
         const semitones_from_ref_raw =
-            @log2(frequency / reference_frequency) * semitones_per_octave;
+            @log2(frequency / ref_frequency) * semitones_per_octave;
         const semitones_from_ref = @as(i32, @intFromFloat(@round(semitones_from_ref_raw)));
 
-        const refnote_absolute_position =
-            reference_note.pitchClass() + (reference_note.octave * semitones_per_octave);
-        const target_absolute_position = semitones_from_ref + refnote_absolute_position;
+        const ref_note_absolute_position =
+            ref_note.pitchClass() + (ref_note.effectiveOctave() * semitones_per_octave);
+        const target_absolute_position = semitones_from_ref + ref_note_absolute_position;
 
         const pitch_class = wrapPitchClass(target_absolute_position);
         const octave = @divTrunc(target_absolute_position, semitones_per_octave);
@@ -183,7 +197,7 @@ pub const Pitch = struct {
         return mapping[@intCast(pitch_class)];
     }
 
-    // Returns the pitch class value of the Pitch.
+    // Returns the pitch class of the Pitch.
     pub fn pitchClass(self: Pitch) i32 {
         const base_pitch_class = self.letter.pitchClass();
         const adjustment = if (self.accidental) |acc| acc.pitchClassAdjustment() else 0;
@@ -285,7 +299,7 @@ pub const Letter = enum {
     F,
     G,
 
-    // Returns the pitch class value for the Letter.
+    // Returns the pitch class for the Letter.
     pub fn pitchClass(self: Letter) i32 {
         return switch (self) {
             .C => 0,
@@ -346,7 +360,7 @@ pub const Accidental = enum {
     }
 };
 
-// Wraps the pitch class value within the 0-11 range.
+// Wraps the value within the pitch class 0-11 range.
 fn wrapPitchClass(value: i32) i32 {
     return @mod(value + semitones_per_octave, semitones_per_octave);
 }
