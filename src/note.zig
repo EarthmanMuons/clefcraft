@@ -126,7 +126,7 @@ pub const Note = struct {
     }
 
     // Creates a Note from a frequency in Hz, using twelve-tone equal temperament (12-TET)
-    // and the standard A440 reference pitch.
+    // and the custom reference pitch.
     pub fn fromFreqUsingReference(frequency: f64, ref_note: Note, ref_frequency: f64) Note {
         assert(frequency > 0);
 
