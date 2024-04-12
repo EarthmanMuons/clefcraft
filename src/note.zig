@@ -184,7 +184,12 @@ pub const Note = struct {
     }
 
     // Formats the Note as a string.
-    pub fn format(self: Note, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(
+        self: Note,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
         try self.pitch.format(fmt, options, writer);
         try writer.print("{d}", .{self.octave});
     }
@@ -304,7 +309,12 @@ pub const Pitch = struct {
     }
 
     // Formats the Pitch as a string.
-    pub fn format(self: Pitch, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(
+        self: Pitch,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
         try self.letter.format(fmt, options, writer);
         if (self.accidental) |acc| {
             try acc.format(fmt, options, writer);
@@ -345,7 +355,12 @@ pub const Letter = enum {
     }
 
     // Formats the Letter as a string.
-    pub fn format(self: Letter, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(
+        self: Letter,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
         _ = fmt;
         _ = options;
         const letter = switch (self) {
@@ -380,7 +395,12 @@ pub const Accidental = enum {
     }
 
     // Formats the Accidental as a string.
-    pub fn format(self: Accidental, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(
+        self: Accidental,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
         _ = fmt;
         _ = options;
         const symbol = switch (self) {
