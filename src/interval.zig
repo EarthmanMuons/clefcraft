@@ -4,7 +4,7 @@ const log = std.log.scoped(.interval);
 
 const Note = @import("note.zig").Note;
 
-const semitones_per_octave = @import("note").semitones_per_octave;
+const semitones_per_octave = @import("note.zig").semitones_per_octave;
 
 pub const Interval = struct {
     const Self = @This();
@@ -18,6 +18,33 @@ pub const Interval = struct {
         Minor,
         Augmented,
         Diminished,
+
+        pub fn fromSemitoneDistance(distance: i32) !Quality {
+            const wrapped_semitone = @mod(distance, semitones_per_octave);
+            const abs_distance = @abs(distance);
+
+            return switch (wrapped_semitone) {
+                0 => .Perfect,
+                1 => .Augmented,
+                2 => .Major,
+                3 => .Minor,
+                4 => .Major,
+                5 => .Perfect,
+                6 => {
+                    if (abs_distance <= semitones_per_octave * 4) {
+                        return .Augmented;
+                    } else {
+                        return .Diminished;
+                    }
+                },
+                7 => .Perfect,
+                8 => .Augmented,
+                9 => .Major,
+                10 => .Minor,
+                11 => .Major,
+                else => error.InvalidSemitoneDistance,
+            };
+        }
 
         pub fn semitoneAdjustment(self: Quality) i32 {
             return switch (self) {
@@ -41,11 +68,11 @@ pub const Interval = struct {
 
         pub fn asAbbreviation(self: Quality) []const u8 {
             return switch (self) {
-                .Perfect => "perf",
-                .Major => "maj",
-                .Minor => "min",
-                .Augmented => "aug",
-                .Diminished => "dim",
+                .Perfect => "Perf",
+                .Major => "Maj",
+                .Minor => "Min",
+                .Augmented => "Aug",
+                .Diminished => "Dim",
             };
         }
 
@@ -63,7 +90,8 @@ pub const Interval = struct {
         pub fn format(self: Quality, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
             _ = fmt;
             _ = options;
-            try writer.print("{s}", .{self.asAbbreviation});
+            const representation = self.asAbbreviation();
+            try writer.print("{s}", .{representation});
         }
     };
 
@@ -77,15 +105,40 @@ pub const Interval = struct {
         Seventh,
         Octave,
 
-        pub fn fromInt(value: i32) !Number {
-            return std.meta.intToEnum(Number, value) catch |err| switch (err) {
-                error.InvalidEnumTag => error.InvalidIntervalNumber,
-                else => |e| e,
-            };
+        pub fn fromInt(value: u32) !Number {
+            return std.meta.intToEnum(Number, value) catch return error.InvalidIntervalNumber;
         }
 
         pub fn toInt(self: Number) i32 {
             return @intFromEnum(self);
+        }
+
+        pub fn fromSemitoneDistance(distance: i32) !Number {
+            const wrapped_semitone = @mod(distance, semitones_per_octave);
+            const abs_distance = @abs(distance);
+
+            return switch (wrapped_semitone) {
+                0 => .Unison,
+                1 => .Second,
+                2 => .Second,
+                3 => .Third,
+                4 => .Third,
+                5 => .Fourth,
+                6 => {
+                    if (abs_distance <= semitones_per_octave * 4) {
+                        return .Fourth;
+                    } else {
+                        return .Fifth;
+                    }
+                },
+                7 => .Fifth,
+                8 => .Sixth,
+                9 => .Sixth,
+                10 => .Seventh,
+                11 => .Seventh,
+                12 => .Octave,
+                else => error.InvalidSemitoneDistance,
+            };
         }
 
         pub fn asText(self: Number) []const u8 {
@@ -101,32 +154,20 @@ pub const Interval = struct {
             };
         }
 
-        pub fn asAbbreviation(self: Quality) []const u8 {
-            const numeral = switch (self) {
-                .Unison => "1",
-                .Second => "2",
-                .Third => "3",
-                .Fourth => "4",
-                .Fifth => "5",
-                .Sixth => "6",
-                .Seventh => "7",
-                .Octave => "8",
-            };
-            const suffix = self.ordinalIndicator();
-            return numeral ++ suffix;
-        }
-
-        fn ordinalIndicator(self: Number) []const u8 {
-            const lastDigit = self.toInt() % 10;
-            return switch (lastDigit) {
-                1 => "st",
-                2 => "nd",
-                3 => "rd",
-                else => "th",
+        pub fn asAbbreviation(self: Number) []const u8 {
+            return switch (self) {
+                .Unison => "1st",
+                .Second => "2nd",
+                .Third => "3rd",
+                .Fourth => "4th",
+                .Fifth => "5th",
+                .Sixth => "6th",
+                .Seventh => "7th",
+                .Octave => "8th",
             };
         }
 
-        pub fn asShorthand(self: Quality) []const u8 {
+        pub fn asShorthand(self: Number) []const u8 {
             return switch (self) {
                 .Unison => "1",
                 .Second => "2",
@@ -138,18 +179,30 @@ pub const Interval = struct {
                 .Octave => "8",
             };
         }
+
+        // Formats the Number as a string.
+        pub fn format(self: Number, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+            _ = fmt;
+            _ = options;
+            const representation = self.asAbbreviation();
+            try writer.print("{s}", .{representation});
+        }
     };
 
     // Creates an Interval from two Notes.
     pub fn fromNotes(note1: Note, note2: Note) !Self {
-        const semitone_distance = note2.semitoneDistance(note1);
-        const interval_number_int = @abs(semitone_distance) / semitones_per_octave + 1;
-        const interval_number = try Number.fromInt(interval_number_int);
-        const quality = try Quality.fromSemitones(semitone_distance);
+        const distance = note2.semitoneDistance(note1);
+        const quality = try Quality.fromSemitoneDistance(distance);
+        const number = try Number.fromSemitoneDistance(distance);
+
+        std.debug.print("\n", .{});
+        log.debug("distance: {}", .{distance});
+        log.debug("quality: {}", .{quality});
+        log.debug("number: {}", .{number});
 
         return Self{
             .quality = quality,
-            .number = interval_number,
+            .number = number,
         };
     }
 
@@ -162,7 +215,23 @@ pub const Interval = struct {
 
     // Formats the Interval as a string.
     pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-        try self.quality.format(fmt, options, writer);
-        try writer.print(" {s}", .{self.number.asText()});
+        _ = fmt;
+        _ = options;
+        const quality = self.quality.asText();
+        const number = self.number.asText();
+        try writer.print("{s} {s}", .{ quality, number });
     }
 };
+
+// D to F♯ is a major third, while D to G♭ is a diminished fourth
+test "create from notes" {
+    std.testing.log_level = .debug;
+
+    const note1 = try Note.parse("D4");
+    const note2 = try Note.parse("F#4");
+    const result = try Interval.fromNotes(note1, note2);
+
+    log.debug("Test case: from {} to {} = {}", .{ note1, note2, result });
+
+    try std.testing.expectEqual(4, result.number.toInt());
+}
