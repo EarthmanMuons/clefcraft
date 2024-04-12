@@ -15,15 +15,10 @@ pub const Interval = struct {
         const semitone_dist = note1.semitoneDistance(note2);
         const letter_dist = note1.letterDistance(note2);
         const fifths_dist = note1.fifthsDistance(note2);
+        const octave_dist = note1.octaveDistance(note2);
 
-        std.debug.print("\n", .{});
-        log.debug("semitone distance: {}", .{semitone_dist});
-        log.debug("  letter distance: {}", .{letter_dist});
-        log.debug("  fifths distance: {}", .{fifths_dist});
-
-        // const quality = try Quality.fromSemitonesAndFifths(semitone_dist, letter_dist, fifths_dist);
-        const quality = .Perfect;
-        const number = try Number.fromInt(@intCast(letter_dist));
+        const quality = Quality.fromDistances(semitone_dist, fifths_dist);
+        const number = Number.fromDistances(letter_dist, octave_dist);
 
         return Interval{ .quality = quality, .number = number };
     }
@@ -49,13 +44,31 @@ pub const Interval = struct {
         Augmented,
         Diminished,
 
-        pub fn semitoneAdjustment(self: Quality) i32 {
-            return switch (self) {
-                .Perfect => 0,
-                .Major => 0,
-                .Minor => -1,
-                .Augmented => 1,
-                .Diminished => -2,
+        // Returns the Quality based on the semitone and fifths distances.
+        pub fn fromDistances(semitone_dist: i32, fifths_dist: i32) Quality {
+            const semitone_dist_mod12 = @mod(semitone_dist, 12);
+            const fifths_dist_mod7 = @mod(fifths_dist, 7);
+
+            std.debug.print("\n", .{});
+            log.debug("semitone distance:       {}", .{semitone_dist});
+            log.debug("semitone distance mod12: {}", .{semitone_dist_mod12});
+            log.debug("  fifths distance:       {}", .{fifths_dist});
+            log.debug("  fifths distance mod7:  {}", .{fifths_dist_mod7});
+
+            return switch (semitone_dist_mod12) {
+                0 => if (fifths_dist_mod7 == 0) .Perfect else .Diminished,
+                1 => .Minor,
+                2 => .Major,
+                3 => .Minor,
+                4 => if (fifths_dist_mod7 == 4) .Major else .Diminished,
+                5 => .Perfect,
+                6 => .Augmented,
+                7 => if (fifths_dist_mod7 == 1) .Perfect else .Diminished,
+                8 => .Minor,
+                9 => .Major,
+                10 => .Minor,
+                11 => .Major,
+                else => unreachable,
             };
         }
 
@@ -113,12 +126,30 @@ pub const Interval = struct {
         Seventh,
         Octave,
 
-        pub fn fromInt(value: u32) !Number {
-            return std.meta.intToEnum(Number, value) catch return error.InvalidIntervalNumber;
+        pub fn fromInt(value: i32) !Number {
+            assert(value >= 0);
+            return try std.meta.intToEnum(Number, value);
         }
 
         pub fn toInt(self: Number) i32 {
             return @intFromEnum(self);
+        }
+
+        // Returns the Number based on the letter and octave distances.
+        pub fn fromDistances(letter_dist: i32, octave_dist: i32) Number {
+            log.debug("letter distance: {}", .{letter_dist});
+            log.debug("octave distance: {}", .{octave_dist});
+
+            return switch (letter_dist) {
+                0 => if (octave_dist == 0) .Unison else .Octave,
+                1 => .Second,
+                2 => .Third,
+                3 => .Fourth,
+                4 => .Fifth,
+                5 => .Sixth,
+                6 => .Seventh,
+                else => unreachable,
+            };
         }
 
         pub fn asText(self: Number) []const u8 {
@@ -186,15 +217,25 @@ test "create from notes" {
 
     // D to F♯ is a major third, while D to G♭ is a diminished fourth
     const test_cases = [_]TestCase{
-        // 4 2 4
         TestCase{ .note1 = "D4", .note2 = "F#4", .expected = Interval{
             .quality = .Major,
             .number = .Third,
         } },
-        // 4 3 27
         TestCase{ .note1 = "D4", .note2 = "Gb4", .expected = Interval{
             .quality = .Diminished,
             .number = .Fourth,
+        } },
+        TestCase{ .note1 = "D4", .note2 = "D4", .expected = Interval{
+            .quality = .Perfect,
+            .number = .Unison,
+        } },
+        TestCase{ .note1 = "D4", .note2 = "D5", .expected = Interval{
+            .quality = .Perfect,
+            .number = .Octave,
+        } },
+        TestCase{ .note1 = "E4", .note2 = "B4", .expected = Interval{
+            .quality = .Perfect,
+            .number = .Fifth,
         } },
     };
 
@@ -203,10 +244,9 @@ test "create from notes" {
         const note2 = try Note.parse(test_case.note2);
         const result = try Interval.fromNotes(note1, note2);
 
-        std.debug.print("Test case: from {s} to {s}, ", .{ note1, note2 });
-        // if (test_case.expected != result) {
-        //     std.debug.print("\nTest case: from {s} to {s}, ", .{ note1, note2 });
-        // }
+        if (!std.meta.eql(test_case.expected, result)) {
+            std.debug.print("\nTest case: from {s} to {s}, result: {}\n", .{ note1, note2, result });
+        }
         try std.testing.expectEqual(test_case.expected, result);
     }
 }

@@ -93,13 +93,17 @@ pub const Note = struct {
         return same_octave and same_pitch_class;
     }
 
+    // Returns the distance between two Notes in octaves.
+    pub fn octaveDistance(self: Note, other: Note) i32 {
+        return other.effectiveOctave() - self.effectiveOctave();
+    }
+
     // Returns the distance between two Notes in semitones.
     pub fn semitoneDistance(self: Note, other: Note) i32 {
-        const octave_distance =
-            (other.effectiveOctave() - self.effectiveOctave()) * semitones_per_octave;
-        const pitch_distance = other.pitchClass() - self.pitchClass();
+        const octave_dist = self.octaveDistance(other);
+        const pitch_dist = other.pitchClass() - self.pitchClass();
 
-        return octave_distance + pitch_distance;
+        return (octave_dist * semitones_per_octave) + pitch_dist;
     }
 
     // Returns the distance between two Notes in terms of positions in the diatonic scale.
@@ -336,7 +340,8 @@ pub const Letter = enum {
         const start = @intFromEnum(self);
         const end = @intFromEnum(other);
 
-        return wrap(end - start, notes_in_scale);
+        const diff = @as(i32, @intCast(end)) - @as(i32, @intCast(start));
+        return wrap(diff, notes_in_scale);
     }
 
     // Formats the Letter as a string.
