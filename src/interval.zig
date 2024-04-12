@@ -7,8 +7,6 @@ const Note = @import("note.zig").Note;
 const semitones_per_octave = @import("note.zig").semitones_per_octave;
 
 pub const Interval = struct {
-    const Self = @This();
-
     quality: Quality,
     number: Number,
 
@@ -190,7 +188,7 @@ pub const Interval = struct {
     };
 
     // Creates an Interval from two Notes.
-    pub fn fromNotes(note1: Note, note2: Note) !Self {
+    pub fn fromNotes(note1: Note, note2: Note) !Interval {
         const distance = note2.semitoneDistance(note1);
         const quality = try Quality.fromSemitoneDistance(distance);
         const number = try Number.fromSemitoneDistance(distance);
@@ -200,21 +198,21 @@ pub const Interval = struct {
         log.debug("quality: {}", .{quality});
         log.debug("number: {}", .{number});
 
-        return Self{
+        return Interval{
             .quality = quality,
             .number = number,
         };
     }
 
     // Returns the number of semitones in the Interval.
-    pub fn semitones(self: Self) i32 {
+    pub fn semitones(self: Interval) i32 {
         const quality_adjustment = self.quality.semitoneAdjustment();
         const number_int = self.number.toInt();
         return (number_int - 1) * semitones_per_octave + quality_adjustment;
     }
 
     // Formats the Interval as a string.
-    pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(self: Interval, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
         _ = options;
         const quality = self.quality.asText();

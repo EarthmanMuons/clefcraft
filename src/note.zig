@@ -10,13 +10,11 @@ const reference_frequency = 440.0; // hertz
 pub const semitones_per_octave = 12;
 
 pub const Note = struct {
-    const Self = @This();
-
     pitch: Pitch,
     octave: i32,
 
     // Creates a Note from a string representation.
-    pub fn parse(chars: []const u8) !Self {
+    pub fn parse(chars: []const u8) !Note {
         if (chars.len < 2) return error.InvalidNoteFormat;
 
         const letter_char = std.ascii.toUpper(chars[0]);
@@ -56,11 +54,11 @@ pub const Note = struct {
         const octave = std.fmt.parseInt(i32, octave_str, 10) catch return error.InvalidOctave;
 
         const pitch = Pitch{ .letter = letter, .accidental = accidental };
-        return Self{ .pitch = pitch, .octave = octave };
+        return Note{ .pitch = pitch, .octave = octave };
     }
 
     // Returns the effective octave of the Note, considering accidentals.
-    pub fn effectiveOctave(self: Self) i32 {
+    pub fn effectiveOctave(self: Note) i32 {
         var adjustment: i32 = 0;
 
         if (self.pitch.accidental) |acc| {
@@ -83,12 +81,12 @@ pub const Note = struct {
     }
 
     // Returns the pitch class of the Note.
-    pub fn pitchClass(self: Self) i32 {
+    pub fn pitchClass(self: Note) i32 {
         return self.pitch.pitchClass();
     }
 
     // Returns if the Note is enharmonic to another Note.
-    pub fn isEnharmonic(self: Self, other: Self) bool {
+    pub fn isEnharmonic(self: Note, other: Note) bool {
         const same_octave = self.effectiveOctave() == other.effectiveOctave();
         const same_pitch_class = self.pitchClass() == other.pitchClass();
 
@@ -96,7 +94,7 @@ pub const Note = struct {
     }
 
     // Returns the distance in semitones from the Note to another Note.
-    pub fn semitoneDistance(self: Self, other: Self) i32 {
+    pub fn semitoneDistance(self: Note, other: Note) i32 {
         const octave_distance =
             (other.effectiveOctave() - self.effectiveOctave()) * semitones_per_octave;
         const pitch_distance = other.pitchClass() - self.pitchClass();
@@ -106,13 +104,13 @@ pub const Note = struct {
 
     // Returns the frequency of the Note in Hz, using twelve-tone equal temperament (12-TET)
     // and the standard A440 reference pitch.
-    pub fn freq(self: Self) f64 {
+    pub fn freq(self: Note) f64 {
         return self.freqUsingReference(reference_note, reference_frequency);
     }
 
     // Returns the frequency of the Note in Hz, using twelve-tone equal temperament (12-TET)
     // and the custom reference pitch.
-    pub fn freqUsingReference(self: Self, ref_note: Self, ref_frequency: f64) f64 {
+    pub fn freqUsingReference(self: Note, ref_note: Note, ref_frequency: f64) f64 {
         const semitones_from_ref = ref_note.semitoneDistance(self);
         const semitone_distance_ratio =
             @as(f64, @floatFromInt(semitones_from_ref)) /
@@ -123,13 +121,13 @@ pub const Note = struct {
 
     // Creates a Note from a frequency in Hz, using twelve-tone equal temperament (12-TET)
     // and the standard A440 reference pitch.
-    pub fn fromFreq(frequency: f64) Self {
+    pub fn fromFreq(frequency: f64) Note {
         return fromFreqUsingReference(frequency, reference_note, reference_frequency);
     }
 
     // Creates a Note from a frequency in Hz, using twelve-tone equal temperament (12-TET)
     // and the custom reference pitch.
-    pub fn fromFreqUsingReference(frequency: f64, ref_note: Self, ref_frequency: f64) Self {
+    pub fn fromFreqUsingReference(frequency: f64, ref_note: Note, ref_frequency: f64) Note {
         assert(frequency > 0);
 
         const semitones_from_ref_raw =
@@ -144,11 +142,11 @@ pub const Note = struct {
         const octave = @divTrunc(target_absolute_position, semitones_per_octave);
 
         const pitch = Pitch.new(pitch_class);
-        return Self{ .pitch = pitch, .octave = octave };
+        return Note{ .pitch = pitch, .octave = octave };
     }
 
     // Returns the MIDI note number of the Note.
-    pub fn midi(self: Self) i32 {
+    pub fn midi(self: Note) i32 {
         const octave_offset = (self.effectiveOctave() + 1) * semitones_per_octave;
         const midi_note = octave_offset + self.pitchClass();
 
@@ -157,53 +155,51 @@ pub const Note = struct {
     }
 
     // Creates a Note from a MIDI note number.
-    pub fn fromMidi(midi_note: i32) Self {
+    pub fn fromMidi(midi_note: i32) Note {
         const pitch_class = @mod(midi_note, semitones_per_octave);
         const octave = @divTrunc(midi_note, semitones_per_octave) - 1;
 
         const pitch = Pitch.new(pitch_class);
-        return Self{ .pitch = pitch, .octave = octave };
+        return Note{ .pitch = pitch, .octave = octave };
     }
 
     // Formats the Note as a string.
-    pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(self: Note, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         try self.pitch.format(fmt, options, writer);
         try writer.print("{d}", .{self.octave});
     }
 };
 
 pub const Pitch = struct {
-    const Self = @This();
-
     letter: Letter,
     accidental: ?Accidental,
 
     // Creates a Pitch from a pitch class.
-    pub fn new(pitch_class: i32) Self {
+    pub fn new(pitch_class: i32) Pitch {
         assert(0 <= pitch_class and pitch_class < semitones_per_octave);
 
         // Mapping of a pitch class to its default Pitch.
         // 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
-        const mapping = [_]Self{
-            Self{ .letter = .C, .accidental = null },
-            Self{ .letter = .C, .accidental = Accidental.Sharp },
-            Self{ .letter = .D, .accidental = null },
-            Self{ .letter = .D, .accidental = Accidental.Sharp },
-            Self{ .letter = .E, .accidental = null },
-            Self{ .letter = .F, .accidental = null },
-            Self{ .letter = .F, .accidental = Accidental.Sharp },
-            Self{ .letter = .G, .accidental = null },
-            Self{ .letter = .G, .accidental = Accidental.Sharp },
-            Self{ .letter = .A, .accidental = null },
-            Self{ .letter = .A, .accidental = Accidental.Sharp },
-            Self{ .letter = .B, .accidental = null },
+        const mapping = [_]Pitch{
+            Pitch{ .letter = .C, .accidental = null },
+            Pitch{ .letter = .C, .accidental = Accidental.Sharp },
+            Pitch{ .letter = .D, .accidental = null },
+            Pitch{ .letter = .D, .accidental = Accidental.Sharp },
+            Pitch{ .letter = .E, .accidental = null },
+            Pitch{ .letter = .F, .accidental = null },
+            Pitch{ .letter = .F, .accidental = Accidental.Sharp },
+            Pitch{ .letter = .G, .accidental = null },
+            Pitch{ .letter = .G, .accidental = Accidental.Sharp },
+            Pitch{ .letter = .A, .accidental = null },
+            Pitch{ .letter = .A, .accidental = Accidental.Sharp },
+            Pitch{ .letter = .B, .accidental = null },
         };
 
         return mapping[@intCast(pitch_class)];
     }
 
     // Returns the pitch class of the Pitch.
-    pub fn pitchClass(self: Self) i32 {
+    pub fn pitchClass(self: Pitch) i32 {
         const base_pitch_class = self.letter.pitchClass();
         const adjustment = if (self.accidental) |acc| acc.pitchClassAdjustment() else 0;
 
@@ -211,7 +207,7 @@ pub const Pitch = struct {
     }
 
     // Returns the circle of fifths position of the Pitch.
-    pub fn fifthsPosition(self: Self) i32 {
+    pub fn fifthsPosition(self: Pitch) i32 {
         // Base position for natural notes in the circle of fifths.
         const base_position: i32 = switch (self.letter) {
             .C => 0,
@@ -239,46 +235,46 @@ pub const Pitch = struct {
     }
 
     // Creates a Pitch from a circle of fifths position.
-    fn fromFifthsPosition(position: i32) Self {
+    fn fromFifthsPosition(position: i32) Pitch {
         assert(-15 <= position and position <= 19);
 
         // Mapping of a circle of fifths position to its Pitch.
-        const mapping = [_]Self{
-            Self{ .letter = .F, .accidental = .DoubleFlat }, // -15
-            Self{ .letter = .C, .accidental = .DoubleFlat }, // -14
-            Self{ .letter = .G, .accidental = .DoubleFlat }, // -13
-            Self{ .letter = .D, .accidental = .DoubleFlat }, // -12
-            Self{ .letter = .A, .accidental = .DoubleFlat }, // -11
-            Self{ .letter = .E, .accidental = .DoubleFlat }, // -10
-            Self{ .letter = .B, .accidental = .DoubleFlat }, // -9
-            Self{ .letter = .F, .accidental = .Flat }, // -8
-            Self{ .letter = .C, .accidental = .Flat }, // -7
-            Self{ .letter = .G, .accidental = .Flat }, // -6
-            Self{ .letter = .D, .accidental = .Flat }, // -5
-            Self{ .letter = .A, .accidental = .Flat }, // -4
-            Self{ .letter = .E, .accidental = .Flat }, // -3
-            Self{ .letter = .B, .accidental = .Flat }, // -2
-            Self{ .letter = .F, .accidental = null }, // -1
-            Self{ .letter = .C, .accidental = null }, // 0
-            Self{ .letter = .G, .accidental = null }, // 1
-            Self{ .letter = .D, .accidental = null }, // 2
-            Self{ .letter = .A, .accidental = null }, // 3
-            Self{ .letter = .E, .accidental = null }, // 4
-            Self{ .letter = .B, .accidental = null }, // 5
-            Self{ .letter = .F, .accidental = .Sharp }, // 6
-            Self{ .letter = .C, .accidental = .Sharp }, // 7
-            Self{ .letter = .G, .accidental = .Sharp }, // 8
-            Self{ .letter = .D, .accidental = .Sharp }, // 9
-            Self{ .letter = .A, .accidental = .Sharp }, // 10
-            Self{ .letter = .E, .accidental = .Sharp }, // 11
-            Self{ .letter = .B, .accidental = .Sharp }, // 12
-            Self{ .letter = .F, .accidental = .DoubleSharp }, // 13
-            Self{ .letter = .C, .accidental = .DoubleSharp }, // 14
-            Self{ .letter = .G, .accidental = .DoubleSharp }, // 15
-            Self{ .letter = .D, .accidental = .DoubleSharp }, // 16
-            Self{ .letter = .A, .accidental = .DoubleSharp }, // 17
-            Self{ .letter = .E, .accidental = .DoubleSharp }, // 18
-            Self{ .letter = .B, .accidental = .DoubleSharp }, // 19
+        const mapping = [_]Pitch{
+            Pitch{ .letter = .F, .accidental = .DoubleFlat }, // -15
+            Pitch{ .letter = .C, .accidental = .DoubleFlat }, // -14
+            Pitch{ .letter = .G, .accidental = .DoubleFlat }, // -13
+            Pitch{ .letter = .D, .accidental = .DoubleFlat }, // -12
+            Pitch{ .letter = .A, .accidental = .DoubleFlat }, // -11
+            Pitch{ .letter = .E, .accidental = .DoubleFlat }, // -10
+            Pitch{ .letter = .B, .accidental = .DoubleFlat }, // -9
+            Pitch{ .letter = .F, .accidental = .Flat }, // -8
+            Pitch{ .letter = .C, .accidental = .Flat }, // -7
+            Pitch{ .letter = .G, .accidental = .Flat }, // -6
+            Pitch{ .letter = .D, .accidental = .Flat }, // -5
+            Pitch{ .letter = .A, .accidental = .Flat }, // -4
+            Pitch{ .letter = .E, .accidental = .Flat }, // -3
+            Pitch{ .letter = .B, .accidental = .Flat }, // -2
+            Pitch{ .letter = .F, .accidental = null }, // -1
+            Pitch{ .letter = .C, .accidental = null }, // 0
+            Pitch{ .letter = .G, .accidental = null }, // 1
+            Pitch{ .letter = .D, .accidental = null }, // 2
+            Pitch{ .letter = .A, .accidental = null }, // 3
+            Pitch{ .letter = .E, .accidental = null }, // 4
+            Pitch{ .letter = .B, .accidental = null }, // 5
+            Pitch{ .letter = .F, .accidental = .Sharp }, // 6
+            Pitch{ .letter = .C, .accidental = .Sharp }, // 7
+            Pitch{ .letter = .G, .accidental = .Sharp }, // 8
+            Pitch{ .letter = .D, .accidental = .Sharp }, // 9
+            Pitch{ .letter = .A, .accidental = .Sharp }, // 10
+            Pitch{ .letter = .E, .accidental = .Sharp }, // 11
+            Pitch{ .letter = .B, .accidental = .Sharp }, // 12
+            Pitch{ .letter = .F, .accidental = .DoubleSharp }, // 13
+            Pitch{ .letter = .C, .accidental = .DoubleSharp }, // 14
+            Pitch{ .letter = .G, .accidental = .DoubleSharp }, // 15
+            Pitch{ .letter = .D, .accidental = .DoubleSharp }, // 16
+            Pitch{ .letter = .A, .accidental = .DoubleSharp }, // 17
+            Pitch{ .letter = .E, .accidental = .DoubleSharp }, // 18
+            Pitch{ .letter = .B, .accidental = .DoubleSharp }, // 19
         };
 
         // Adjust the index for negative positions.
@@ -288,7 +284,7 @@ pub const Pitch = struct {
     }
 
     // Formats the Pitch as a string.
-    pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(self: Pitch, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         try self.letter.format(fmt, options, writer);
         if (self.accidental) |acc| {
             try acc.format(fmt, options, writer);
@@ -297,8 +293,6 @@ pub const Pitch = struct {
 };
 
 pub const Letter = enum {
-    const Self = @This();
-
     A,
     B,
     C,
@@ -308,7 +302,7 @@ pub const Letter = enum {
     G,
 
     // Returns the pitch class for the Letter.
-    pub fn pitchClass(self: Self) i32 {
+    pub fn pitchClass(self: Letter) i32 {
         return switch (self) {
             .C => 0,
             .D => 2,
@@ -321,7 +315,7 @@ pub const Letter = enum {
     }
 
     // Formats the Letter as a string.
-    pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(self: Letter, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
         _ = options;
         const letter = switch (self) {
@@ -338,8 +332,6 @@ pub const Letter = enum {
 };
 
 pub const Accidental = enum {
-    const Self = @This();
-
     DoubleFlat,
     Flat,
     Natural,
@@ -347,7 +339,7 @@ pub const Accidental = enum {
     DoubleSharp,
 
     // Returns the pitch class adjustment for the Accidental.
-    pub fn pitchClassAdjustment(self: Self) i32 {
+    pub fn pitchClassAdjustment(self: Accidental) i32 {
         return switch (self) {
             .DoubleFlat => -2,
             .Flat => -1,
@@ -358,7 +350,7 @@ pub const Accidental = enum {
     }
 
     // Formats the Accidental as a string.
-    pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+    pub fn format(self: Accidental, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = fmt;
         _ = options;
         const symbol = switch (self) {
