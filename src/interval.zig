@@ -10,6 +10,34 @@ pub const Interval = struct {
     quality: Quality,
     number: Number,
 
+    // Creates an Interval from a shorthand string representation.
+    pub fn parse(chars: []const u8) !Interval {
+        if (chars.len < 2) return error.InvalidIntervalFormat;
+
+        const quality = switch (chars[0]) {
+            'P' => Quality.Perfect,
+            'M' => Quality.Major,
+            'm' => Quality.Minor,
+            'A' => Quality.Augmented,
+            'd' => Quality.Diminished,
+            else => return error.InvalidQuality,
+        };
+
+        const number = switch (chars[1]) {
+            '1' => Number.Unison,
+            '2' => Number.Second,
+            '3' => Number.Third,
+            '4' => Number.Fourth,
+            '5' => Number.Fifth,
+            '6' => Number.Sixth,
+            '7' => Number.Seventh,
+            '8' => Number.Octave,
+            else => return error.InvalidNumber,
+        };
+
+        return Interval{ .quality = quality, .number = number };
+    }
+
     // Creates an Interval from two Notes.
     pub fn fromNotes(note1: Note, note2: Note) !Interval {
         const semitone_dist = note1.semitoneDistance(note2);
@@ -212,41 +240,27 @@ test "create from notes" {
     const TestCase = struct {
         note1: []const u8,
         note2: []const u8,
-        expected: Interval,
+        expected: []const u8,
     };
 
     // D to F♯ is a major third, while D to G♭ is a diminished fourth
     const test_cases = [_]TestCase{
-        TestCase{ .note1 = "D4", .note2 = "F#4", .expected = Interval{
-            .quality = .Major,
-            .number = .Third,
-        } },
-        TestCase{ .note1 = "D4", .note2 = "Gb4", .expected = Interval{
-            .quality = .Diminished,
-            .number = .Fourth,
-        } },
-        TestCase{ .note1 = "D4", .note2 = "D4", .expected = Interval{
-            .quality = .Perfect,
-            .number = .Unison,
-        } },
-        TestCase{ .note1 = "D4", .note2 = "D5", .expected = Interval{
-            .quality = .Perfect,
-            .number = .Octave,
-        } },
-        TestCase{ .note1 = "E4", .note2 = "B4", .expected = Interval{
-            .quality = .Perfect,
-            .number = .Fifth,
-        } },
+        TestCase{ .note1 = "D4", .note2 = "F#4", .expected = "M3" },
+        TestCase{ .note1 = "D4", .note2 = "Gb4", .expected = "d4" },
+        TestCase{ .note1 = "D4", .note2 = "D4", .expected = "P1" },
+        TestCase{ .note1 = "D4", .note2 = "D5", .expected = "P8" },
+        TestCase{ .note1 = "E4", .note2 = "B4", .expected = "P5" },
     };
 
     for (test_cases) |test_case| {
         const note1 = try Note.parse(test_case.note1);
         const note2 = try Note.parse(test_case.note2);
+        const expected = try Interval.parse(test_case.expected);
         const result = try Interval.fromNotes(note1, note2);
 
-        if (!std.meta.eql(test_case.expected, result)) {
+        if (!std.meta.eql(expected, result)) {
             std.debug.print("\nTest case: from {s} to {s}, result: {}\n", .{ note1, note2, result });
         }
-        try std.testing.expectEqual(test_case.expected, result);
+        try std.testing.expectEqual(expected, result);
     }
 }
