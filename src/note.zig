@@ -3,9 +3,9 @@ const assert = std.debug.assert;
 const log = std.log.scoped(.note);
 
 // The international standard pitch, A440.
-const reference_pitch = Pitch{ .letter = .A, .accidental = null };
-const reference_note = Note{ .pitch = reference_pitch, .octave = 4 };
-const reference_frequency = 440.0; // hertz
+const standard_pitch = Pitch{ .letter = .A, .accidental = null };
+const standard_note = Note{ .pitch = standard_pitch, .octave = 4 };
+const standard_freq = 440.0; // hertz
 
 pub const semitones_per_octave = 12;
 
@@ -17,8 +17,8 @@ pub const Note = struct {
     pub fn parse(chars: []const u8) !Note {
         if (chars.len < 2) return error.InvalidNoteFormat;
 
-        const letter_char = std.ascii.toUpper(chars[0]);
-        const letter = switch (letter_char) {
+        const first_char = std.ascii.toUpper(chars[0]);
+        const letter = switch (first_char) {
             'A' => Letter.A,
             'B' => Letter.B,
             'C' => Letter.C,
@@ -30,7 +30,7 @@ pub const Note = struct {
         };
 
         var accidental: ?Accidental = null;
-        var octave_start: usize = 1;
+        var octave_idx: usize = 1;
         if (chars.len > 2) {
             accidental = switch (chars[1]) {
                 'b' => Accidental.Flat,
@@ -39,18 +39,18 @@ pub const Note = struct {
                 'x' => Accidental.DoubleSharp,
                 else => null,
             };
-            if (accidental != null) octave_start += 1;
+            if (accidental != null) octave_idx += 1;
         }
         if (chars.len > 3) {
             if (chars[1] == 'b' and chars[2] == 'b') {
                 accidental = Accidental.DoubleFlat;
-                octave_start += 1;
+                octave_idx += 1;
             } else if (chars[1] == '#' and chars[2] == '#') {
                 accidental = Accidental.DoubleSharp;
-                octave_start += 1;
+                octave_idx += 1;
             }
         }
-        const octave_str = chars[octave_start..];
+        const octave_str = chars[octave_idx..];
         const octave = std.fmt.parseInt(i32, octave_str, 10) catch return error.InvalidOctave;
 
         const pitch = Pitch{ .letter = letter, .accidental = accidental };
@@ -59,25 +59,25 @@ pub const Note = struct {
 
     // Returns the effective octave of the Note, considering accidentals.
     pub fn effectiveOctave(self: Note) i32 {
-        var adjustment: i32 = 0;
+        var octave_adjustment: i32 = 0;
 
         if (self.pitch.accidental) |acc| {
             switch (acc) {
                 .Flat, .DoubleFlat => {
                     if (self.pitch.letter == .C) {
-                        adjustment -= 1;
+                        octave_adjustment -= 1;
                     }
                 },
                 .Sharp, .DoubleSharp => {
                     if (self.pitch.letter == .B) {
-                        adjustment += 1;
+                        octave_adjustment += 1;
                     }
                 },
                 else => {},
             }
         }
 
-        return self.octave + adjustment;
+        return self.octave + octave_adjustment;
     }
 
     // Returns the pitch class of the Note.
@@ -106,8 +106,8 @@ pub const Note = struct {
         return (octave_dist * semitones_per_octave) + pitch_dist;
     }
 
-    // Returns the distance between two Notes in terms of positions in the diatonic scale.
-    pub fn letterDistance(self: Note, other: Note) i32 {
+    // Returns the distance between two Notes in terms of staff positions.
+    pub fn diatonicDistance(self: Note, other: Note) i32 {
         return self.pitch.letter.distance(other.pitch.letter);
     }
 
@@ -123,45 +123,43 @@ pub const Note = struct {
     }
 
     // Returns the frequency of the Note in Hz, using twelve-tone equal temperament (12-TET)
-    // and the standard A440 reference pitch.
-    pub fn freq(self: Note) f64 {
-        return self.freqUsingReference(reference_note, reference_frequency);
+    // and the A440 standard pitch as the reference note.
+    pub fn frequency(self: Note) f64 {
+        return self.frequencyWithRef(standard_note, standard_freq);
     }
 
     // Returns the frequency of the Note in Hz, using twelve-tone equal temperament (12-TET)
-    // and the custom reference pitch.
-    pub fn freqUsingReference(self: Note, ref_note: Note, ref_frequency: f64) f64 {
-        const semitones_from_ref = ref_note.semitoneDistance(self);
+    // and the given reference note.
+    pub fn frequencyWithRef(self: Note, ref_note: Note, ref_freq: f64) f64 {
+        const semitone_delta = ref_note.semitoneDistance(self);
         const semitone_distance_ratio =
-            @as(f64, @floatFromInt(semitones_from_ref)) /
+            @as(f64, @floatFromInt(semitone_delta)) /
             @as(f64, @floatFromInt(semitones_per_octave));
 
-        return ref_frequency * @exp2(semitone_distance_ratio);
+        return ref_freq * @exp2(semitone_distance_ratio);
     }
 
     // Creates a Note from a frequency in Hz, using twelve-tone equal temperament (12-TET)
-    // and the standard A440 reference pitch.
-    pub fn fromFreq(frequency: f64) Note {
-        return fromFreqUsingReference(frequency, reference_note, reference_frequency);
+    // and the A440 standard pitch as the reference note.
+    pub fn fromFrequency(freq: f64) Note {
+        return fromFrequencyWithRef(freq, standard_note, standard_freq);
     }
 
     // Creates a Note from a frequency in Hz, using twelve-tone equal temperament (12-TET)
-    // and the custom reference pitch.
-    pub fn fromFreqUsingReference(frequency: f64, ref_note: Note, ref_frequency: f64) Note {
-        assert(frequency > 0);
+    // and the given reference note.
+    pub fn fromFrequencyWithRef(freq: f64, ref_note: Note, ref_freq: f64) Note {
+        assert(freq > 0);
 
-        const semitones_from_ref_raw =
-            @log2(frequency / ref_frequency) * semitones_per_octave;
-        const semitones_from_ref = @as(i32, @intFromFloat(@round(semitones_from_ref_raw)));
+        const semitone_delta_raw = @log2(freq / ref_freq) * semitones_per_octave;
+        const semitone_delta = @as(i32, @intFromFloat(@round(semitone_delta_raw)));
 
-        const ref_note_absolute_position =
-            ref_note.pitchClass() + (ref_note.effectiveOctave() * semitones_per_octave);
-        const target_absolute_position = semitones_from_ref + ref_note_absolute_position;
+        const ref_pos = ref_note.pitchClass() + (ref_note.effectiveOctave() * semitones_per_octave);
+        const target_pos = ref_pos + semitone_delta;
 
-        const pitch_class = wrap(target_absolute_position, semitones_per_octave);
-        const octave = @divTrunc(target_absolute_position, semitones_per_octave);
+        const pitch_class = wrap(target_pos, semitones_per_octave);
+        const octave = @divTrunc(target_pos, semitones_per_octave);
 
-        const pitch = Pitch.new(pitch_class);
+        const pitch = Pitch.fromPitchClass(pitch_class);
         return Note{ .pitch = pitch, .octave = octave };
     }
 
@@ -179,7 +177,7 @@ pub const Note = struct {
         const pitch_class = @mod(midi_note, semitones_per_octave);
         const octave = @divTrunc(midi_note, semitones_per_octave) - 1;
 
-        const pitch = Pitch.new(pitch_class);
+        const pitch = Pitch.fromPitchClass(pitch_class);
         return Note{ .pitch = pitch, .octave = octave };
     }
 
@@ -200,7 +198,7 @@ pub const Pitch = struct {
     accidental: ?Accidental,
 
     // Creates a Pitch from a pitch class.
-    pub fn new(pitch_class: i32) Pitch {
+    pub fn fromPitchClass(pitch_class: i32) Pitch {
         assert(0 <= pitch_class and pitch_class < semitones_per_octave);
 
         // Mapping of a pitch class to its default Pitch.
@@ -226,7 +224,7 @@ pub const Pitch = struct {
     // Returns the pitch class of the Pitch.
     pub fn pitchClass(self: Pitch) i32 {
         const base_pitch_class = self.letter.pitchClass();
-        const adjustment = if (self.accidental) |acc| acc.pitchClassAdjustment() else 0;
+        const adjustment = if (self.accidental) |acc| acc.pitchAdjustment() else 0;
 
         return wrap(base_pitch_class + adjustment, semitones_per_octave);
     }
@@ -344,7 +342,7 @@ pub const Letter = enum {
         };
     }
 
-    // Returns the distance between two Letters in terms of positions in the diatonic scale.
+    // Returns the distance between two Letters in terms of staff positions.
     pub fn distance(self: Letter, other: Letter) i32 {
         const notes_in_scale = 7;
         const start = @intFromEnum(self);
@@ -384,7 +382,7 @@ pub const Accidental = enum {
     DoubleSharp,
 
     // Returns the pitch class adjustment for the Accidental.
-    pub fn pitchClassAdjustment(self: Accidental) i32 {
+    pub fn pitchAdjustment(self: Accidental) i32 {
         return switch (self) {
             .DoubleFlat => -2,
             .Flat => -1,
@@ -507,7 +505,7 @@ test "frequency calculation" {
     const epsilon = 0.001;
     for (test_cases) |test_case| {
         const note = try Note.parse(test_case.n1);
-        const result = note.freq();
+        const result = note.frequency();
 
         const passed = std.math.approxEqAbs(f64, test_case.expected, result, epsilon);
         if (!passed) {
@@ -522,21 +520,21 @@ test "create from frequency" {
     var expected: Note = undefined;
 
     expected = try Note.parse("C-1");
-    try std.testing.expectEqual(expected, Note.fromFreq(8.176));
+    try std.testing.expectEqual(expected, Note.fromFrequency(8.176));
     expected = try Note.parse("C0");
-    try std.testing.expectEqual(expected, Note.fromFreq(16.352));
+    try std.testing.expectEqual(expected, Note.fromFrequency(16.352));
     expected = try Note.parse("A0");
-    try std.testing.expectEqual(expected, Note.fromFreq(27.5));
+    try std.testing.expectEqual(expected, Note.fromFrequency(27.5));
     expected = try Note.parse("C4");
-    try std.testing.expectEqual(expected, Note.fromFreq(261.626));
+    try std.testing.expectEqual(expected, Note.fromFrequency(261.626));
     expected = try Note.parse("A4");
-    try std.testing.expectEqual(expected, Note.fromFreq(440.0));
+    try std.testing.expectEqual(expected, Note.fromFrequency(440.0));
     expected = try Note.parse("C8");
-    try std.testing.expectEqual(expected, Note.fromFreq(4186.009));
+    try std.testing.expectEqual(expected, Note.fromFrequency(4186.009));
     expected = try Note.parse("B8");
-    try std.testing.expectEqual(expected, Note.fromFreq(7902.133));
+    try std.testing.expectEqual(expected, Note.fromFrequency(7902.133));
     expected = try Note.parse("G9");
-    try std.testing.expectEqual(expected, Note.fromFreq(12543.854));
+    try std.testing.expectEqual(expected, Note.fromFrequency(12543.854));
 }
 
 test "midi note number calculation" {

@@ -41,12 +41,12 @@ pub const Interval = struct {
     // Creates an Interval from two Notes.
     pub fn fromNotes(note1: Note, note2: Note) !Interval {
         const semitone_dist = note1.semitoneDistance(note2);
-        const letter_dist = note1.letterDistance(note2);
         const fifths_dist = note1.fifthsDistance(note2);
+        const diatonic_dist = note1.diatonicDistance(note2);
         const octave_dist = note1.octaveDistance(note2);
 
         const quality = Quality.fromDistances(semitone_dist, fifths_dist);
-        const number = Number.fromDistances(letter_dist, octave_dist);
+        const number = Number.fromDistances(diatonic_dist, octave_dist);
 
         return Interval{ .quality = quality, .number = number };
     }
