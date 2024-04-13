@@ -157,7 +157,7 @@ pub const Note = struct {
         const semitone_delta_raw = @log2(freq / ref_freq) * semitones_per_octave;
         const semitone_delta = @as(i32, @intFromFloat(@round(semitone_delta_raw)));
 
-        const ref_pos = ref_note.pitchClass() + (ref_note.effectiveOctave() * semitones_per_octave);
+        const ref_pos = (ref_note.effectiveOctave() * semitones_per_octave) + ref_note.pitchClass();
         const target_pos = ref_pos + semitone_delta;
 
         const pitch_class = utils.wrap(target_pos, semitones_per_octave);
@@ -178,7 +178,7 @@ pub const Note = struct {
 
     // Creates a Note from a MIDI note number.
     pub fn fromMidi(midi_note: i32) Note {
-        const pitch_class = @mod(midi_note, semitones_per_octave);
+        const pitch_class = utils.wrap(midi_note, semitones_per_octave);
         const octave = @divTrunc(midi_note, semitones_per_octave) - 1;
 
         const pitch = Pitch.fromPitchClass(pitch_class);
@@ -351,8 +351,8 @@ pub const Letter = enum {
         const start = @intFromEnum(self);
         const end = @intFromEnum(other);
 
-        const diff = @as(i32, @intCast(end)) - @as(i32, @intCast(start));
-        return utils.wrap(diff, notes_per_diatonic_scale);
+        const delta = @as(i32, @intCast(end)) - @as(i32, @intCast(start));
+        return utils.wrap(delta, notes_per_diatonic_scale);
     }
 
     // Formats the Letter as a string.
