@@ -2,12 +2,10 @@ const std = @import("std");
 const assert = std.debug.assert;
 const log = std.log.scoped(.note);
 
-const _interval = @import("interval.zig");
+const Interval = @import("interval.zig").Interval;
 const constants = @import("constants.zig");
 const utils = @import("utils.zig");
 
-const Interval = _interval.Interval;
-const Quality = _interval.Interval.Quality;
 const notes_per_diatonic_scale = constants.notes_per_diatonic_scale;
 const semitones_per_octave = constants.semitones_per_octave;
 
@@ -20,7 +18,7 @@ pub const Note = struct {
     pitch: Pitch,
     octave: i32,
 
-    // Creates a Note from a string representation.
+    // Creates a note from a string representation.
     pub fn parse(chars: []const u8) !Note {
         if (chars.len < 2) return error.InvalidNoteFormat;
 
@@ -64,12 +62,12 @@ pub const Note = struct {
         return Note{ .pitch = pitch, .octave = octave };
     }
 
-    // Returns the pitch class of the Note.
+    // Returns the pitch class of the note.
     pub fn pitchClass(self: Note) i32 {
         return self.pitch.pitchClass();
     }
 
-    // Returns the effective octave of the Note, considering accidentals.
+    // Returns the effective octave of the note, considering accidentals.
     pub fn effectiveOctave(self: Note) i32 {
         var octave_adjustment: i32 = 0;
 
@@ -84,30 +82,30 @@ pub const Note = struct {
         return self.octave + octave_adjustment;
     }
 
-    // Returns the frequency of the Note in Hz, using twelve-tone equal temperament (12-TET)
+    // Returns the frequency of the note in Hz, using twelve-tone equal temperament (12-TET)
     // and the A440 standard pitch as the reference note.
     pub fn frequency(self: Note) f64 {
         return self.frequencyWithRef(standard_note, standard_freq);
     }
 
-    // Returns the frequency of the Note in Hz, using twelve-tone equal temperament (12-TET)
+    // Returns the frequency of the note in Hz, using twelve-tone equal temperament (12-TET)
     // and the given reference note.
     pub fn frequencyWithRef(self: Note, ref_note: Note, ref_freq: f64) f64 {
-        const semitone_delta = ref_note.semitoneDistance(self);
-        const semitone_distance_ratio =
-            @as(f64, @floatFromInt(semitone_delta)) /
+        const semitone_diff = ref_note.semitoneDifference(self);
+        const semitone_diff_ratio =
+            @as(f64, @floatFromInt(semitone_diff)) /
             @as(f64, @floatFromInt(semitones_per_octave));
 
-        return ref_freq * @exp2(semitone_distance_ratio);
+        return ref_freq * @exp2(semitone_diff_ratio);
     }
 
-    // Creates a Note from a frequency in Hz, using twelve-tone equal temperament (12-TET)
+    // Creates a note from a frequency in Hz, using twelve-tone equal temperament (12-TET)
     // and the A440 standard pitch as the reference note.
     pub fn fromFrequency(freq: f64) Note {
         return fromFrequencyWithRef(freq, standard_note, standard_freq);
     }
 
-    // Creates a Note from a frequency in Hz, using twelve-tone equal temperament (12-TET)
+    // Creates a note from a frequency in Hz, using twelve-tone equal temperament (12-TET)
     // and the given reference note.
     pub fn fromFrequencyWithRef(freq: f64, ref_note: Note, ref_freq: f64) Note {
         assert(freq > 0);
@@ -125,7 +123,7 @@ pub const Note = struct {
         return Note{ .pitch = pitch, .octave = octave };
     }
 
-    // Returns the MIDI note number of the Note.
+    // Returns the MIDI note number of the note.
     pub fn midi(self: Note) i32 {
         const octave_offset = (self.effectiveOctave() + 1) * semitones_per_octave;
         const midi_note = octave_offset + self.pitchClass();
@@ -134,7 +132,7 @@ pub const Note = struct {
         return midi_note;
     }
 
-    // Creates a Note from a MIDI note number.
+    // Creates a note from a MIDI note number.
     pub fn fromMidi(midi_note: i32) Note {
         assert(0 <= midi_note and midi_note <= 127);
 
@@ -145,7 +143,7 @@ pub const Note = struct {
         return Note{ .pitch = pitch, .octave = octave };
     }
 
-    // Returns if two Notes are enharmonically equivalent.
+    // Returns if two notes are enharmonically equivalent.
     pub fn isEnharmonic(self: Note, other: Note) bool {
         const same_octave = self.effectiveOctave() == other.effectiveOctave();
         const same_pitch_class = self.pitchClass() == other.pitchClass();
@@ -153,78 +151,60 @@ pub const Note = struct {
         return same_octave and same_pitch_class;
     }
 
-    // Returns the distance between two Notes in octaves.
-    pub fn octaveDistance(self: Note, other: Note) i32 {
+    // Returns the difference in octaves between two notes, which can be negative.
+    pub fn octaveDifference(self: Note, other: Note) i32 {
         return other.effectiveOctave() - self.effectiveOctave();
     }
 
-    // Returns the distance between two Notes within the circle of fifths.
-    pub fn fifthsDistance(self: Note, other: Note) i32 {
-        const start = self.pitch.fifthsPosition();
-        const end = other.pitch.fifthsPosition();
+    // Returns the difference in semitones between two notes, which can be negative.
+    pub fn semitoneDifference(self: Note, other: Note) i32 {
+        const octave_diff = self.octaveDifference(other);
+        // TODO: does this need to wrap (i.e. pitch_dist)?
+        const pitch_diff = other.pitchClass() - self.pitchClass();
 
-        // Cover the extended range from -14 (Double Flat) to +19 (Double Sharp).
-        const circle_size = 35;
-        return utils.wrap(end - start, circle_size);
+        return (octave_diff * semitones_per_octave) + pitch_diff;
     }
 
-    // Returns the distance between two Notes in terms of the diatonic scale.
+    // Returns the non-negative distance between two notes based on the diatonic scale.
     pub fn diatonicDistance(self: Note, other: Note) i32 {
         const start = @intFromEnum(self.pitch.letter);
         const end = @intFromEnum(other.pitch.letter);
-        const delta = @as(i32, @intCast(end)) - @as(i32, @intCast(start));
+        const difference = @as(i32, @intCast(end)) - @as(i32, @intCast(start));
 
-        return utils.wrap(delta, notes_per_diatonic_scale);
+        return utils.wrap(difference, notes_per_diatonic_scale);
     }
 
-    // Returns the distance between two Notes in semitones.
-    pub fn semitoneDistance(self: Note, other: Note) i32 {
-        const octave_dist = self.octaveDistance(other);
-        const pitch_dist = other.pitchClass() - self.pitchClass();
-
-        return (octave_dist * semitones_per_octave) + pitch_dist;
-    }
-
-    // Returns the Note that is an Interval distance away from self.
-    pub fn applyInterval(self: Note, interval: Interval) Note {
-        const base_fifths_pos = self.pitch.fifthsPosition();
-        const fifths_dist = intervalDistance(self, interval);
-
-        const new_fifths_pos = utils.wrap(base_fifths_pos + fifths_dist, notes_per_diatonic_scale);
-        const octave_adjustment = @divFloor(fifths_dist, notes_per_diatonic_scale);
-
-        const new_pitch = Pitch.fromFifthsPosition(new_fifths_pos);
-        const new_octave = self.effectiveOctave() + octave_adjustment;
-
-        log.debug("   new_fifths_pos: {}", .{new_fifths_pos});
-        log.debug("octave_adjustment: {}", .{octave_adjustment});
-        log.debug("        new_pitch: {}", .{new_pitch});
-        log.debug("       new_octave: {}", .{new_octave});
-
-        return Note{ .pitch = new_pitch, .octave = new_octave };
-    }
-
-    fn intervalDistance(self: Note, interval: Interval) i32 {
-        const base_fifths_pos = self.pitch.fifthsPosition();
-        const interval_number = interval.number.toInt();
-        const perfect_fifth = @divFloor(interval_number * 7, 12);
-
-        const fifths_dist = switch (interval.quality) {
-            .Perfect => perfect_fifth,
-            .Major => perfect_fifth + 1,
-            .Minor => perfect_fifth - 1,
-            .Augmented => perfect_fifth + 2,
-            .Diminished => perfect_fifth - 2,
+    // Applies the given interval to the current note an returns the resulting note.
+    pub fn applyInterval(self: Note, interval: Interval) !Note {
+        const semitones: i32 = switch (interval.number) {
+            .Unison => 0,
+            .Second => 2,
+            .Third => 4,
+            .Fourth => 5,
+            .Fifth => 7,
+            .Sixth => 9,
+            .Seventh => 11,
+            .Octave => 12,
         };
 
-        log.debug("  base_fifths_pos: {}", .{base_fifths_pos});
-        log.debug("  interval_number: {}", .{interval_number});
-        log.debug("      fifths_dist: {}", .{fifths_dist});
+        const adjusted_semitones = switch (interval.quality) {
+            .Perfect => semitones,
+            .Major => semitones,
+            .Minor => semitones - 1,
+            .Augmented => semitones + 1,
+            .Diminished => semitones - 1,
+        };
 
-        return fifths_dist;
+        const target_pitch_class = @mod(self.pitchClass() + adjusted_semitones, 12);
+        const target_pitch = Pitch.fromPitchClass(target_pitch_class);
+
+        const octave_adjustment = @divFloor(self.pitchClass() + adjusted_semitones, 12);
+        const target_octave = self.octave + octave_adjustment;
+
+        return Note{ .pitch = target_pitch, .octave = target_octave };
     }
 
-    // Formats the Note as a string.
+    // Formats the note as a string.
     pub fn format(
         self: Note,
         comptime fmt: []const u8,
@@ -240,11 +220,11 @@ pub const Pitch = struct {
     letter: Letter,
     accidental: ?Accidental,
 
-    // Creates a Pitch from a pitch class.
+    // Creates a pitch from a pitch class.
     pub fn fromPitchClass(pitch_class: i32) Pitch {
         assert(0 <= pitch_class and pitch_class < semitones_per_octave);
 
-        // Mapping of a pitch class to its default Pitch.
+        // Mapping of a pitch class to its default pitch.
         // 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
         const mapping = [_]Pitch{
             Pitch{ .letter = .C, .accidental = null },
@@ -264,7 +244,7 @@ pub const Pitch = struct {
         return mapping[@intCast(pitch_class)];
     }
 
-    // Returns the pitch class of the Pitch.
+    // Returns the pitch class of the pitch.
     pub fn pitchClass(self: Pitch) i32 {
         const base_pitch_class = self.letter.pitchClass();
         const adjustment = if (self.accidental) |acc| acc.pitchAdjustment() else 0;
@@ -272,82 +252,7 @@ pub const Pitch = struct {
         return utils.wrap(base_pitch_class + adjustment, semitones_per_octave);
     }
 
-    // Returns the circle of fifths position of the Pitch.
-    pub fn fifthsPosition(self: Pitch) i32 {
-        // Base position for natural notes in the circle of fifths.
-        const base_position: i32 = switch (self.letter) {
-            .C => 0,
-            .G => 1,
-            .D => 2,
-            .A => 3,
-            .E => 4,
-            .B => 5,
-            .F => -1,
-        };
-
-        var position = base_position;
-        if (self.accidental) |acc| {
-            position += switch (acc) {
-                .DoubleFlat => -14,
-                .Flat => -7,
-                .Natural => 0,
-                .Sharp => 7,
-                .DoubleSharp => 14,
-            };
-        }
-
-        assert(-15 <= position and position <= 19);
-        return position;
-    }
-
-    // Creates a Pitch from a circle of fifths position.
-    fn fromFifthsPosition(position: i32) Pitch {
-        assert(-15 <= position and position <= 19);
-
-        // Mapping of a circle of fifths position to its Pitch.
-        const mapping = [_]Pitch{
-            Pitch{ .letter = .F, .accidental = .DoubleFlat }, // -15
-            Pitch{ .letter = .C, .accidental = .DoubleFlat }, // -14
-            Pitch{ .letter = .G, .accidental = .DoubleFlat }, // -13
-            Pitch{ .letter = .D, .accidental = .DoubleFlat }, // -12
-            Pitch{ .letter = .A, .accidental = .DoubleFlat }, // -11
-            Pitch{ .letter = .E, .accidental = .DoubleFlat }, // -10
-            Pitch{ .letter = .B, .accidental = .DoubleFlat }, // -9
-            Pitch{ .letter = .F, .accidental = .Flat }, // -8
-            Pitch{ .letter = .C, .accidental = .Flat }, // -7
-            Pitch{ .letter = .G, .accidental = .Flat }, // -6
-            Pitch{ .letter = .D, .accidental = .Flat }, // -5
-            Pitch{ .letter = .A, .accidental = .Flat }, // -4
-            Pitch{ .letter = .E, .accidental = .Flat }, // -3
-            Pitch{ .letter = .B, .accidental = .Flat }, // -2
-            Pitch{ .letter = .F, .accidental = null }, // -1
-            Pitch{ .letter = .C, .accidental = null }, // 0
-            Pitch{ .letter = .G, .accidental = null }, // 1
-            Pitch{ .letter = .D, .accidental = null }, // 2
-            Pitch{ .letter = .A, .accidental = null }, // 3
-            Pitch{ .letter = .E, .accidental = null }, // 4
-            Pitch{ .letter = .B, .accidental = null }, // 5
-            Pitch{ .letter = .F, .accidental = .Sharp }, // 6
-            Pitch{ .letter = .C, .accidental = .Sharp }, // 7
-            Pitch{ .letter = .G, .accidental = .Sharp }, // 8
-            Pitch{ .letter = .D, .accidental = .Sharp }, // 9
-            Pitch{ .letter = .A, .accidental = .Sharp }, // 10
-            Pitch{ .letter = .E, .accidental = .Sharp }, // 11
-            Pitch{ .letter = .B, .accidental = .Sharp }, // 12
-            Pitch{ .letter = .F, .accidental = .DoubleSharp }, // 13
-            Pitch{ .letter = .C, .accidental = .DoubleSharp }, // 14
-            Pitch{ .letter = .G, .accidental = .DoubleSharp }, // 15
-            Pitch{ .letter = .D, .accidental = .DoubleSharp }, // 16
-            Pitch{ .letter = .A, .accidental = .DoubleSharp }, // 17
-            Pitch{ .letter = .E, .accidental = .DoubleSharp }, // 18
-            Pitch{ .letter = .B, .accidental = .DoubleSharp }, // 19
-        };
-
-        // Adjust the index for negative positions.
-        return mapping[@intCast(position + 15)];
-    }
-
-    // Formats the Pitch as a string.
+    // Formats the pitch as a string.
     pub fn format(
         self: Pitch,
         comptime fmt: []const u8,
@@ -370,7 +275,7 @@ pub const Letter = enum {
     F,
     G,
 
-    // Returns the pitch class for the Letter.
+    // Returns the pitch class for the note letter.
     pub fn pitchClass(self: Letter) i32 {
         return switch (self) {
             .C => 0,
@@ -383,7 +288,7 @@ pub const Letter = enum {
         };
     }
 
-    // Formats the Letter as a string.
+    // Formats the note letter as a string.
     pub fn format(
         self: Letter,
         comptime fmt: []const u8,
@@ -412,7 +317,7 @@ pub const Accidental = enum {
     Sharp,
     DoubleSharp,
 
-    // Returns the pitch class adjustment for the Accidental.
+    // Returns the pitch class adjustment for the accidental.
     pub fn pitchAdjustment(self: Accidental) i32 {
         return switch (self) {
             .DoubleFlat => -2,
@@ -423,7 +328,7 @@ pub const Accidental = enum {
         };
     }
 
-    // Formats the Accidental as a string.
+    // Formats the accidental as a string.
     pub fn format(
         self: Accidental,
         comptime fmt: []const u8,
@@ -541,7 +446,7 @@ test "create from midi note number" {
     try std.testing.expectEqual(expected, Note.fromMidi(127));
 }
 
-test "semitone distance" {
+test "semitone difference" {
     const TestCase = struct {
         n1: []const u8,
         n2: []const u8,
@@ -593,7 +498,7 @@ test "semitone distance" {
     for (test_cases) |test_case| {
         const n1 = try Note.parse(test_case.n1);
         const n2 = try Note.parse(test_case.n2);
-        const result = n1.semitoneDistance(n2);
+        const result = n1.semitoneDifference(n2);
 
         if (test_case.expected != result) {
             const fmt = "\nTest case: from {s} to {s}\n";
@@ -616,7 +521,7 @@ test "apply interval" {
         TestCase{ .note = "C4", .interval = "P1", .expected = "C4" },
         TestCase{ .note = "C4", .interval = "P8", .expected = "C5" },
         TestCase{ .note = "C4", .interval = "M3", .expected = "E4" },
-        TestCase{ .note = "E4", .interval = "m6", .expected = "C4" },
+        TestCase{ .note = "E4", .interval = "m6", .expected = "C5" },
         TestCase{ .note = "D4", .interval = "M3", .expected = "F#4" },
         TestCase{ .note = "D4", .interval = "d4", .expected = "Gb4" },
     };
@@ -625,7 +530,7 @@ test "apply interval" {
         const note = try Note.parse(test_case.note);
         const interval = try Interval.parse(test_case.interval);
         const expected = try Note.parse(test_case.expected);
-        const result = note.applyInterval(interval);
+        const result = try note.applyInterval(interval);
 
         if (!std.meta.eql(expected, result)) {
             const fmt = "\nTest case: {s} with {s} applied, result: {}\n";
