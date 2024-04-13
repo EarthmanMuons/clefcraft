@@ -2,9 +2,13 @@ const std = @import("std");
 const assert = std.debug.assert;
 const log = std.log.scoped(.interval);
 
-const Note = @import("note.zig").Note;
+const constants = @import("constants.zig");
+const note = @import("note.zig");
+const utils = @import("utils.zig");
 
-const semitones_per_octave = @import("note.zig").semitones_per_octave;
+const Note = note.Note;
+const notes_per_diatonic_scale = constants.notes_per_diatonic_scale;
+const semitones_per_octave = constants.semitones_per_octave;
 
 pub const Interval = struct {
     quality: Quality,
@@ -74,24 +78,24 @@ pub const Interval = struct {
 
         // Returns the Quality based on the semitone and fifths distances.
         pub fn fromDistances(semitone_dist: i32, fifths_dist: i32) Quality {
-            const semitone_dist_mod12 = @mod(semitone_dist, 12);
-            const fifths_dist_mod7 = @mod(fifths_dist, 7);
+            const pitch_class = utils.wrap(semitone_dist, semitones_per_octave);
+            const fifths_pos = utils.wrap(fifths_dist, notes_per_diatonic_scale);
 
             std.debug.print("\n", .{});
-            log.debug("semitone distance:       {}", .{semitone_dist});
-            log.debug("semitone distance mod12: {}", .{semitone_dist_mod12});
-            log.debug("  fifths distance:       {}", .{fifths_dist});
-            log.debug("  fifths distance mod7:  {}", .{fifths_dist_mod7});
+            log.debug("semitone dist: {}", .{semitone_dist});
+            log.debug("  fifths dist: {}", .{fifths_dist});
+            log.debug("  pitch class: {}", .{pitch_class});
+            log.debug("   fifths pos: {}", .{fifths_pos});
 
-            return switch (semitone_dist_mod12) {
-                0 => if (fifths_dist_mod7 == 0) .Perfect else .Diminished,
+            return switch (pitch_class) {
+                0 => if (fifths_pos == 0) .Perfect else .Diminished,
                 1 => .Minor,
                 2 => .Major,
                 3 => .Minor,
-                4 => if (fifths_dist_mod7 == 4) .Major else .Diminished,
+                4 => if (fifths_pos == 4) .Major else .Diminished,
                 5 => .Perfect,
                 6 => .Augmented,
-                7 => if (fifths_dist_mod7 == 1) .Perfect else .Diminished,
+                7 => if (fifths_pos == 1) .Perfect else .Diminished,
                 8 => .Minor,
                 9 => .Major,
                 10 => .Minor,
@@ -163,12 +167,12 @@ pub const Interval = struct {
             return @intFromEnum(self);
         }
 
-        // Returns the Number based on the letter and octave distances.
-        pub fn fromDistances(letter_dist: i32, octave_dist: i32) Number {
-            log.debug("letter distance: {}", .{letter_dist});
-            log.debug("octave distance: {}", .{octave_dist});
+        // Returns the Number based on the diatonic and octave distances.
+        pub fn fromDistances(diatonic_dist: i32, octave_dist: i32) Number {
+            log.debug("diatonic dist: {}", .{diatonic_dist});
+            log.debug("  octave dist: {}", .{octave_dist});
 
-            return switch (letter_dist) {
+            return switch (diatonic_dist) {
                 0 => if (octave_dist == 0) .Unison else .Octave,
                 1 => .Second,
                 2 => .Third,

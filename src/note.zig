@@ -2,12 +2,16 @@ const std = @import("std");
 const assert = std.debug.assert;
 const log = std.log.scoped(.note);
 
+const constants = @import("constants.zig");
+const utils = @import("utils.zig");
+
+const notes_per_diatonic_scale = constants.notes_per_diatonic_scale;
+const semitones_per_octave = constants.semitones_per_octave;
+
 // The international standard pitch, A440.
 const standard_pitch = Pitch{ .letter = .A, .accidental = null };
 const standard_note = Note{ .pitch = standard_pitch, .octave = 4 };
 const standard_freq = 440.0; // hertz
-
-pub const semitones_per_octave = 12;
 
 pub const Note = struct {
     pitch: Pitch,
@@ -106,7 +110,7 @@ pub const Note = struct {
         return (octave_dist * semitones_per_octave) + pitch_dist;
     }
 
-    // Returns the distance between two Notes in terms of staff positions.
+    // Returns the distance between two Notes in terms of the diatonic scale.
     pub fn diatonicDistance(self: Note, other: Note) i32 {
         return self.pitch.letter.distance(other.pitch.letter);
     }
@@ -119,7 +123,7 @@ pub const Note = struct {
         // Covers the extended range from -14 (Double Flat) to +19 (Double Sharp)
         const circle_size = 35;
 
-        return wrap(end - start, circle_size);
+        return utils.wrap(end - start, circle_size);
     }
 
     // Returns the frequency of the Note in Hz, using twelve-tone equal temperament (12-TET)
@@ -156,7 +160,7 @@ pub const Note = struct {
         const ref_pos = ref_note.pitchClass() + (ref_note.effectiveOctave() * semitones_per_octave);
         const target_pos = ref_pos + semitone_delta;
 
-        const pitch_class = wrap(target_pos, semitones_per_octave);
+        const pitch_class = utils.wrap(target_pos, semitones_per_octave);
         const octave = @divTrunc(target_pos, semitones_per_octave);
 
         const pitch = Pitch.fromPitchClass(pitch_class);
@@ -226,7 +230,7 @@ pub const Pitch = struct {
         const base_pitch_class = self.letter.pitchClass();
         const adjustment = if (self.accidental) |acc| acc.pitchAdjustment() else 0;
 
-        return wrap(base_pitch_class + adjustment, semitones_per_octave);
+        return utils.wrap(base_pitch_class + adjustment, semitones_per_octave);
     }
 
     // Returns the circle of fifths position of the Pitch.
@@ -342,14 +346,13 @@ pub const Letter = enum {
         };
     }
 
-    // Returns the distance between two Letters in terms of staff positions.
+    // Returns the distance between two Letters in terms of the diatonic scale.
     pub fn distance(self: Letter, other: Letter) i32 {
-        const notes_in_scale = 7;
         const start = @intFromEnum(self);
         const end = @intFromEnum(other);
 
         const diff = @as(i32, @intCast(end)) - @as(i32, @intCast(start));
-        return wrap(diff, notes_in_scale);
+        return utils.wrap(diff, notes_per_diatonic_scale);
     }
 
     // Formats the Letter as a string.
@@ -411,11 +414,6 @@ pub const Accidental = enum {
         try writer.print("{s}", .{symbol});
     }
 };
-
-// Wraps the value within the range [0, limit).
-fn wrap(value: i32, limit: i32) i32 {
-    return @mod(value + limit, limit);
-}
 
 test "parse note without accidental" {
     const note = try Note.parse("C4");
