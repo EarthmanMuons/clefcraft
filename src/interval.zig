@@ -158,13 +158,17 @@ pub const Interval = struct {
         Seventh,
         Octave,
 
+        // Creates a Number from a positive integer representation.
         pub fn fromInt(value: i32) !Number {
-            assert(value >= 0);
-            return try std.meta.intToEnum(Number, value);
+            assert(1 <= value and value <= 8);
+            return try std.meta.intToEnum(Number, value - 1);
         }
 
+        // Returns the positive integer representation of the Number.
         pub fn toInt(self: Number) i32 {
-            return @intFromEnum(self);
+            // We must cast to prevent integer overflow when adding 1;
+            // the compiler optimizes the enum into a `u3` type.
+            return @as(i32, @intCast(@intFromEnum(self))) + 1;
         }
 
         // Returns the Number based on the diatonic and octave distances.
@@ -234,6 +238,13 @@ pub const Interval = struct {
             _ = options;
             const output = self.asText();
             try writer.print("Number({s})", .{output});
+        }
+
+        test "number <=> int conversions" {
+            try std.testing.expectEqual(Number.Unison, Number.fromInt(1));
+            try std.testing.expectEqual(Number.Octave, Number.fromInt(8));
+            try std.testing.expectEqual(1, Number.Unison.toInt());
+            try std.testing.expectEqual(8, Number.Octave.toInt());
         }
     };
 };
@@ -324,7 +335,8 @@ test "create from notes" {
         const result = try Interval.fromNotes(note1, note2);
 
         if (!std.meta.eql(expected, result)) {
-            std.debug.print("\nTest case: from {s} to {s}, result: {}\n", .{ note1, note2, result });
+            const fmt = "\nTest case: from {s} to {s}, result: {}\n";
+            std.debug.print(fmt, .{ note1, note2, result });
         }
         try std.testing.expectEqual(expected, result);
     }
