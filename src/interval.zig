@@ -81,7 +81,6 @@ pub const Interval = struct {
             const pitch_class = utils.wrap(semitone_dist, semitones_per_octave);
             const fifths_pos = utils.wrap(fifths_dist, notes_per_diatonic_scale);
 
-            std.debug.print("\n", .{});
             log.debug("semitone dist: {}", .{semitone_dist});
             log.debug("  fifths dist: {}", .{fifths_dist});
             log.debug("  pitch class: {}", .{pitch_class});
@@ -173,9 +172,6 @@ pub const Interval = struct {
 
         // Returns the Number based on the diatonic and octave distances.
         pub fn fromDistances(diatonic_dist: i32, octave_dist: i32) Number {
-            log.debug("diatonic dist: {}", .{diatonic_dist});
-            log.debug("  octave dist: {}", .{octave_dist});
-
             return switch (diatonic_dist) {
                 0 => if (octave_dist == 0) .Unison else .Octave,
                 1 => .Second,

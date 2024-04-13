@@ -196,41 +196,30 @@ pub const Note = struct {
         const new_pitch = Pitch.fromFifthsPosition(new_fifths_pos);
         const new_octave = self.effectiveOctave() + octave_adjustment;
 
+        log.debug("   new_fifths_pos: {}", .{new_fifths_pos});
+        log.debug("octave_adjustment: {}", .{octave_adjustment});
+        log.debug("        new_pitch: {}", .{new_pitch});
+        log.debug("       new_octave: {}", .{new_octave});
+
         return Note{ .pitch = new_pitch, .octave = new_octave };
     }
 
     fn intervalDistance(self: Note, interval: Interval) i32 {
         const base_fifths_pos = self.pitch.fifthsPosition();
         const interval_number = interval.number.toInt();
+        const perfect_fifth = @divFloor(interval_number * 7, 12);
 
-        var fifths_dist: i32 = undefined;
-        switch (interval.quality) {
-            .Perfect => {
-                // a perfect fifth is 7 fifths away
-                fifths_dist = interval_number * 7 - base_fifths_pos;
-            },
-            .Major => {
-                // a major is one fifths distance more than perfect
-                fifths_dist = interval_number * 7 + 1 - base_fifths_pos;
-            },
-            .Minor => {
-                // a minor one fifths distance less than perfect
-                fifths_dist = interval_number * 7 - 1 - base_fifths_pos;
-            },
-            .Augmented => {
-                // an augmented is two fifths distances more than perfect
-                fifths_dist = interval_number * 7 + 2 - base_fifths_pos;
-            },
-            .Diminished => {
-                // a diminished is two fifths distances less than perfect
-                fifths_dist = interval_number * 7 - 2 - base_fifths_pos;
-            },
-        }
+        const fifths_dist = switch (interval.quality) {
+            .Perfect => perfect_fifth,
+            .Major => perfect_fifth + 1,
+            .Minor => perfect_fifth - 1,
+            .Augmented => perfect_fifth + 2,
+            .Diminished => perfect_fifth - 2,
+        };
 
-        std.debug.print("\n", .{});
-        log.debug("base_fifths_pos: {}", .{base_fifths_pos});
-        log.debug("interval_number: {}", .{interval_number});
-        log.debug("    fifths_dist: {}", .{fifths_dist});
+        log.debug("  base_fifths_pos: {}", .{base_fifths_pos});
+        log.debug("  interval_number: {}", .{interval_number});
+        log.debug("      fifths_dist: {}", .{fifths_dist});
 
         return fifths_dist;
     }
@@ -624,7 +613,10 @@ test "apply interval" {
     };
 
     const test_cases = [_]TestCase{
+        TestCase{ .note = "C4", .interval = "P1", .expected = "C4" },
+        TestCase{ .note = "C4", .interval = "P8", .expected = "C5" },
         TestCase{ .note = "C4", .interval = "M3", .expected = "E4" },
+        TestCase{ .note = "E4", .interval = "m6", .expected = "C4" },
         TestCase{ .note = "D4", .interval = "M3", .expected = "F#4" },
         TestCase{ .note = "D4", .interval = "d4", .expected = "Gb4" },
     };
