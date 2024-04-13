@@ -2,8 +2,8 @@ const std = @import("std");
 const assert = std.debug.assert;
 const log = std.log.scoped(.interval);
 
-const constants = @import("constants.zig");
 const note = @import("note.zig");
+const constants = @import("constants.zig");
 const utils = @import("utils.zig");
 
 const Note = note.Note;

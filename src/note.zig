@@ -2,9 +2,12 @@ const std = @import("std");
 const assert = std.debug.assert;
 const log = std.log.scoped(.note);
 
+const _interval = @import("interval.zig");
 const constants = @import("constants.zig");
 const utils = @import("utils.zig");
 
+const Interval = _interval.Interval;
+const Quality = _interval.Interval.Quality;
 const notes_per_diatonic_scale = constants.notes_per_diatonic_scale;
 const semitones_per_octave = constants.semitones_per_octave;
 
@@ -61,6 +64,11 @@ pub const Note = struct {
         return Note{ .pitch = pitch, .octave = octave };
     }
 
+    // Returns the pitch class of the Note.
+    pub fn pitchClass(self: Note) i32 {
+        return self.pitch.pitchClass();
+    }
+
     // Returns the effective octave of the Note, considering accidentals.
     pub fn effectiveOctave(self: Note) i32 {
         var octave_adjustment: i32 = 0;
@@ -74,52 +82,6 @@ pub const Note = struct {
         }
 
         return self.octave + octave_adjustment;
-    }
-
-    // Returns the pitch class of the Note.
-    pub fn pitchClass(self: Note) i32 {
-        return self.pitch.pitchClass();
-    }
-
-    // Returns if the Note is enharmonic to another Note.
-    pub fn isEnharmonic(self: Note, other: Note) bool {
-        const same_octave = self.effectiveOctave() == other.effectiveOctave();
-        const same_pitch_class = self.pitchClass() == other.pitchClass();
-
-        return same_octave and same_pitch_class;
-    }
-
-    // Returns the distance between two Notes in octaves.
-    pub fn octaveDistance(self: Note, other: Note) i32 {
-        return other.effectiveOctave() - self.effectiveOctave();
-    }
-
-    // Returns the distance between two Notes in semitones.
-    pub fn semitoneDistance(self: Note, other: Note) i32 {
-        const octave_dist = self.octaveDistance(other);
-        const pitch_dist = other.pitchClass() - self.pitchClass();
-
-        return (octave_dist * semitones_per_octave) + pitch_dist;
-    }
-
-    // Returns the distance between two Notes in terms of the diatonic scale.
-    pub fn diatonicDistance(self: Note, other: Note) i32 {
-        const start = @intFromEnum(self.pitch.letter);
-        const end = @intFromEnum(other.pitch.letter);
-        const delta = @as(i32, @intCast(end)) - @as(i32, @intCast(start));
-
-        return utils.wrap(delta, notes_per_diatonic_scale);
-    }
-
-    // Returns the distance between two Notes within the circle of fifths.
-    pub fn fifthsDistance(self: Note, other: Note) i32 {
-        const start = self.pitch.fifthsPosition();
-        const end = other.pitch.fifthsPosition();
-
-        // Covers the extended range from -14 (Double Flat) to +19 (Double Sharp)
-        const circle_size = 35;
-
-        return utils.wrap(end - start, circle_size);
     }
 
     // Returns the frequency of the Note in Hz, using twelve-tone equal temperament (12-TET)
@@ -174,11 +136,103 @@ pub const Note = struct {
 
     // Creates a Note from a MIDI note number.
     pub fn fromMidi(midi_note: i32) Note {
+        assert(0 <= midi_note and midi_note <= 127);
+
         const pitch_class = utils.wrap(midi_note, semitones_per_octave);
         const octave = @divTrunc(midi_note, semitones_per_octave) - 1;
 
         const pitch = Pitch.fromPitchClass(pitch_class);
         return Note{ .pitch = pitch, .octave = octave };
+    }
+
+    // Returns if two Notes are enharmonically equivalent.
+    pub fn isEnharmonic(self: Note, other: Note) bool {
+        const same_octave = self.effectiveOctave() == other.effectiveOctave();
+        const same_pitch_class = self.pitchClass() == other.pitchClass();
+
+        return same_octave and same_pitch_class;
+    }
+
+    // Returns the distance between two Notes in octaves.
+    pub fn octaveDistance(self: Note, other: Note) i32 {
+        return other.effectiveOctave() - self.effectiveOctave();
+    }
+
+    // Returns the distance between two Notes within the circle of fifths.
+    pub fn fifthsDistance(self: Note, other: Note) i32 {
+        const start = self.pitch.fifthsPosition();
+        const end = other.pitch.fifthsPosition();
+
+        // Cover the extended range from -14 (Double Flat) to +19 (Double Sharp).
+        const circle_size = 35;
+        return utils.wrap(end - start, circle_size);
+    }
+
+    // Returns the distance between two Notes in terms of the diatonic scale.
+    pub fn diatonicDistance(self: Note, other: Note) i32 {
+        const start = @intFromEnum(self.pitch.letter);
+        const end = @intFromEnum(other.pitch.letter);
+        const delta = @as(i32, @intCast(end)) - @as(i32, @intCast(start));
+
+        return utils.wrap(delta, notes_per_diatonic_scale);
+    }
+
+    // Returns the distance between two Notes in semitones.
+    pub fn semitoneDistance(self: Note, other: Note) i32 {
+        const octave_dist = self.octaveDistance(other);
+        const pitch_dist = other.pitchClass() - self.pitchClass();
+
+        return (octave_dist * semitones_per_octave) + pitch_dist;
+    }
+
+    // Returns the Note that is an Interval distance away from self.
+    pub fn applyInterval(self: Note, interval: Interval) Note {
+        const base_fifths_pos = self.pitch.fifthsPosition();
+        const fifths_dist = intervalDistance(self, interval);
+
+        const new_fifths_pos = utils.wrap(base_fifths_pos + fifths_dist, notes_per_diatonic_scale);
+        const octave_adjustment = @divFloor(fifths_dist, notes_per_diatonic_scale);
+
+        const new_pitch = Pitch.fromFifthsPosition(new_fifths_pos);
+        const new_octave = self.effectiveOctave() + octave_adjustment;
+
+        return Note{ .pitch = new_pitch, .octave = new_octave };
+    }
+
+    fn intervalDistance(self: Note, interval: Interval) i32 {
+        const base_fifths_pos = self.pitch.fifthsPosition();
+        const interval_number = interval.number.toInt();
+
+        var fifths_dist: i32 = undefined;
+        switch (interval.quality) {
+            .Perfect => {
+                // a perfect fifth is 7 fifths away
+                fifths_dist = interval_number * 7 - base_fifths_pos;
+            },
+            .Major => {
+                // a major is one fifths distance more than perfect
+                fifths_dist = interval_number * 7 + 1 - base_fifths_pos;
+            },
+            .Minor => {
+                // a minor one fifths distance less than perfect
+                fifths_dist = interval_number * 7 - 1 - base_fifths_pos;
+            },
+            .Augmented => {
+                // an augmented is two fifths distances more than perfect
+                fifths_dist = interval_number * 7 + 2 - base_fifths_pos;
+            },
+            .Diminished => {
+                // a diminished is two fifths distances less than perfect
+                fifths_dist = interval_number * 7 - 2 - base_fifths_pos;
+            },
+        }
+
+        std.debug.print("\n", .{});
+        log.debug("base_fifths_pos: {}", .{base_fifths_pos});
+        log.debug("interval_number: {}", .{interval_number});
+        log.debug("    fifths_dist: {}", .{fifths_dist});
+
+        return fifths_dist;
     }
 
     // Formats the Note as a string.
@@ -301,9 +355,7 @@ pub const Pitch = struct {
         };
 
         // Adjust the index for negative positions.
-        const index = position + 15;
-
-        return mapping[index];
+        return mapping[@intCast(position + 15)];
     }
 
     // Formats the Pitch as a string.
@@ -409,67 +461,6 @@ test "parse note without accidental" {
     try std.testing.expectEqual(4, note.octave);
 }
 
-test "semitone distance" {
-    const TestCase = struct {
-        n1: []const u8,
-        n2: []const u8,
-        expected: i32,
-    };
-
-    const test_cases = [_]TestCase{
-        TestCase{ .n1 = "C1", .n2 = "C8", .expected = 84 },
-        TestCase{ .n1 = "A0", .n2 = "C8", .expected = 87 },
-        TestCase{ .n1 = "C0", .n2 = "B8", .expected = 107 },
-
-        TestCase{ .n1 = "A0", .n2 = "C4", .expected = 39 },
-        TestCase{ .n1 = "C4", .n2 = "A0", .expected = -39 },
-        TestCase{ .n1 = "C4", .n2 = "C5", .expected = 12 },
-        TestCase{ .n1 = "C4", .n2 = "C3", .expected = -12 },
-        TestCase{ .n1 = "C4", .n2 = "A4", .expected = 9 },
-        TestCase{ .n1 = "C4", .n2 = "A3", .expected = -3 },
-
-        TestCase{ .n1 = "B3", .n2 = "B#3", .expected = 1 },
-        TestCase{ .n1 = "B3", .n2 = "C4", .expected = 1 },
-        TestCase{ .n1 = "C4", .n2 = "B3", .expected = -1 },
-        TestCase{ .n1 = "C4", .n2 = "Cb4", .expected = -1 },
-
-        TestCase{ .n1 = "B#3", .n2 = "C4", .expected = 0 },
-        TestCase{ .n1 = "Cb4", .n2 = "B3", .expected = 0 },
-        TestCase{ .n1 = "C##4", .n2 = "D4", .expected = 0 },
-        TestCase{ .n1 = "Dbb4", .n2 = "C4", .expected = 0 },
-        TestCase{ .n1 = "E#4", .n2 = "F4", .expected = 0 },
-        TestCase{ .n1 = "Fb4", .n2 = "E4", .expected = 0 },
-        TestCase{ .n1 = "F#4", .n2 = "Gb4", .expected = 0 },
-
-        TestCase{ .n1 = "C4", .n2 = "Cbb4", .expected = -2 },
-        TestCase{ .n1 = "C4", .n2 = "Cb4", .expected = -1 },
-        TestCase{ .n1 = "C4", .n2 = "C4", .expected = 0 },
-        TestCase{ .n1 = "C4", .n2 = "C#4", .expected = 1 },
-        TestCase{ .n1 = "C4", .n2 = "C##4", .expected = 2 },
-
-        TestCase{ .n1 = "G4", .n2 = "G#4", .expected = 1 },
-        TestCase{ .n1 = "G4", .n2 = "G##4", .expected = 2 },
-        TestCase{ .n1 = "Gb4", .n2 = "G4", .expected = 1 },
-        TestCase{ .n1 = "Gb4", .n2 = "G#4", .expected = 2 },
-        TestCase{ .n1 = "Gb4", .n2 = "G##4", .expected = 3 },
-        TestCase{ .n1 = "Gbb4", .n2 = "Gb4", .expected = 1 },
-        TestCase{ .n1 = "Gbb4", .n2 = "G4", .expected = 2 },
-        TestCase{ .n1 = "Gbb4", .n2 = "G#4", .expected = 3 },
-        TestCase{ .n1 = "Gbb4", .n2 = "G##4", .expected = 4 },
-    };
-
-    for (test_cases) |test_case| {
-        const n1 = try Note.parse(test_case.n1);
-        const n2 = try Note.parse(test_case.n2);
-        const result = n1.semitoneDistance(n2);
-
-        if (test_case.expected != result) {
-            std.debug.print("\nTest case: from {s} to {s}, ", .{ n1, n2 });
-        }
-        try std.testing.expectEqual(test_case.expected, result);
-    }
-}
-
 test "frequency calculation" {
     const TestCase = struct {
         n1: []const u8,
@@ -559,4 +550,95 @@ test "create from midi note number" {
     try std.testing.expectEqual(expected, Note.fromMidi(69));
     expected = try Note.parse("G9");
     try std.testing.expectEqual(expected, Note.fromMidi(127));
+}
+
+test "semitone distance" {
+    const TestCase = struct {
+        n1: []const u8,
+        n2: []const u8,
+        expected: i32,
+    };
+
+    const test_cases = [_]TestCase{
+        TestCase{ .n1 = "C1", .n2 = "C8", .expected = 84 },
+        TestCase{ .n1 = "A0", .n2 = "C8", .expected = 87 },
+        TestCase{ .n1 = "C0", .n2 = "B8", .expected = 107 },
+
+        TestCase{ .n1 = "A0", .n2 = "C4", .expected = 39 },
+        TestCase{ .n1 = "C4", .n2 = "A0", .expected = -39 },
+        TestCase{ .n1 = "C4", .n2 = "C5", .expected = 12 },
+        TestCase{ .n1 = "C4", .n2 = "C3", .expected = -12 },
+        TestCase{ .n1 = "C4", .n2 = "A4", .expected = 9 },
+        TestCase{ .n1 = "C4", .n2 = "A3", .expected = -3 },
+
+        TestCase{ .n1 = "B3", .n2 = "B#3", .expected = 1 },
+        TestCase{ .n1 = "B3", .n2 = "C4", .expected = 1 },
+        TestCase{ .n1 = "C4", .n2 = "B3", .expected = -1 },
+        TestCase{ .n1 = "C4", .n2 = "Cb4", .expected = -1 },
+
+        TestCase{ .n1 = "B#3", .n2 = "C4", .expected = 0 },
+        TestCase{ .n1 = "Cb4", .n2 = "B3", .expected = 0 },
+        TestCase{ .n1 = "C##4", .n2 = "D4", .expected = 0 },
+        TestCase{ .n1 = "Dbb4", .n2 = "C4", .expected = 0 },
+        TestCase{ .n1 = "E#4", .n2 = "F4", .expected = 0 },
+        TestCase{ .n1 = "Fb4", .n2 = "E4", .expected = 0 },
+        TestCase{ .n1 = "F#4", .n2 = "Gb4", .expected = 0 },
+
+        TestCase{ .n1 = "C4", .n2 = "Cbb4", .expected = -2 },
+        TestCase{ .n1 = "C4", .n2 = "Cb4", .expected = -1 },
+        TestCase{ .n1 = "C4", .n2 = "C4", .expected = 0 },
+        TestCase{ .n1 = "C4", .n2 = "C#4", .expected = 1 },
+        TestCase{ .n1 = "C4", .n2 = "C##4", .expected = 2 },
+
+        TestCase{ .n1 = "G4", .n2 = "G#4", .expected = 1 },
+        TestCase{ .n1 = "G4", .n2 = "G##4", .expected = 2 },
+        TestCase{ .n1 = "Gb4", .n2 = "G4", .expected = 1 },
+        TestCase{ .n1 = "Gb4", .n2 = "G#4", .expected = 2 },
+        TestCase{ .n1 = "Gb4", .n2 = "G##4", .expected = 3 },
+        TestCase{ .n1 = "Gbb4", .n2 = "Gb4", .expected = 1 },
+        TestCase{ .n1 = "Gbb4", .n2 = "G4", .expected = 2 },
+        TestCase{ .n1 = "Gbb4", .n2 = "G#4", .expected = 3 },
+        TestCase{ .n1 = "Gbb4", .n2 = "G##4", .expected = 4 },
+    };
+
+    for (test_cases) |test_case| {
+        const n1 = try Note.parse(test_case.n1);
+        const n2 = try Note.parse(test_case.n2);
+        const result = n1.semitoneDistance(n2);
+
+        if (test_case.expected != result) {
+            const fmt = "\nTest case: from {s} to {s}\n";
+            std.debug.print(fmt, .{ n1, n2 });
+        }
+        try std.testing.expectEqual(test_case.expected, result);
+    }
+}
+
+test "apply interval" {
+    std.testing.log_level = .debug;
+
+    const TestCase = struct {
+        note: []const u8,
+        interval: []const u8,
+        expected: []const u8,
+    };
+
+    const test_cases = [_]TestCase{
+        TestCase{ .note = "C4", .interval = "M3", .expected = "E4" },
+        TestCase{ .note = "D4", .interval = "M3", .expected = "F#4" },
+        TestCase{ .note = "D4", .interval = "d4", .expected = "Gb4" },
+    };
+
+    for (test_cases) |test_case| {
+        const note = try Note.parse(test_case.note);
+        const interval = try Interval.parse(test_case.interval);
+        const expected = try Note.parse(test_case.expected);
+        const result = note.applyInterval(interval);
+
+        if (!std.meta.eql(expected, result)) {
+            const fmt = "\nTest case: {s} with {s} applied, result: {}\n";
+            std.debug.print(fmt, .{ note, interval, result });
+        }
+        try std.testing.expectEqual(expected, result);
+    }
 }
