@@ -66,19 +66,11 @@ pub const Note = struct {
         var octave_adjustment: i32 = 0;
 
         if (self.pitch.accidental) |acc| {
-            switch (acc) {
-                .Flat, .DoubleFlat => {
-                    if (self.pitch.letter == .C) {
-                        octave_adjustment -= 1;
-                    }
-                },
-                .Sharp, .DoubleSharp => {
-                    if (self.pitch.letter == .B) {
-                        octave_adjustment += 1;
-                    }
-                },
-                else => {},
-            }
+            octave_adjustment += switch (acc) {
+                .Flat, .DoubleFlat => if (self.pitch.letter == .C) -1 else 0,
+                .Sharp, .DoubleSharp => if (self.pitch.letter == .B) 1 else 0,
+                else => 0,
+            };
         }
 
         return self.octave + octave_adjustment;
@@ -112,7 +104,11 @@ pub const Note = struct {
 
     // Returns the distance between two Notes in terms of the diatonic scale.
     pub fn diatonicDistance(self: Note, other: Note) i32 {
-        return self.pitch.letter.distance(other.pitch.letter);
+        const start = @intFromEnum(self.pitch.letter);
+        const end = @intFromEnum(other.pitch.letter);
+        const delta = @as(i32, @intCast(end)) - @as(i32, @intCast(start));
+
+        return utils.wrap(delta, notes_per_diatonic_scale);
     }
 
     // Returns the distance between two Notes within the circle of fifths.
@@ -344,15 +340,6 @@ pub const Letter = enum {
             .A => 9,
             .B => 11,
         };
-    }
-
-    // Returns the distance between two Letters in terms of the diatonic scale.
-    pub fn distance(self: Letter, other: Letter) i32 {
-        const start = @intFromEnum(self);
-        const end = @intFromEnum(other);
-
-        const delta = @as(i32, @intCast(end)) - @as(i32, @intCast(start));
-        return utils.wrap(delta, notes_per_diatonic_scale);
     }
 
     // Formats the Letter as a string.
