@@ -94,7 +94,7 @@ pub const Interval = struct {
                 3 => .Minor,
                 4 => if (fifths_pos == 4) .Major else .Diminished,
                 5 => .Perfect,
-                6 => .Augmented,
+                6 => if (fifths_pos == 1) .Diminished else .Augmented,
                 7 => if (fifths_pos == 1) .Perfect else .Diminished,
                 8 => .Minor,
                 9 => .Major,
@@ -239,7 +239,7 @@ pub const Interval = struct {
 };
 
 test "create from notes" {
-    std.testing.log_level = .debug;
+    // std.testing.log_level = .debug;
 
     const TestCase = struct {
         note1: []const u8,
@@ -247,13 +247,74 @@ test "create from notes" {
         expected: []const u8,
     };
 
-    // D to F♯ is a major third, while D to G♭ is a diminished fourth
     const test_cases = [_]TestCase{
+        // D to F♯ is a major third, while D to G♭ is a diminished fourth
         TestCase{ .note1 = "D4", .note2 = "F#4", .expected = "M3" },
         TestCase{ .note1 = "D4", .note2 = "Gb4", .expected = "d4" },
+        // Exhaustive C Major simple intervals
+        // https://en.wikipedia.org/wiki/File:Diatonic_intervals.png
+        TestCase{ .note1 = "C4", .note2 = "C4", .expected = "P1" },
+        TestCase{ .note1 = "C4", .note2 = "D4", .expected = "M2" },
+        TestCase{ .note1 = "C4", .note2 = "E4", .expected = "M3" },
+        TestCase{ .note1 = "C4", .note2 = "F4", .expected = "P4" },
+        TestCase{ .note1 = "C4", .note2 = "G4", .expected = "P5" },
+        TestCase{ .note1 = "C4", .note2 = "A4", .expected = "M6" },
+        TestCase{ .note1 = "C4", .note2 = "B4", .expected = "M7" },
+        TestCase{ .note1 = "C4", .note2 = "c5", .expected = "P8" },
+        //
         TestCase{ .note1 = "D4", .note2 = "D4", .expected = "P1" },
-        TestCase{ .note1 = "D4", .note2 = "D5", .expected = "P8" },
+        TestCase{ .note1 = "D4", .note2 = "E4", .expected = "M2" },
+        TestCase{ .note1 = "D4", .note2 = "F4", .expected = "m3" },
+        TestCase{ .note1 = "D4", .note2 = "G4", .expected = "P4" },
+        TestCase{ .note1 = "D4", .note2 = "A4", .expected = "P5" },
+        TestCase{ .note1 = "D4", .note2 = "B4", .expected = "M6" },
+        TestCase{ .note1 = "D4", .note2 = "c5", .expected = "m7" },
+        TestCase{ .note1 = "D4", .note2 = "d5", .expected = "P8" },
+        //
+        TestCase{ .note1 = "E4", .note2 = "E4", .expected = "P1" },
+        TestCase{ .note1 = "E4", .note2 = "F4", .expected = "m2" },
+        TestCase{ .note1 = "E4", .note2 = "G4", .expected = "m3" },
+        TestCase{ .note1 = "E4", .note2 = "A4", .expected = "P4" },
         TestCase{ .note1 = "E4", .note2 = "B4", .expected = "P5" },
+        TestCase{ .note1 = "E4", .note2 = "c5", .expected = "m6" },
+        TestCase{ .note1 = "E4", .note2 = "d5", .expected = "m7" },
+        TestCase{ .note1 = "E4", .note2 = "e5", .expected = "P8" },
+        //
+        TestCase{ .note1 = "F4", .note2 = "F4", .expected = "P1" },
+        TestCase{ .note1 = "F4", .note2 = "G4", .expected = "M2" },
+        TestCase{ .note1 = "F4", .note2 = "A4", .expected = "M3" },
+        TestCase{ .note1 = "F4", .note2 = "B4", .expected = "A4" }, // tritone
+        TestCase{ .note1 = "F4", .note2 = "c5", .expected = "P5" },
+        TestCase{ .note1 = "F4", .note2 = "d5", .expected = "M6" },
+        TestCase{ .note1 = "F4", .note2 = "e5", .expected = "M7" },
+        TestCase{ .note1 = "F4", .note2 = "f5", .expected = "P8" },
+        //
+        TestCase{ .note1 = "G4", .note2 = "G4", .expected = "P1" },
+        TestCase{ .note1 = "G4", .note2 = "A4", .expected = "M2" },
+        TestCase{ .note1 = "G4", .note2 = "B4", .expected = "M3" },
+        TestCase{ .note1 = "G4", .note2 = "c5", .expected = "P4" },
+        TestCase{ .note1 = "G4", .note2 = "d5", .expected = "P5" },
+        TestCase{ .note1 = "G4", .note2 = "e5", .expected = "M6" },
+        TestCase{ .note1 = "G4", .note2 = "f5", .expected = "m7" },
+        TestCase{ .note1 = "G4", .note2 = "g5", .expected = "P8" },
+        //
+        TestCase{ .note1 = "A4", .note2 = "A4", .expected = "P1" },
+        TestCase{ .note1 = "A4", .note2 = "B4", .expected = "M2" },
+        TestCase{ .note1 = "A4", .note2 = "c5", .expected = "m3" },
+        TestCase{ .note1 = "A4", .note2 = "d5", .expected = "P4" },
+        TestCase{ .note1 = "A4", .note2 = "e5", .expected = "P5" },
+        TestCase{ .note1 = "A4", .note2 = "f5", .expected = "m6" },
+        TestCase{ .note1 = "A4", .note2 = "g5", .expected = "m7" },
+        TestCase{ .note1 = "A4", .note2 = "a5", .expected = "P8" },
+        //
+        TestCase{ .note1 = "B4", .note2 = "B4", .expected = "P1" },
+        TestCase{ .note1 = "B4", .note2 = "c5", .expected = "m2" },
+        TestCase{ .note1 = "B4", .note2 = "d5", .expected = "m3" },
+        TestCase{ .note1 = "B4", .note2 = "e5", .expected = "P4" },
+        TestCase{ .note1 = "B4", .note2 = "f5", .expected = "d5" }, // tritone
+        TestCase{ .note1 = "B4", .note2 = "g5", .expected = "m6" },
+        TestCase{ .note1 = "B4", .note2 = "a5", .expected = "m7" },
+        TestCase{ .note1 = "B4", .note2 = "b5", .expected = "P8" },
     };
 
     for (test_cases) |test_case| {
