@@ -2,11 +2,13 @@ const std = @import("std");
 const assert = std.debug.assert;
 const log = std.log.scoped(.interval);
 
+const Accidental = @import("pitch.zig").Accidental;
+const Letter = @import("pitch.zig").Letter;
 const Note = @import("note.zig").Note;
 const utils = @import("utils.zig");
 
 const constants = @import("constants.zig");
-const notes_per_diatonic_scale = constants.notes_per_diatonic_scale;
+const letter_count = constants.letter_count;
 const semitones_per_octave = constants.semitones_per_octave;
 
 pub const Interval = struct {
@@ -39,6 +41,58 @@ pub const Interval = struct {
         };
 
         return Interval{ .quality = quality, .number = number };
+    }
+
+    // Returns the number of semitones covered by the current interval.
+    pub fn semitone_count(self: Interval) i32 {
+        const base_semitones: i32 = switch (self.number) {
+            .Unison => 0,
+            .Second => 2,
+            .Third => 4,
+            .Fourth => 5,
+            .Fifth => 7,
+            .Sixth => 9,
+            .Seventh => 11,
+            .Octave => 12,
+        };
+
+        const is_perfect = switch (self.number) {
+            .Unison, .Fourth, .Fifth, .Octave => true,
+            else => false,
+        };
+
+        const quality_adjustment: i32 = switch (self.quality) {
+            .Perfect, .Major => 0,
+            .Minor => -1,
+            .Augmented => 1,
+            .Diminished => if (is_perfect) -1 else -2,
+        };
+
+        return base_semitones + quality_adjustment;
+    }
+
+    // Calculates the resulting accidental ...
+    pub fn calcAccidental(self: Interval, start: Letter, target: Letter, semitones: i32) !?Accidental {
+        const letter_dist = utils.letterDistance(start, target);
+        const interval_number = calcIntervalNumber(letter_dist, 0);
+        const expected_semitones = try expectedSemitones(interval_number, self.quality);
+        // const semitone_diff = @mod(semitones, semitones_per_octave) - expected_semitones;
+        const semitone_diff = @mod(semitones - expected_semitones, 12);
+
+        // log.debug("----- calcAccidental({}, {}, {}, {})", .{ self, start, target, semitones });
+        // log.debug("       letter_dist: {}", .{letter_dist});
+        // log.debug("   interval_number: {}", .{interval_number});
+        // log.debug("expected_semitones: {}", .{expected_semitones});
+        // log.debug("     semitone_diff: {}", .{semitone_diff});
+
+        return switch (semitone_diff) {
+            -2 => .DoubleFlat,
+            -1 => .Flat,
+            0 => null,
+            1 => .Sharp,
+            2 => .DoubleSharp,
+            else => error.InvalidInterval,
+        };
     }
 
     // Formats the interval as a string.
@@ -93,7 +147,7 @@ pub const Quality = enum {
         };
     }
 
-    // Formats the interval quality as a string.
+    // Formats the quality as a string.
     pub fn format(
         self: Quality,
         comptime fmt: []const u8,
@@ -117,13 +171,13 @@ pub const Number = enum {
     Seventh,
     Octave,
 
-    // Creates an interval number from a positive integer representation.
+    // Creates a number from a positive integer representation.
     pub fn fromInt(value: i32) !Number {
         assert(1 <= value and value <= 8);
         return try std.meta.intToEnum(Number, value - 1);
     }
 
-    // Returns the positive integer representation of the interval number.
+    // Returns the positive integer representation of the number.
     pub fn toInt(self: Number) i32 {
         // We must cast to prevent integer overflow when adding 1;
         // the compiler optimizes the enum into a `u3` type.
@@ -169,7 +223,7 @@ pub const Number = enum {
         };
     }
 
-    // Formats the interval number as a string.
+    // Formats the number as a string.
     pub fn format(
         self: Number,
         comptime fmt: []const u8,
@@ -183,76 +237,123 @@ pub const Number = enum {
     }
 };
 
-// Calculates the interval number based on the diatonic distance and octave difference.
-pub fn calcIntervalNumber(diatonic_dist: i32, octave_diff: i32) Number {
-    assert(0 <= diatonic_dist and diatonic_dist <= 6);
+// Calculates the interval number based on the letter distance and octave difference.
+pub fn calcIntervalNumber(letter_dist: i32, octave_diff: i32) Number {
+    assert(0 <= letter_dist and letter_dist <= 6);
 
-    return switch (diatonic_dist) {
-        0 => if (octave_diff == 0) .Unison else .Octave,
-        1 => .Second,
-        2 => .Third,
-        3 => .Fourth,
-        4 => .Fifth,
-        5 => .Sixth,
-        6 => .Seventh,
+    // Add one since distances are zero-based.
+    return switch (letter_dist + 1) {
+        1 => if (octave_diff == 0) .Unison else .Octave,
+        2 => .Second,
+        3 => .Third,
+        4 => .Fourth,
+        5 => .Fifth,
+        6 => .Sixth,
+        7 => .Seventh,
         else => unreachable,
     };
 }
 
 // Calculates the interval quality based on the semitone distance and interval number.
 pub fn calcIntervalQuality(semitones: i32, number: Number) !Quality {
-    log.debug("semitones: {}, number: {}\n", .{ semitones, number });
+    const perfect_semitones: ?i32 = switch (number) {
+        .Unison => 0,
+        .Fourth => 5,
+        .Fifth => 7,
+        .Octave => 12,
+        else => null,
+    };
+
+    const major_semitones: ?i32 = switch (number) {
+        .Second => 2,
+        .Third => 4,
+        .Sixth => 9,
+        .Seventh => 11,
+        else => null,
+    };
+
+    var semitones_diff: i32 = 0;
+    if (perfect_semitones) |perf| {
+        semitones_diff = semitones - perf;
+    } else if (major_semitones) |maj| {
+        semitones_diff = semitones - maj;
+    }
+
+    log.debug("----- calcIntervalQuality({}, {})", .{ semitones, number });
+    log.debug("perfect_semitones: {?}", .{perfect_semitones});
+    log.debug("  major_semitones: {?}", .{major_semitones});
+    log.debug("   semitones_diff: {}", .{semitones_diff});
+
     return switch (number) {
-        .Unison => switch (semitones) {
+        .Unison, .Fourth, .Fifth, .Octave => switch (semitones_diff) {
             0 => .Perfect,
             1 => .Augmented,
             -1 => .Diminished,
             else => error.InvalidInterval,
         },
-        .Second => switch (semitones) {
-            1 => .Minor,
-            2 => .Major,
-            3 => .Augmented,
-            0 => .Diminished,
+        .Second, .Third, .Sixth, .Seventh => switch (semitones_diff) {
+            -1 => .Minor,
+            0 => .Major,
+            1 => .Augmented,
+            -2 => .Diminished,
             else => error.InvalidInterval,
         },
-        .Third => switch (semitones) {
-            3 => .Minor,
-            4 => .Major,
-            5 => .Augmented,
-            2 => .Diminished,
+    };
+}
+
+pub fn expectedSemitones(number: Number, quality: Quality) !i32 {
+    log.debug("----- expectedSemitones({}, {})", .{ number, quality });
+    return switch (number) {
+        .Unison => switch (quality) {
+            .Perfect => 0,
+            .Augmented => 1,
+            .Diminished => -1,
             else => error.InvalidInterval,
         },
-        .Fourth => switch (semitones) {
-            5 => .Perfect,
-            6 => .Augmented,
-            4 => .Diminished,
+        .Second => switch (quality) {
+            .Minor => 1,
+            .Major => 2,
+            .Augmented => 3,
+            .Diminished => 0,
             else => error.InvalidInterval,
         },
-        .Fifth => switch (semitones) {
-            7 => .Perfect,
-            8 => .Augmented,
-            6 => .Diminished,
+        .Third => switch (quality) {
+            .Minor => 3,
+            .Major => 4,
+            .Augmented => 5,
+            .Diminished => 2,
             else => error.InvalidInterval,
         },
-        .Sixth => switch (semitones) {
-            8 => .Minor,
-            9 => .Major,
-            10 => .Augmented,
-            7 => .Diminished,
+        .Fourth => switch (quality) {
+            .Perfect => 5,
+            .Augmented => 6,
+            .Diminished => 4,
             else => error.InvalidInterval,
         },
-        .Seventh => switch (semitones) {
-            10 => .Minor,
-            11 => .Major,
-            12 => .Augmented,
-            9 => .Diminished,
+        .Fifth => switch (quality) {
+            .Perfect => 7,
+            .Augmented => 8,
+            .Diminished => 6,
             else => error.InvalidInterval,
         },
-        .Octave => switch (semitones) {
-            12 => .Perfect,
-            13 => .Augmented,
-            11 => .Diminished,
+        .Sixth => switch (quality) {
+            .Minor => 8,
+            .Major => 9,
+            .Augmented => 10,
+            .Diminished => 7,
+            else => error.InvalidInterval,
+        },
+        .Seventh => switch (quality) {
+            .Minor => 10,
+            .Major => 11,
+            .Augmented => 12,
+            .Diminished => 9,
+            else => error.InvalidInterval,
+        },
+        .Octave => switch (quality) {
+            .Perfect => 12,
+            .Augmented => 13,
+            .Diminished => 11,
             else => error.InvalidInterval,
         },
     };
@@ -260,20 +361,17 @@ pub fn calcIntervalQuality(semitones: i32, number: Number) !Quality {
 
 // Returns the calculated interval between two notes.
 pub fn intervalBetween(note1: Note, note2: Note) !Interval {
-    const diatonic_distance = note1.diatonicDistance(note2);
+    const letter_dist = note1.letterDistance(note2);
     const octave_diff = note1.octaveDifference(note2);
-    const number = calcIntervalNumber(diatonic_distance, octave_diff);
+    const number = calcIntervalNumber(letter_dist, octave_diff);
 
-    // TODO: Does this need to always be positive? We can't wrap due to compound intervals?
-    const semitones = @as(i32, @intCast(@abs(note1.semitoneDifference(note2))));
+    const semitones = note1.semitoneDifference(note2);
     const quality = try calcIntervalQuality(semitones, number);
 
     return Interval{ .quality = quality, .number = number };
 }
 
 test "interval between" {
-    std.testing.log_level = .debug;
-
     const TestCase = struct {
         note1: []const u8,
         note2: []const u8,
@@ -354,13 +452,13 @@ test "interval between" {
         const note1 = try Note.parse(test_case.note1);
         const note2 = try Note.parse(test_case.note2);
         const expected = try Interval.parse(test_case.expected);
-        const fmtz = "\nTest case: from {s} to {s}\n";
-        std.debug.print(fmtz, .{ note1, note2 });
         const result = try intervalBetween(note1, note2);
 
         if (!std.meta.eql(expected, result)) {
-            const fmt = "\nTest case: from {s} to {s}, result: {}\n";
-            std.debug.print(fmt, .{ note1, note2, result });
+            std.debug.print(
+                "\nTest case: from {s} to {s}, result: {}\n",
+                .{ note1, note2, result },
+            );
         }
         try std.testing.expectEqual(expected, result);
     }

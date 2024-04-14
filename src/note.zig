@@ -6,15 +6,14 @@ const Accidental = @import("pitch.zig").Accidental;
 const Interval = @import("interval.zig").Interval;
 const Letter = @import("pitch.zig").Letter;
 const Pitch = @import("pitch.zig").Pitch;
+const _interval = @import("interval.zig");
 const utils = @import("utils.zig");
 
 const constants = @import("constants.zig");
-const notes_per_diatonic_scale = constants.notes_per_diatonic_scale;
 const semitones_per_octave = constants.semitones_per_octave;
 
 // The international standard pitch, A440.
-const standard_pitch = Pitch{ .letter = .A, .accidental = null };
-const standard_note = Note{ .pitch = standard_pitch, .octave = 4 };
+const standard_note = Note{ .pitch = Pitch{ .letter = .A, .accidental = null }, .octave = 4 };
 const standard_freq = 440.0; // hertz
 
 pub const Note = struct {
@@ -65,12 +64,12 @@ pub const Note = struct {
         return Note{ .pitch = pitch, .octave = octave };
     }
 
-    // Returns the pitch class of the note.
+    // Returns the pitch class of the current note.
     pub fn pitchClass(self: Note) i32 {
         return self.pitch.pitchClass();
     }
 
-    // Returns the effective octave of the note, considering accidentals.
+    // Returns the effective octave of the current note, considering accidentals.
     pub fn effectiveOctave(self: Note) i32 {
         var octave_adjustment: i32 = 0;
 
@@ -85,13 +84,13 @@ pub const Note = struct {
         return self.octave + octave_adjustment;
     }
 
-    // Returns the frequency of the note in Hz, using twelve-tone equal temperament (12-TET)
+    // Returns the frequency of the current note in Hz, using twelve-tone equal temperament (12-TET)
     // and the A440 standard pitch as the reference note.
     pub fn frequency(self: Note) f64 {
         return self.frequencyWithRef(standard_note, standard_freq);
     }
 
-    // Returns the frequency of the note in Hz, using twelve-tone equal temperament (12-TET)
+    // Returns the frequency of the current note in Hz, using twelve-tone equal temperament (12-TET)
     // and the given reference note.
     pub fn frequencyWithRef(self: Note, ref_note: Note, ref_freq: f64) f64 {
         const semitone_diff = ref_note.semitoneDifference(self);
@@ -126,7 +125,7 @@ pub const Note = struct {
         return Note{ .pitch = pitch, .octave = octave };
     }
 
-    // Returns the MIDI note number of the note.
+    // Returns the MIDI note number of the current note.
     pub fn midi(self: Note) i32 {
         const octave_offset = (self.effectiveOctave() + 1) * semitones_per_octave;
         const midi_note = octave_offset + self.pitchClass();
@@ -146,7 +145,7 @@ pub const Note = struct {
         return Note{ .pitch = pitch, .octave = octave };
     }
 
-    // Returns if two notes are enharmonically equivalent.
+    // Tests if the current note is enharmonically equivalent to the given note.
     pub fn isEnharmonic(self: Note, other: Note) bool {
         const same_octave = self.effectiveOctave() == other.effectiveOctave();
         const same_pitch_class = self.pitchClass() == other.pitchClass();
@@ -168,54 +167,84 @@ pub const Note = struct {
         return (octave_diff * semitones_per_octave) + pitch_diff;
     }
 
-    // Returns the non-negative distance between two notes based on the diatonic scale.
-    pub fn diatonicDistance(self: Note, other: Note) i32 {
-        const start = @intFromEnum(self.pitch.letter);
-        const end = @intFromEnum(other.pitch.letter);
-        const difference = @as(i32, @intCast(end)) - @as(i32, @intCast(start));
-
-        return utils.wrap(difference, notes_per_diatonic_scale);
+    // Returns the non-negative distance between two notes based on their letters.
+    pub fn letterDistance(self: Note, other: Note) i32 {
+        return utils.letterDistance(self.pitch.letter, other.pitch.letter);
     }
 
     // Applies the given interval to the current note and returns the resulting note.
     pub fn applyInterval(self: Note, interval: Interval) !Note {
-        const semitones: i32 = switch (interval.number) {
-            .Unison => 0,
-            .Second => 2,
-            .Third => 4,
-            .Fourth => 5,
-            .Fifth => 7,
-            .Sixth => 9,
-            .Seventh => 11,
-            .Octave => 12,
-        };
+        log.debug("----- applyInterval({}, {})", .{ self, interval });
+        const start_letter = self.pitch.letter;
+        log.debug("      start_letter: {}", .{start_letter});
+        const interval_num = interval.number.toInt();
+        log.debug("      interval_num: {}", .{interval_num});
+        const target_letter = start_letter.offset(interval_num - 1);
+        log.debug("     target_letter: {}", .{target_letter});
+        // NOW WE HAVE THE LETTER, BUT WE NEED THE QUALITY
 
-        const adjusted_semitones = switch (interval.quality) {
-            .Perfect => semitones,
-            .Major => semitones,
-            .Minor => semitones - 1,
-            .Augmented => semitones + 1,
-            .Diminished => semitones - 1,
-        };
+        const start_pitch_class = self.pitchClass();
+        log.debug(" start_pitch_class: {}", .{start_pitch_class});
+        const interval_semitones = interval.semitone_count();
+        log.debug("interval_semitones: {}", .{interval_semitones});
+        const target_pitch_class = utils.wrap(start_pitch_class + interval_semitones, 12);
+        log.debug("target_pitch_class: {}", .{target_pitch_class});
 
-        const target_accidental: ?Accidental = switch (interval.quality) {
-            .Perfect, .Major => null,
-            .Minor, .Diminished => .Flat,
-            .Augmented => .Sharp,
-        };
+        // I'm curious...this might work:
+        const target_pitch = try selectEnharmonic(target_pitch_class, target_letter);
 
-        const target_pitch_class = @mod(self.pitchClass() + adjusted_semitones, 12);
-        const target_letter = Letter.fromPitchClass(target_pitch_class);
+        // const expected_semitones = try _interval.expectedSemitones(
+        //     interval.number,
+        //     interval.quality,
+        // );
+        // log.debug("expected_semitones: {}", .{expected_semitones});
+        // const actual_semitones = expected_semitones + self.pitchClass();
+        // log.debug("  actual_semitones: {}", .{actual_semitones});
 
-        const octave_adjustment = @divFloor(self.pitchClass() + adjusted_semitones, 12);
+        // const target_pitch_class = @mod(actual_semitones, 12); // UNUSED?
+        // log.debug("target_pitch_class: {}", .{target_pitch_class});
+        // const target_accidental = try interval.calcAccidental(
+        //     start_letter,
+        //     target_letter,
+        //     semitones,
+        // );
+        // log.debug(" target_accidental: {?}", .{target_accidental});
+
+        log.debug("       self.octave: {}", .{self.octave});
+        const octave_adjustment = @divFloor(start_pitch_class + interval_semitones, 12);
+        log.debug(" octave_adjustment: {}", .{octave_adjustment});
         const target_octave = self.octave + octave_adjustment;
+        log.debug("     target_octave: {}", .{target_octave});
+
+        // log.debug("----- applyInterval({}, {})", .{ self, interval });
+        // log.debug("      start_letter: {}", .{start_letter});
+        // log.debug("      interval_val: {}", .{interval_val});
+        // log.debug("      interval_num: {}", .{interval_num});
+        // log.debug("expected_semitones: {}", .{expected_semitones});
+        // log.debug("  actual_semitones: {}", .{actual_semitones});
+        // log.debug("       self.octave: {}", .{self.octave});
+        // log.debug(" octave_adjustment: {}", .{octave_adjustment});
+        // log.debug("target_pitch_class: {}", .{target_pitch_class});
+        // log.debug("     target_letter: {}", .{target_letter});
+        // log.debug(" target_accidental: {?}", .{target_accidental});
+        // log.debug("     target_octave: {}", .{target_octave});
 
         return Note{
-            .pitch = .{
-                .letter = target_letter,
-                .accidental = target_accidental,
-            },
+            .pitch = target_pitch,
             .octave = target_octave,
+        };
+    }
+
+    fn selectEnharmonic(target_pitch_class: i32, target_letter: Letter) !Pitch {
+        assert(0 <= target_pitch_class and target_pitch_class < semitones_per_octave);
+
+        const natural_pitch_class = target_letter.pitchClass();
+        const adjustment = target_pitch_class - natural_pitch_class;
+        const accidental: ?Accidental = try Accidental.fromPitchAdjustment(adjustment);
+
+        return Pitch{
+            .letter = target_letter,
+            .accidental = accidental,
         };
     }
 
@@ -262,8 +291,10 @@ test "frequency calculation" {
 
         const passed = std.math.approxEqAbs(f64, test_case.expected, result, epsilon);
         if (!passed) {
-            const fmt = "\nTest case: {}, expected {d:.3}, found {d:.3}\n";
-            std.debug.print(fmt, .{ note, test_case.expected, result });
+            std.debug.print(
+                "\nTest case: {}, expected {d:.3}, found {d:.3}\n",
+                .{ note, test_case.expected, result },
+            );
         }
         try std.testing.expect(passed);
     }
@@ -384,8 +415,7 @@ test "semitone difference" {
         const result = n1.semitoneDifference(n2);
 
         if (test_case.expected != result) {
-            const fmt = "\nTest case: from {s} to {s}\n";
-            std.debug.print(fmt, .{ n1, n2 });
+            std.debug.print("\nTest case: from {s} to {s}\n", .{ n1, n2 });
         }
         try std.testing.expectEqual(test_case.expected, result);
     }
@@ -413,11 +443,15 @@ test "apply interval" {
         const note = try Note.parse(test_case.note);
         const interval = try Interval.parse(test_case.interval);
         const expected = try Note.parse(test_case.expected);
+        log.debug("", .{});
+        log.debug("TestCase: Note({s}), {s}, expected = Note({})", .{ note, interval, expected });
         const result = try note.applyInterval(interval);
 
         if (!std.meta.eql(expected, result)) {
-            const fmt = "\nTest case: {s} with {s} applied, result: {}\n";
-            std.debug.print(fmt, .{ note, interval, result });
+            std.debug.print(
+                "\nTest case: {s} with {s} applied, result: {}\n",
+                .{ note, interval, result },
+            );
         }
         try std.testing.expectEqual(expected, result);
     }

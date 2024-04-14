@@ -30,7 +30,7 @@ pub const Pitch = struct {
         return Pitch{ .letter = letter, .accidental = accidental };
     }
 
-    // Returns the pitch class of the pitch.
+    // Returns the pitch class of the current pitch.
     pub fn pitchClass(self: Pitch) i32 {
         const base_pitch_class = self.letter.pitchClass();
         const adjustment = if (self.accidental) |acc| acc.pitchAdjustment() else 0;
@@ -61,7 +61,7 @@ pub const Letter = enum {
     F,
     G,
 
-    // Returns the pitch letter based on the given pitch class.
+    // Creates a letter from the given pitch class.
     pub fn fromPitchClass(pitch_class: i32) Letter {
         assert(0 <= pitch_class and pitch_class < semitones_per_octave);
 
@@ -77,7 +77,7 @@ pub const Letter = enum {
         };
     }
 
-    // Returns the pitch class for the pitch letter.
+    // Returns the pitch class for the current letter.
     pub fn pitchClass(self: Letter) i32 {
         return switch (self) {
             .C => 0,
@@ -90,7 +90,14 @@ pub const Letter = enum {
         };
     }
 
-    // Formats the pitch letter as a string.
+    // Creates a letter from the current letter and an offset value.
+    pub fn offset(self: Letter, offset_val: i32) Letter {
+        const start_val = @intFromEnum(self);
+        const result = @mod(start_val + offset_val, 7);
+        return @enumFromInt(result);
+    }
+
+    // Formats the letter as a string.
     pub fn format(
         self: Letter,
         comptime fmt: []const u8,
@@ -119,7 +126,7 @@ pub const Accidental = enum {
     Sharp,
     DoubleSharp,
 
-    // Returns the pitch adjustment for the accidental.
+    // Returns a pitch adjustment based on the current accidental.
     pub fn pitchAdjustment(self: Accidental) i32 {
         return switch (self) {
             .DoubleFlat => -2,
@@ -127,6 +134,17 @@ pub const Accidental = enum {
             .Natural => 0,
             .Sharp => 1,
             .DoubleSharp => 2,
+        };
+    }
+
+    pub fn fromPitchAdjustment(adjustment: i32) !?Accidental {
+        return switch (adjustment) {
+            -2 => .DoubleFlat,
+            -1 => .Flat,
+            0 => null,
+            1 => .Sharp,
+            2 => .DoubleSharp,
+            else => return error.InvalidAdjustment,
         };
     }
 
@@ -149,3 +167,14 @@ pub const Accidental = enum {
         try writer.print("{s}", .{symbol});
     }
 };
+
+test "offset()" {
+    try std.testing.expectEqual(Letter.A, Letter.A.offset(0));
+    try std.testing.expectEqual(Letter.B, Letter.A.offset(1));
+    try std.testing.expectEqual(Letter.C, Letter.A.offset(2));
+    try std.testing.expectEqual(Letter.A, Letter.A.offset(7));
+    try std.testing.expectEqual(Letter.B, Letter.A.offset(8));
+    try std.testing.expectEqual(Letter.C, Letter.B.offset(1));
+    try std.testing.expectEqual(Letter.B, Letter.C.offset(-1));
+    try std.testing.expectEqual(Letter.A, Letter.C.offset(-2));
+}
