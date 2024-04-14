@@ -177,7 +177,7 @@ pub const Note = struct {
         return utils.wrap(difference, notes_per_diatonic_scale);
     }
 
-    // Applies the given interval to the current note an returns the resulting note.
+    // Applies the given interval to the current note and returns the resulting note.
     pub fn applyInterval(self: Note, interval: Interval) !Note {
         const semitones: i32 = switch (interval.number) {
             .Unison => 0,
@@ -198,13 +198,25 @@ pub const Note = struct {
             .Diminished => semitones - 1,
         };
 
+        const target_accidental: ?Accidental = switch (interval.quality) {
+            .Perfect, .Major => null,
+            .Minor, .Diminished => .Flat,
+            .Augmented => .Sharp,
+        };
+
         const target_pitch_class = @mod(self.pitchClass() + adjusted_semitones, 12);
-        const target_pitch = Pitch.fromPitchClass(target_pitch_class);
+        const target_letter = Letter.fromPitchClass(target_pitch_class);
 
         const octave_adjustment = @divFloor(self.pitchClass() + adjusted_semitones, 12);
         const target_octave = self.octave + octave_adjustment;
 
-        return Note{ .pitch = target_pitch, .octave = target_octave };
+        return Note{
+            .pitch = .{
+                .letter = target_letter,
+                .accidental = target_accidental,
+            },
+            .octave = target_octave,
+        };
     }
 
     // Formats the note as a string.

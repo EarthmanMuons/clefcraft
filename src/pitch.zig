@@ -11,28 +11,23 @@ pub const Pitch = struct {
     letter: Letter,
     accidental: ?Accidental,
 
-    // Creates a pitch from a pitch class.
+    // Creates a pitch from a pitch class using the default accidental mapping.
+    // 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
     pub fn fromPitchClass(pitch_class: i32) Pitch {
-        assert(0 <= pitch_class and pitch_class < semitones_per_octave);
-
-        // Mapping of a pitch class to its default pitch.
-        // 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
-        const mapping = [_]Pitch{
-            Pitch{ .letter = .C, .accidental = null },
-            Pitch{ .letter = .C, .accidental = Accidental.Sharp },
-            Pitch{ .letter = .D, .accidental = null },
-            Pitch{ .letter = .D, .accidental = Accidental.Sharp },
-            Pitch{ .letter = .E, .accidental = null },
-            Pitch{ .letter = .F, .accidental = null },
-            Pitch{ .letter = .F, .accidental = Accidental.Sharp },
-            Pitch{ .letter = .G, .accidental = null },
-            Pitch{ .letter = .G, .accidental = Accidental.Sharp },
-            Pitch{ .letter = .A, .accidental = null },
-            Pitch{ .letter = .A, .accidental = Accidental.Sharp },
-            Pitch{ .letter = .B, .accidental = null },
+        const default_accidental: ?Accidental = switch (pitch_class) {
+            1, 3, 6, 8, 10 => .Sharp,
+            else => null,
         };
 
-        return mapping[@intCast(pitch_class)];
+        return Pitch.fromPitchClassWithAccidental(pitch_class, default_accidental);
+    }
+
+    // Creates a pitch from a pitch class and an optional accidental.
+    pub fn fromPitchClassWithAccidental(pitch_class: i32, accidental: ?Accidental) Pitch {
+        assert(0 <= pitch_class and pitch_class < semitones_per_octave);
+
+        const letter = Letter.fromPitchClass(pitch_class);
+        return Pitch{ .letter = letter, .accidental = accidental };
     }
 
     // Returns the pitch class of the pitch.
@@ -65,6 +60,22 @@ pub const Letter = enum {
     E,
     F,
     G,
+
+    // Returns the pitch letter based on the given pitch class.
+    pub fn fromPitchClass(pitch_class: i32) Letter {
+        assert(0 <= pitch_class and pitch_class < semitones_per_octave);
+
+        return switch (pitch_class) {
+            0...1 => .C,
+            2...3 => .D,
+            4 => .E,
+            5...6 => .F,
+            7...8 => .G,
+            9...10 => .A,
+            11 => .B,
+            else => unreachable,
+        };
+    }
 
     // Returns the pitch class for the pitch letter.
     pub fn pitchClass(self: Letter) i32 {
