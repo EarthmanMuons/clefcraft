@@ -3,9 +3,9 @@ const assert = std.debug.assert;
 const log = std.log.scoped(.interval);
 
 const Note = @import("note.zig").Note;
-const constants = @import("constants.zig");
 const utils = @import("utils.zig");
 
+const constants = @import("constants.zig");
 const notes_per_diatonic_scale = constants.notes_per_diatonic_scale;
 const semitones_per_octave = constants.semitones_per_octave;
 
