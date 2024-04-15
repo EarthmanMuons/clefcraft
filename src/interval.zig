@@ -9,10 +9,10 @@ pub const Interval = struct {
     number: Number,
 
     // Creates an interval from a shorthand string representation.
-    pub fn parse(chars: []const u8) !Interval {
-        if (chars.len < 2) return error.InvalidIntervalFormat;
+    pub fn parse(text: []const u8) !Interval {
+        if (text.len < 2) return error.InvalidIntervalFormat;
 
-        const quality = switch (chars[0]) {
+        const quality = switch (text[0]) {
             'P' => Quality.Perfect,
             'M' => Quality.Major,
             'm' => Quality.Minor,
@@ -21,7 +21,7 @@ pub const Interval = struct {
             else => return error.InvalidQuality,
         };
 
-        const number = switch (chars[1]) {
+        const number = switch (text[1]) {
             '1' => Number.Unison,
             '2' => Number.Second,
             '3' => Number.Third,

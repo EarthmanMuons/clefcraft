@@ -22,10 +22,10 @@ pub const Note = struct {
     octave: i32,
 
     // Creates a note from a string representation.
-    pub fn parse(chars: []const u8) !Note {
-        if (chars.len < 2) return error.InvalidNoteFormat;
+    pub fn parse(text: []const u8) !Note {
+        if (text.len < 2) return error.InvalidNoteFormat;
 
-        const first_char = std.ascii.toUpper(chars[0]);
+        const first_char = std.ascii.toUpper(text[0]);
         const letter = switch (first_char) {
             'A' => Letter.A,
             'B' => Letter.B,
@@ -39,8 +39,8 @@ pub const Note = struct {
 
         var accidental: ?Accidental = null;
         var octave_idx: usize = 1;
-        if (chars.len > 2) {
-            accidental = switch (chars[1]) {
+        if (text.len > 2) {
+            accidental = switch (text[1]) {
                 'b' => Accidental.Flat,
                 'n' => Accidental.Natural,
                 '#' => Accidental.Sharp,
@@ -49,16 +49,16 @@ pub const Note = struct {
             };
             if (accidental != null) octave_idx += 1;
         }
-        if (chars.len > 3) {
-            if (chars[1] == 'b' and chars[2] == 'b') {
+        if (text.len > 3) {
+            if (text[1] == 'b' and text[2] == 'b') {
                 accidental = Accidental.DoubleFlat;
                 octave_idx += 1;
-            } else if (chars[1] == '#' and chars[2] == '#') {
+            } else if (text[1] == '#' and text[2] == '#') {
                 accidental = Accidental.DoubleSharp;
                 octave_idx += 1;
             }
         }
-        const octave_str = chars[octave_idx..];
+        const octave_str = text[octave_idx..];
         const octave = std.fmt.parseInt(i32, octave_str, 10) catch return error.InvalidOctave;
 
         return Note{
