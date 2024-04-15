@@ -111,11 +111,11 @@ pub const Note = struct {
     pub fn fromFrequencyWithRef(freq: f64, ref_note: Note, ref_freq: f64) Note {
         assert(freq > 0);
 
-        const semitone_delta_raw = @log2(freq / ref_freq) * semitones_per_octave;
-        const semitone_delta = @as(i32, @intFromFloat(@round(semitone_delta_raw)));
+        const semitone_diff_raw = @log2(freq / ref_freq) * semitones_per_octave;
+        const semitone_diff = @as(i32, @intFromFloat(@round(semitone_diff_raw)));
 
         const ref_pos = (ref_note.effectiveOctave() * semitones_per_octave) + ref_note.pitchClass();
-        const target_pos = ref_pos + semitone_delta;
+        const target_pos = ref_pos + semitone_diff;
 
         const pitch_class = utils.wrap(target_pos, semitones_per_octave);
         const octave = @divTrunc(target_pos, semitones_per_octave);
