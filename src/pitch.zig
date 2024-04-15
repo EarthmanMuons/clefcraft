@@ -4,8 +4,7 @@ const log = std.log.scoped(.pitch);
 
 const utils = @import("utils.zig");
 
-const constants = @import("constants.zig");
-const semitones_per_octave = constants.semitones_per_octave;
+const semitones_per_octave = @import("constants.zig").semitones_per_octave;
 
 pub const Pitch = struct {
     letter: Letter,
@@ -14,19 +13,14 @@ pub const Pitch = struct {
     // Creates a pitch from a pitch class using the default accidental mapping.
     // 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
     pub fn fromPitchClass(pitch_class: i32) Pitch {
-        const default_accidental: ?Accidental = switch (pitch_class) {
+        assert(0 <= pitch_class and pitch_class < semitones_per_octave);
+
+        const letter = Letter.fromPitchClass(pitch_class);
+        const accidental: ?Accidental = switch (pitch_class) {
             1, 3, 6, 8, 10 => .Sharp,
             else => null,
         };
 
-        return Pitch.fromPitchClassWithAccidental(pitch_class, default_accidental);
-    }
-
-    // Creates a pitch from a pitch class and an optional accidental.
-    pub fn fromPitchClassWithAccidental(pitch_class: i32, accidental: ?Accidental) Pitch {
-        assert(0 <= pitch_class and pitch_class < semitones_per_octave);
-
-        const letter = Letter.fromPitchClass(pitch_class);
         return Pitch{ .letter = letter, .accidental = accidental };
     }
 

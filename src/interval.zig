@@ -7,9 +7,8 @@ const Letter = @import("pitch.zig").Letter;
 const Note = @import("note.zig").Note;
 const utils = @import("utils.zig");
 
-const constants = @import("constants.zig");
-const letter_count = constants.letter_count;
-const semitones_per_octave = constants.semitones_per_octave;
+const letter_count = @import("constants.zig").letter_count;
+const semitones_per_octave = @import("constants.zig").semitones_per_octave;
 
 pub const Interval = struct {
     quality: Quality,

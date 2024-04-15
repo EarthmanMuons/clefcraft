@@ -8,8 +8,7 @@ const Letter = @import("pitch.zig").Letter;
 const Pitch = @import("pitch.zig").Pitch;
 const utils = @import("utils.zig");
 
-const constants = @import("constants.zig");
-const semitones_per_octave = constants.semitones_per_octave;
+const semitones_per_octave = @import("constants.zig").semitones_per_octave;
 
 // The international standard pitch, A440.
 const standard_note = Note{ .pitch = Pitch{ .letter = .A, .accidental = null }, .octave = 4 };
