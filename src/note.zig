@@ -14,7 +14,7 @@ const Pitch = pitch.Pitch;
 const semitones_per_octave = @import("constants.zig").music_theory.semitones_per_octave;
 
 // The international standard pitch, A440.
-const standard_note = Note{ .pitch = Pitch{ .letter = .A, .accidental = null }, .octave = 4 };
+const standard_note = Note{ .pitch = Pitch{ .letter = .a, .accidental = null }, .octave = 4 };
 const standard_freq = 440.0; // hertz
 
 pub const Note = struct {
@@ -27,13 +27,13 @@ pub const Note = struct {
 
         const first_char = std.ascii.toUpper(text[0]);
         const letter = switch (first_char) {
-            'A' => Letter.A,
-            'B' => Letter.B,
-            'C' => Letter.C,
-            'D' => Letter.D,
-            'E' => Letter.E,
-            'F' => Letter.F,
-            'G' => Letter.G,
+            'A' => Letter.a,
+            'B' => Letter.b,
+            'C' => Letter.c,
+            'D' => Letter.d,
+            'E' => Letter.e,
+            'F' => Letter.f,
+            'G' => Letter.g,
             else => return error.InvalidLetter,
         };
 
@@ -41,20 +41,20 @@ pub const Note = struct {
         var octave_idx: usize = 1;
         if (text.len > 2) {
             accidental = switch (text[1]) {
-                'b' => Accidental.Flat,
-                'n' => Accidental.Natural,
-                '#' => Accidental.Sharp,
-                'x' => Accidental.DoubleSharp,
+                'b' => Accidental.flat,
+                'n' => Accidental.natural,
+                '#' => Accidental.sharp,
+                'x' => Accidental.double_sharp,
                 else => null,
             };
             if (accidental != null) octave_idx += 1;
         }
         if (text.len > 3) {
             if (text[1] == 'b' and text[2] == 'b') {
-                accidental = Accidental.DoubleFlat;
+                accidental = Accidental.double_flat;
                 octave_idx += 1;
             } else if (text[1] == '#' and text[2] == '#') {
-                accidental = Accidental.DoubleSharp;
+                accidental = Accidental.double_sharp;
                 octave_idx += 1;
             }
         }
@@ -78,8 +78,8 @@ pub const Note = struct {
 
         if (self.pitch.accidental) |acc| {
             octave_adjustment += switch (acc) {
-                .Flat, .DoubleFlat => if (self.pitch.letter == .C) -1 else 0,
-                .Sharp, .DoubleSharp => if (self.pitch.letter == .B) 1 else 0,
+                .flat, .double_flat => if (self.pitch.letter == .c) -1 else 0,
+                .sharp, .double_sharp => if (self.pitch.letter == .b) 1 else 0,
                 else => 0,
             };
         }

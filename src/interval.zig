@@ -13,23 +13,23 @@ pub const Interval = struct {
         if (text.len < 2) return error.InvalidIntervalFormat;
 
         const quality = switch (text[0]) {
-            'P' => Quality.Perfect,
-            'M' => Quality.Major,
-            'm' => Quality.Minor,
-            'A' => Quality.Augmented,
-            'd' => Quality.Diminished,
+            'P' => Quality.perfect,
+            'M' => Quality.major,
+            'm' => Quality.minor,
+            'A' => Quality.augmented,
+            'd' => Quality.diminished,
             else => return error.InvalidQuality,
         };
 
         const number = switch (text[1]) {
-            '1' => Number.Unison,
-            '2' => Number.Second,
-            '3' => Number.Third,
-            '4' => Number.Fourth,
-            '5' => Number.Fifth,
-            '6' => Number.Sixth,
-            '7' => Number.Seventh,
-            '8' => Number.Octave,
+            '1' => Number.unison,
+            '2' => Number.second,
+            '3' => Number.third,
+            '4' => Number.fourth,
+            '5' => Number.fifth,
+            '6' => Number.sixth,
+            '7' => Number.seventh,
+            '8' => Number.octave,
             else => return error.InvalidNumber,
         };
 
@@ -41,14 +41,14 @@ pub const Interval = struct {
         const base_semitones = baseSemitones(self.number);
 
         const is_perfect = switch (self.number) {
-            .Unison, .Fourth, .Fifth, .Octave => true,
+            .unison, .fourth, .fifth, .octave => true,
             else => false,
         };
         const quality_adjustment: i32 = switch (self.quality) {
-            .Perfect, .Major => 0,
-            .Minor => -1,
-            .Augmented => 1,
-            .Diminished => if (is_perfect) -1 else -2,
+            .perfect, .major => 0,
+            .minor => -1,
+            .augmented => 1,
+            .diminished => if (is_perfect) -1 else -2,
         };
 
         return base_semitones + quality_adjustment;
@@ -70,39 +70,39 @@ pub const Interval = struct {
 };
 
 pub const Quality = enum {
-    Perfect,
-    Major,
-    Minor,
-    Augmented,
-    Diminished,
+    perfect,
+    major,
+    minor,
+    augmented,
+    diminished,
 
     pub fn asText(self: Quality) []const u8 {
         return switch (self) {
-            .Perfect => "Perfect",
-            .Major => "Major",
-            .Minor => "Minor",
-            .Augmented => "Augmented",
-            .Diminished => "Diminished",
+            .perfect => "Perfect",
+            .major => "Major",
+            .minor => "Minor",
+            .augmented => "Augmented",
+            .diminished => "Diminished",
         };
     }
 
     pub fn asAbbrev(self: Quality) []const u8 {
         return switch (self) {
-            .Perfect => "Perf",
-            .Major => "Maj",
-            .Minor => "Min",
-            .Augmented => "Aug",
-            .Diminished => "Dim",
+            .perfect => "Perf",
+            .major => "Maj",
+            .minor => "Min",
+            .augmented => "Aug",
+            .diminished => "Dim",
         };
     }
 
     pub fn asShorthand(self: Quality) []const u8 {
         return switch (self) {
-            .Perfect => "P",
-            .Major => "M",
-            .Minor => "m",
-            .Augmented => "A",
-            .Diminished => "d",
+            .perfect => "P",
+            .major => "M",
+            .minor => "m",
+            .augmented => "A",
+            .diminished => "d",
         };
     }
 
@@ -121,14 +121,14 @@ pub const Quality = enum {
 };
 
 pub const Number = enum {
-    Unison,
-    Second,
-    Third,
-    Fourth,
-    Fifth,
-    Sixth,
-    Seventh,
-    Octave,
+    unison,
+    second,
+    third,
+    fourth,
+    fifth,
+    sixth,
+    seventh,
+    octave,
 
     // Creates a number from a conventional positive integer representation.
     pub fn fromInt(value: i32) !Number {
@@ -145,40 +145,40 @@ pub const Number = enum {
 
     pub fn asText(self: Number) []const u8 {
         return switch (self) {
-            .Unison => "Unison",
-            .Second => "Second",
-            .Third => "Third",
-            .Fourth => "Fourth",
-            .Fifth => "Fifth",
-            .Sixth => "Sixth",
-            .Seventh => "Seventh",
-            .Octave => "Octave",
+            .unison => "Unison",
+            .second => "Second",
+            .third => "Third",
+            .fourth => "Fourth",
+            .fifth => "Fifth",
+            .sixth => "Sixth",
+            .seventh => "Seventh",
+            .octave => "Octave",
         };
     }
 
     pub fn asAbbrev(self: Number) []const u8 {
         return switch (self) {
-            .Unison => "1st",
-            .Second => "2nd",
-            .Third => "3rd",
-            .Fourth => "4th",
-            .Fifth => "5th",
-            .Sixth => "6th",
-            .Seventh => "7th",
-            .Octave => "8th",
+            .unison => "1st",
+            .second => "2nd",
+            .third => "3rd",
+            .fourth => "4th",
+            .fifth => "5th",
+            .sixth => "6th",
+            .seventh => "7th",
+            .octave => "8th",
         };
     }
 
     pub fn asShorthand(self: Number) []const u8 {
         return switch (self) {
-            .Unison => "1",
-            .Second => "2",
-            .Third => "3",
-            .Fourth => "4",
-            .Fifth => "5",
-            .Sixth => "6",
-            .Seventh => "7",
-            .Octave => "8",
+            .unison => "1",
+            .second => "2",
+            .third => "3",
+            .fourth => "4",
+            .fifth => "5",
+            .sixth => "6",
+            .seventh => "7",
+            .octave => "8",
         };
     }
 
@@ -203,13 +203,13 @@ pub fn intervalBetween(note1: Note, note2: Note) !Interval {
 
     const number_dist = letter_dist + 1;
     const number: Number = switch (number_dist) {
-        1 => if (octave_diff == 0) .Unison else .Octave,
-        2 => .Second,
-        3 => .Third,
-        4 => .Fourth,
-        5 => .Fifth,
-        6 => .Sixth,
-        7 => .Seventh,
+        1 => if (octave_diff == 0) .unison else .octave,
+        2 => .second,
+        3 => .third,
+        4 => .fourth,
+        5 => .fifth,
+        6 => .sixth,
+        7 => .seventh,
         else => unreachable,
     };
 
@@ -224,17 +224,17 @@ fn calcQuality(semitones: i32, number: Number) !Quality {
     const semitone_diff = semitones - base_semitones;
 
     return switch (number) {
-        .Unison, .Fourth, .Fifth, .Octave => switch (semitone_diff) {
-            0 => .Perfect,
-            1 => .Augmented,
-            -1 => .Diminished,
+        .unison, .fourth, .fifth, .octave => switch (semitone_diff) {
+            0 => .perfect,
+            1 => .augmented,
+            -1 => .diminished,
             else => error.InvalidInterval,
         },
-        .Second, .Third, .Sixth, .Seventh => switch (semitone_diff) {
-            -1 => .Minor,
-            0 => .Major,
-            1 => .Augmented,
-            -2 => .Diminished,
+        .second, .third, .sixth, .seventh => switch (semitone_diff) {
+            -1 => .minor,
+            0 => .major,
+            1 => .augmented,
+            -2 => .diminished,
             else => error.InvalidInterval,
         },
     };
@@ -242,14 +242,14 @@ fn calcQuality(semitones: i32, number: Number) !Quality {
 
 fn baseSemitones(number: Number) i32 {
     return switch (number) {
-        .Unison => 0,
-        .Second => 2,
-        .Third => 4,
-        .Fourth => 5,
-        .Fifth => 7,
-        .Sixth => 9,
-        .Seventh => 11,
-        .Octave => 12,
+        .unison => 0,
+        .second => 2,
+        .third => 4,
+        .fourth => 5,
+        .fifth => 7,
+        .sixth => 9,
+        .seventh => 11,
+        .octave => 12,
     };
 }
 

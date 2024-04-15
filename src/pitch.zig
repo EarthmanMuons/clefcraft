@@ -18,7 +18,7 @@ pub const Pitch = struct {
 
         const letter = Letter.fromPitchClass(pitch_class);
         const accidental: ?Accidental = switch (pitch_class) {
-            1, 3, 6, 8, 10 => .Sharp,
+            1, 3, 6, 8, 10 => .sharp,
             else => null,
         };
 
@@ -48,26 +48,26 @@ pub const Pitch = struct {
 };
 
 pub const Letter = enum {
-    A,
-    B,
-    C,
-    D,
-    E,
-    F,
-    G,
+    a,
+    b,
+    c,
+    d,
+    e,
+    f,
+    g,
 
     // Creates a letter from the given pitch class.
     pub fn fromPitchClass(pitch_class: i32) Letter {
         assert(0 <= pitch_class and pitch_class < semitones_per_octave);
 
         return switch (pitch_class) {
-            0...1 => .C,
-            2...3 => .D,
-            4 => .E,
-            5...6 => .F,
-            7...8 => .G,
-            9...10 => .A,
-            11 => .B,
+            0, 1 => .c,
+            2, 3 => .d,
+            4 => .e,
+            5, 6 => .f,
+            7, 8 => .g,
+            9, 10 => .a,
+            11 => .b,
             else => unreachable,
         };
     }
@@ -75,13 +75,13 @@ pub const Letter = enum {
     // Returns the pitch class for the current letter.
     pub fn pitchClass(self: Letter) i32 {
         return switch (self) {
-            .C => 0,
-            .D => 2,
-            .E => 4,
-            .F => 5,
-            .G => 7,
-            .A => 9,
-            .B => 11,
+            .c => 0,
+            .d => 2,
+            .e => 4,
+            .f => 5,
+            .g => 7,
+            .a => 9,
+            .b => 11,
         };
     }
 
@@ -102,43 +102,43 @@ pub const Letter = enum {
         _ = fmt;
         _ = options;
         const letter = switch (self) {
-            .A => "A",
-            .B => "B",
-            .C => "C",
-            .D => "D",
-            .E => "E",
-            .F => "F",
-            .G => "G",
+            .a => "A",
+            .b => "B",
+            .c => "C",
+            .d => "D",
+            .e => "E",
+            .f => "F",
+            .g => "G",
         };
         try writer.print("{s}", .{letter});
     }
 };
 
 pub const Accidental = enum {
-    DoubleFlat,
-    Flat,
-    Natural,
-    Sharp,
-    DoubleSharp,
+    double_flat,
+    flat,
+    natural,
+    sharp,
+    double_sharp,
 
     // Returns a pitch adjustment based on the current accidental.
     pub fn pitchAdjustment(self: Accidental) i32 {
         return switch (self) {
-            .DoubleFlat => -2,
-            .Flat => -1,
-            .Natural => 0,
-            .Sharp => 1,
-            .DoubleSharp => 2,
+            .double_flat => -2,
+            .flat => -1,
+            .natural => 0,
+            .sharp => 1,
+            .double_sharp => 2,
         };
     }
 
     pub fn fromPitchAdjustment(adjustment: i32) !?Accidental {
         return switch (adjustment) {
-            -2 => .DoubleFlat,
-            -1 => .Flat,
+            -2 => .double_flat,
+            -1 => .flat,
             0 => null, // prefer no explicit natural symbol
-            1 => .Sharp,
-            2 => .DoubleSharp,
+            1 => .sharp,
+            2 => .double_sharp,
             else => return error.InvalidAdjustment,
         };
     }
@@ -153,11 +153,11 @@ pub const Accidental = enum {
         _ = fmt;
         _ = options;
         const symbol = switch (self) {
-            .DoubleFlat => "𝄫",
-            .Flat => "♭",
-            .Natural => "♮",
-            .Sharp => "♯",
-            .DoubleSharp => "𝄪",
+            .double_flat => "𝄫",
+            .flat => "♭",
+            .natural => "♮",
+            .sharp => "♯",
+            .double_sharp => "𝄪",
         };
         try writer.print("{s}", .{symbol});
     }
