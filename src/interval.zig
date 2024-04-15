@@ -45,22 +45,12 @@ pub const Interval = struct {
 
     // Returns the number of semitones covered by the current interval.
     pub fn semitoneCount(self: Interval) i32 {
-        const base_semitones: i32 = switch (self.number) {
-            .Unison => 0,
-            .Second => 2,
-            .Third => 4,
-            .Fourth => 5,
-            .Fifth => 7,
-            .Sixth => 9,
-            .Seventh => 11,
-            .Octave => 12,
-        };
+        const base_semitones = baseSemitones(self.number);
 
         const is_perfect = switch (self.number) {
             .Unison, .Fourth, .Fifth, .Octave => true,
             else => false,
         };
-
         const quality_adjustment: i32 = switch (self.quality) {
             .Perfect, .Major => 0,
             .Minor => -1,
@@ -237,18 +227,8 @@ pub fn intervalBetween(note1: Note, note2: Note) !Interval {
 }
 
 fn calcQuality(semitones: i32, number: Number) !Quality {
-    const expected_semitones: i32 = switch (number) {
-        .Unison => 0,
-        .Second => 2,
-        .Third => 4,
-        .Fourth => 5,
-        .Fifth => 7,
-        .Sixth => 9,
-        .Seventh => 11,
-        .Octave => 12,
-    };
-
-    const semitone_diff = semitones - expected_semitones;
+    const base_semitones = baseSemitones(number);
+    const semitone_diff = semitones - base_semitones;
 
     return switch (number) {
         .Unison, .Fourth, .Fifth, .Octave => switch (semitone_diff) {
@@ -264,6 +244,19 @@ fn calcQuality(semitones: i32, number: Number) !Quality {
             -2 => .Diminished,
             else => error.InvalidInterval,
         },
+    };
+}
+
+fn baseSemitones(number: Number) i32 {
+    return switch (number) {
+        .Unison => 0,
+        .Second => 2,
+        .Third => 4,
+        .Fourth => 5,
+        .Fifth => 7,
+        .Sixth => 9,
+        .Seventh => 11,
+        .Octave => 12,
     };
 }
 
