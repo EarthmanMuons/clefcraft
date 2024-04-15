@@ -2,13 +2,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 const log = std.log.scoped(.interval);
 
-const Accidental = @import("pitch.zig").Accidental;
-const Letter = @import("pitch.zig").Letter;
 const Note = @import("note.zig").Note;
-const utils = @import("utils.zig");
-
-const letter_count = @import("constants.zig").letter_count;
-const semitones_per_octave = @import("constants.zig").semitones_per_octave;
 
 pub const Interval = struct {
     quality: Quality,

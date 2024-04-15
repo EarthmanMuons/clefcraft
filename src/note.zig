@@ -2,13 +2,16 @@ const std = @import("std");
 const assert = std.debug.assert;
 const log = std.log.scoped(.note);
 
-const Accidental = @import("pitch.zig").Accidental;
-const Interval = @import("interval.zig").Interval;
-const Letter = @import("pitch.zig").Letter;
-const Pitch = @import("pitch.zig").Pitch;
+const pitch = @import("pitch.zig");
+const _interval = @import("interval.zig");
 const utils = @import("utils.zig");
 
-const semitones_per_octave = @import("constants.zig").semitones_per_octave;
+const Accidental = pitch.Accidental;
+const Interval = _interval.Interval;
+const Letter = pitch.Letter;
+const Pitch = pitch.Pitch;
+
+const semitones_per_octave = @import("constants.zig").music_theory.semitones_per_octave;
 
 // The international standard pitch, A440.
 const standard_note = Note{ .pitch = Pitch{ .letter = .A, .accidental = null }, .octave = 4 };
@@ -58,8 +61,10 @@ pub const Note = struct {
         const octave_str = chars[octave_idx..];
         const octave = std.fmt.parseInt(i32, octave_str, 10) catch return error.InvalidOctave;
 
-        const pitch = Pitch{ .letter = letter, .accidental = accidental };
-        return Note{ .pitch = pitch, .octave = octave };
+        return Note{
+            .pitch = Pitch{ .letter = letter, .accidental = accidental },
+            .octave = octave,
+        };
     }
 
     // Returns the pitch class of the current note.
@@ -119,8 +124,10 @@ pub const Note = struct {
         const pitch_class = utils.wrap(target_pos, semitones_per_octave);
         const octave = @divTrunc(target_pos, semitones_per_octave);
 
-        const pitch = Pitch.fromPitchClass(pitch_class);
-        return Note{ .pitch = pitch, .octave = octave };
+        return Note{
+            .pitch = Pitch.fromPitchClass(pitch_class),
+            .octave = octave,
+        };
     }
 
     // Returns the MIDI note number of the current note.
@@ -139,8 +146,10 @@ pub const Note = struct {
         const pitch_class = utils.wrap(midi_note, semitones_per_octave);
         const octave = @divTrunc(midi_note, semitones_per_octave) - 1;
 
-        const pitch = Pitch.fromPitchClass(pitch_class);
-        return Note{ .pitch = pitch, .octave = octave };
+        return Note{
+            .pitch = Pitch.fromPitchClass(pitch_class),
+            .octave = octave,
+        };
     }
 
     // Returns the difference in octaves between two notes, which can be negative.
@@ -158,11 +167,7 @@ pub const Note = struct {
 
     // Returns the non-negative distance between two notes based on their letters.
     pub fn letterDistance(self: Note, other: Note) i32 {
-        const start: i32 = @intFromEnum(self.pitch.letter);
-        const target: i32 = @intFromEnum(other.pitch.letter);
-        const letter_count = @typeInfo(Letter).Enum.fields.len;
-
-        return utils.wrap(target - start, letter_count);
+        return pitch.distanceBetween(self.pitch.letter, other.pitch.letter);
     }
 
     // Applies the given interval to the current note and returns the resulting note.

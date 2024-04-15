@@ -4,8 +4,8 @@ const log = std.log.scoped(.pitch);
 
 const utils = @import("utils.zig");
 
-const letter_count = @import("constants.zig").letter_count;
-const semitones_per_octave = @import("constants.zig").semitones_per_octave;
+const letter_count = 7;
+const semitones_per_octave = @import("constants.zig").music_theory.semitones_per_octave;
 
 pub const Pitch = struct {
     letter: Letter,
@@ -136,7 +136,7 @@ pub const Accidental = enum {
         return switch (adjustment) {
             -2 => .DoubleFlat,
             -1 => .Flat,
-            0 => null,
+            0 => null, // prefer no explicit natural symbol
             1 => .Sharp,
             2 => .DoubleSharp,
             else => return error.InvalidAdjustment,
@@ -162,3 +162,10 @@ pub const Accidental = enum {
         try writer.print("{s}", .{symbol});
     }
 };
+
+pub fn distanceBetween(letter1: Letter, letter2: Letter) i32 {
+    const pos1: i32 = @intFromEnum(letter1);
+    const pos2: i32 = @intFromEnum(letter2);
+
+    return utils.wrap(pos2 - pos1, letter_count);
+}
