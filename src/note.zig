@@ -174,7 +174,7 @@ pub const Note = struct {
         const start_letter = self.pitch.letter;
         const interval_num = interval.number.toInt();
         // Minus one since interval numbers are one-based.
-        const target_letter = start_letter.offset(interval_num - 1);
+        const target_letter = start_letter.offsetBy(interval_num - 1);
         const target_pitch = try selectEnharmonic(target_pitch_class, target_letter);
 
         const octave_adjustment = @divFloor(start_pitch_class + interval_semitones, 12);

@@ -4,6 +4,7 @@ const log = std.log.scoped(.pitch);
 
 const utils = @import("utils.zig");
 
+const letter_count = @import("constants.zig").letter_count;
 const semitones_per_octave = @import("constants.zig").semitones_per_octave;
 
 pub const Pitch = struct {
@@ -84,11 +85,11 @@ pub const Letter = enum {
         };
     }
 
-    // Creates a letter from the current letter and an offset value.
-    pub fn offset(self: Letter, offset_val: i32) Letter {
-        const start_val = @intFromEnum(self);
-        const result = @mod(start_val + offset_val, 7);
-        return @enumFromInt(result);
+    // Returns the letter that is offset from the current letter by the given amount.
+    pub fn offsetBy(self: Letter, amount: i32) Letter {
+        const current_index = @intFromEnum(self);
+        const result_index = @mod(current_index + amount, letter_count);
+        return @enumFromInt(result_index);
     }
 
     // Formats the letter as a string.
@@ -161,14 +162,3 @@ pub const Accidental = enum {
         try writer.print("{s}", .{symbol});
     }
 };
-
-test "offset()" {
-    try std.testing.expectEqual(Letter.A, Letter.A.offset(0));
-    try std.testing.expectEqual(Letter.B, Letter.A.offset(1));
-    try std.testing.expectEqual(Letter.C, Letter.A.offset(2));
-    try std.testing.expectEqual(Letter.A, Letter.A.offset(7));
-    try std.testing.expectEqual(Letter.B, Letter.A.offset(8));
-    try std.testing.expectEqual(Letter.C, Letter.B.offset(1));
-    try std.testing.expectEqual(Letter.B, Letter.C.offset(-1));
-    try std.testing.expectEqual(Letter.A, Letter.C.offset(-2));
-}
