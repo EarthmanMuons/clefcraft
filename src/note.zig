@@ -6,7 +6,6 @@ const Accidental = @import("pitch.zig").Accidental;
 const Interval = @import("interval.zig").Interval;
 const Letter = @import("pitch.zig").Letter;
 const Pitch = @import("pitch.zig").Pitch;
-const _interval = @import("interval.zig");
 const utils = @import("utils.zig");
 
 const constants = @import("constants.zig");
@@ -145,14 +144,6 @@ pub const Note = struct {
         return Note{ .pitch = pitch, .octave = octave };
     }
 
-    // Tests if the current note is enharmonically equivalent to the given note.
-    pub fn isEnharmonic(self: Note, other: Note) bool {
-        const same_octave = self.effectiveOctave() == other.effectiveOctave();
-        const same_pitch_class = self.pitchClass() == other.pitchClass();
-
-        return same_octave and same_pitch_class;
-    }
-
     // Returns the difference in octaves between two notes, which can be negative.
     pub fn octaveDifference(self: Note, other: Note) i32 {
         return other.effectiveOctave() - self.effectiveOctave();
@@ -161,7 +152,6 @@ pub const Note = struct {
     // Returns the difference in semitones between two notes, which can be negative.
     pub fn semitoneDifference(self: Note, other: Note) i32 {
         const octave_diff = self.octaveDifference(other);
-        // TODO: does this need to wrap (i.e. pitch_dist)?
         const pitch_diff = other.pitchClass() - self.pitchClass();
 
         return (octave_diff * semitones_per_octave) + pitch_diff;
@@ -169,65 +159,27 @@ pub const Note = struct {
 
     // Returns the non-negative distance between two notes based on their letters.
     pub fn letterDistance(self: Note, other: Note) i32 {
-        return utils.letterDistance(self.pitch.letter, other.pitch.letter);
+        const start: i32 = @intFromEnum(self.pitch.letter);
+        const target: i32 = @intFromEnum(other.pitch.letter);
+        const letter_count = @typeInfo(Letter).Enum.fields.len;
+
+        return utils.wrap(target - start, letter_count);
     }
 
     // Applies the given interval to the current note and returns the resulting note.
     pub fn applyInterval(self: Note, interval: Interval) !Note {
-        log.debug("----- applyInterval({}, {})", .{ self, interval });
-        const start_letter = self.pitch.letter;
-        log.debug("      start_letter: {}", .{start_letter});
-        const interval_num = interval.number.toInt();
-        log.debug("      interval_num: {}", .{interval_num});
-        const target_letter = start_letter.offset(interval_num - 1);
-        log.debug("     target_letter: {}", .{target_letter});
-        // NOW WE HAVE THE LETTER, BUT WE NEED THE QUALITY
-
         const start_pitch_class = self.pitchClass();
-        log.debug(" start_pitch_class: {}", .{start_pitch_class});
-        const interval_semitones = interval.semitone_count();
-        log.debug("interval_semitones: {}", .{interval_semitones});
+        const interval_semitones = interval.semitoneCount();
         const target_pitch_class = utils.wrap(start_pitch_class + interval_semitones, 12);
-        log.debug("target_pitch_class: {}", .{target_pitch_class});
 
-        // I'm curious...this might work:
+        const start_letter = self.pitch.letter;
+        const interval_num = interval.number.toInt();
+        // Minus one since interval numbers are one-based.
+        const target_letter = start_letter.offset(interval_num - 1);
         const target_pitch = try selectEnharmonic(target_pitch_class, target_letter);
 
-        // const expected_semitones = try _interval.expectedSemitones(
-        //     interval.number,
-        //     interval.quality,
-        // );
-        // log.debug("expected_semitones: {}", .{expected_semitones});
-        // const actual_semitones = expected_semitones + self.pitchClass();
-        // log.debug("  actual_semitones: {}", .{actual_semitones});
-
-        // const target_pitch_class = @mod(actual_semitones, 12); // UNUSED?
-        // log.debug("target_pitch_class: {}", .{target_pitch_class});
-        // const target_accidental = try interval.calcAccidental(
-        //     start_letter,
-        //     target_letter,
-        //     semitones,
-        // );
-        // log.debug(" target_accidental: {?}", .{target_accidental});
-
-        log.debug("       self.octave: {}", .{self.octave});
         const octave_adjustment = @divFloor(start_pitch_class + interval_semitones, 12);
-        log.debug(" octave_adjustment: {}", .{octave_adjustment});
         const target_octave = self.octave + octave_adjustment;
-        log.debug("     target_octave: {}", .{target_octave});
-
-        // log.debug("----- applyInterval({}, {})", .{ self, interval });
-        // log.debug("      start_letter: {}", .{start_letter});
-        // log.debug("      interval_val: {}", .{interval_val});
-        // log.debug("      interval_num: {}", .{interval_num});
-        // log.debug("expected_semitones: {}", .{expected_semitones});
-        // log.debug("  actual_semitones: {}", .{actual_semitones});
-        // log.debug("       self.octave: {}", .{self.octave});
-        // log.debug(" octave_adjustment: {}", .{octave_adjustment});
-        // log.debug("target_pitch_class: {}", .{target_pitch_class});
-        // log.debug("     target_letter: {}", .{target_letter});
-        // log.debug(" target_accidental: {?}", .{target_accidental});
-        // log.debug("     target_octave: {}", .{target_octave});
 
         return Note{
             .pitch = target_pitch,
@@ -260,11 +212,12 @@ pub const Note = struct {
     }
 };
 
-test "parse note without accidental" {
-    const note = try Note.parse("C4");
-    try std.testing.expectEqual(Letter.C, note.pitch.letter);
-    try std.testing.expectEqual(null, note.pitch.accidental);
-    try std.testing.expectEqual(4, note.octave);
+// Tests if two notes are enharmonic equivalents.
+pub fn isEnharmonic(note1: Note, note2: Note) bool {
+    const same_octave = note1.effectiveOctave() == note2.effectiveOctave();
+    const same_pitch_class = note1.pitchClass() == note2.pitchClass();
+
+    return same_octave and same_pitch_class;
 }
 
 test "frequency calculation" {
@@ -292,7 +245,7 @@ test "frequency calculation" {
         const passed = std.math.approxEqAbs(f64, test_case.expected, result, epsilon);
         if (!passed) {
             std.debug.print(
-                "\nTest case: {}, expected {d:.3}, found {d:.3}\n",
+                "\nTestCase: Note({})\nexpected {d:.3}, found {d:.3}\n",
                 .{ note, test_case.expected, result },
             );
         }
@@ -341,7 +294,7 @@ test "midi note number calculation" {
         const result = n1.midi();
 
         if (test_case.expected != result) {
-            std.debug.print("\nTest case: {}, ", .{n1});
+            std.debug.print("\nTestCase: Note({})\n", .{n1});
         }
         try std.testing.expectEqual(test_case.expected, result);
     }
@@ -360,7 +313,7 @@ test "create from midi note number" {
     try std.testing.expectEqual(expected, Note.fromMidi(127));
 }
 
-test "semitone difference" {
+test "semitoneDifference()" {
     const TestCase = struct {
         n1: []const u8,
         n2: []const u8,
@@ -415,15 +368,13 @@ test "semitone difference" {
         const result = n1.semitoneDifference(n2);
 
         if (test_case.expected != result) {
-            std.debug.print("\nTest case: from {s} to {s}\n", .{ n1, n2 });
+            std.debug.print("\nTestCase: Note({}), Note({s})\n", .{ n1, n2 });
         }
         try std.testing.expectEqual(test_case.expected, result);
     }
 }
 
-test "apply interval" {
-    std.testing.log_level = .debug;
-
+test "applyInterval()" {
     const TestCase = struct {
         note: []const u8,
         interval: []const u8,
@@ -443,15 +394,10 @@ test "apply interval" {
         const note = try Note.parse(test_case.note);
         const interval = try Interval.parse(test_case.interval);
         const expected = try Note.parse(test_case.expected);
-        log.debug("", .{});
-        log.debug("TestCase: Note({s}), {s}, expected = Note({})", .{ note, interval, expected });
         const result = try note.applyInterval(interval);
 
         if (!std.meta.eql(expected, result)) {
-            std.debug.print(
-                "\nTest case: {s} with {s} applied, result: {}\n",
-                .{ note, interval, result },
-            );
+            std.debug.print("\nTestCase: Note({}), {}\n", .{ note, interval });
         }
         try std.testing.expectEqual(expected, result);
     }

@@ -44,7 +44,7 @@ pub const Interval = struct {
     }
 
     // Returns the number of semitones covered by the current interval.
-    pub fn semitone_count(self: Interval) i32 {
+    pub fn semitoneCount(self: Interval) i32 {
         const base_semitones: i32 = switch (self.number) {
             .Unison => 0,
             .Second => 2,
@@ -69,30 +69,6 @@ pub const Interval = struct {
         };
 
         return base_semitones + quality_adjustment;
-    }
-
-    // Calculates the resulting accidental ...
-    pub fn calcAccidental(self: Interval, start: Letter, target: Letter, semitones: i32) !?Accidental {
-        const letter_dist = utils.letterDistance(start, target);
-        const interval_number = calcIntervalNumber(letter_dist, 0);
-        const expected_semitones = try expectedSemitones(interval_number, self.quality);
-        // const semitone_diff = @mod(semitones, semitones_per_octave) - expected_semitones;
-        const semitone_diff = @mod(semitones - expected_semitones, 12);
-
-        // log.debug("----- calcAccidental({}, {}, {}, {})", .{ self, start, target, semitones });
-        // log.debug("       letter_dist: {}", .{letter_dist});
-        // log.debug("   interval_number: {}", .{interval_number});
-        // log.debug("expected_semitones: {}", .{expected_semitones});
-        // log.debug("     semitone_diff: {}", .{semitone_diff});
-
-        return switch (semitone_diff) {
-            -2 => .DoubleFlat,
-            -1 => .Flat,
-            0 => null,
-            1 => .Sharp,
-            2 => .DoubleSharp,
-            else => error.InvalidInterval,
-        };
     }
 
     // Formats the interval as a string.
@@ -171,16 +147,16 @@ pub const Number = enum {
     Seventh,
     Octave,
 
-    // Creates a number from a positive integer representation.
+    // Creates a number from a conventional positive integer representation.
     pub fn fromInt(value: i32) !Number {
         assert(1 <= value and value <= 8);
         return try std.meta.intToEnum(Number, value - 1);
     }
 
-    // Returns the positive integer representation of the number.
+    // Returns the conventional positive integer representation of the number.
     pub fn toInt(self: Number) i32 {
-        // We must cast to prevent integer overflow when adding 1;
-        // the compiler optimizes the enum into a `u3` type.
+        // We must cast to prevent integer overflow when adding 1,
+        // as the compiler optimizes the enum into a `u3` type.
         return @as(i32, @intCast(@intFromEnum(self))) + 1;
     }
 
@@ -237,12 +213,13 @@ pub const Number = enum {
     }
 };
 
-// Calculates the interval number based on the letter distance and octave difference.
-pub fn calcIntervalNumber(letter_dist: i32, octave_diff: i32) Number {
-    assert(0 <= letter_dist and letter_dist <= 6);
+// Returns the calculated interval between two notes.
+pub fn intervalBetween(note1: Note, note2: Note) !Interval {
+    const letter_dist = note1.letterDistance(note2);
+    const octave_diff = note1.octaveDifference(note2);
 
-    // Add one since distances are zero-based.
-    return switch (letter_dist + 1) {
+    const number_dist = letter_dist + 1;
+    const number: Number = switch (number_dist) {
         1 => if (octave_diff == 0) .Unison else .Octave,
         2 => .Second,
         3 => .Third,
@@ -252,46 +229,35 @@ pub fn calcIntervalNumber(letter_dist: i32, octave_diff: i32) Number {
         7 => .Seventh,
         else => unreachable,
     };
+
+    const semitones = note1.semitoneDifference(note2);
+    const quality = try calcQuality(semitones, number);
+
+    return Interval{ .quality = quality, .number = number };
 }
 
-// Calculates the interval quality based on the semitone distance and interval number.
-pub fn calcIntervalQuality(semitones: i32, number: Number) !Quality {
-    const perfect_semitones: ?i32 = switch (number) {
+fn calcQuality(semitones: i32, number: Number) !Quality {
+    const expected_semitones: i32 = switch (number) {
         .Unison => 0,
-        .Fourth => 5,
-        .Fifth => 7,
-        .Octave => 12,
-        else => null,
-    };
-
-    const major_semitones: ?i32 = switch (number) {
         .Second => 2,
         .Third => 4,
+        .Fourth => 5,
+        .Fifth => 7,
         .Sixth => 9,
         .Seventh => 11,
-        else => null,
+        .Octave => 12,
     };
 
-    var semitones_diff: i32 = 0;
-    if (perfect_semitones) |perf| {
-        semitones_diff = semitones - perf;
-    } else if (major_semitones) |maj| {
-        semitones_diff = semitones - maj;
-    }
-
-    log.debug("----- calcIntervalQuality({}, {})", .{ semitones, number });
-    log.debug("perfect_semitones: {?}", .{perfect_semitones});
-    log.debug("  major_semitones: {?}", .{major_semitones});
-    log.debug("   semitones_diff: {}", .{semitones_diff});
+    const semitone_diff = semitones - expected_semitones;
 
     return switch (number) {
-        .Unison, .Fourth, .Fifth, .Octave => switch (semitones_diff) {
+        .Unison, .Fourth, .Fifth, .Octave => switch (semitone_diff) {
             0 => .Perfect,
             1 => .Augmented,
             -1 => .Diminished,
             else => error.InvalidInterval,
         },
-        .Second, .Third, .Sixth, .Seventh => switch (semitones_diff) {
+        .Second, .Third, .Sixth, .Seventh => switch (semitone_diff) {
             -1 => .Minor,
             0 => .Major,
             1 => .Augmented,
@@ -301,77 +267,7 @@ pub fn calcIntervalQuality(semitones: i32, number: Number) !Quality {
     };
 }
 
-pub fn expectedSemitones(number: Number, quality: Quality) !i32 {
-    log.debug("----- expectedSemitones({}, {})", .{ number, quality });
-    return switch (number) {
-        .Unison => switch (quality) {
-            .Perfect => 0,
-            .Augmented => 1,
-            .Diminished => -1,
-            else => error.InvalidInterval,
-        },
-        .Second => switch (quality) {
-            .Minor => 1,
-            .Major => 2,
-            .Augmented => 3,
-            .Diminished => 0,
-            else => error.InvalidInterval,
-        },
-        .Third => switch (quality) {
-            .Minor => 3,
-            .Major => 4,
-            .Augmented => 5,
-            .Diminished => 2,
-            else => error.InvalidInterval,
-        },
-        .Fourth => switch (quality) {
-            .Perfect => 5,
-            .Augmented => 6,
-            .Diminished => 4,
-            else => error.InvalidInterval,
-        },
-        .Fifth => switch (quality) {
-            .Perfect => 7,
-            .Augmented => 8,
-            .Diminished => 6,
-            else => error.InvalidInterval,
-        },
-        .Sixth => switch (quality) {
-            .Minor => 8,
-            .Major => 9,
-            .Augmented => 10,
-            .Diminished => 7,
-            else => error.InvalidInterval,
-        },
-        .Seventh => switch (quality) {
-            .Minor => 10,
-            .Major => 11,
-            .Augmented => 12,
-            .Diminished => 9,
-            else => error.InvalidInterval,
-        },
-        .Octave => switch (quality) {
-            .Perfect => 12,
-            .Augmented => 13,
-            .Diminished => 11,
-            else => error.InvalidInterval,
-        },
-    };
-}
-
-// Returns the calculated interval between two notes.
-pub fn intervalBetween(note1: Note, note2: Note) !Interval {
-    const letter_dist = note1.letterDistance(note2);
-    const octave_diff = note1.octaveDifference(note2);
-    const number = calcIntervalNumber(letter_dist, octave_diff);
-
-    const semitones = note1.semitoneDifference(note2);
-    const quality = try calcIntervalQuality(semitones, number);
-
-    return Interval{ .quality = quality, .number = number };
-}
-
-test "interval between" {
+test "intervalBetween()" {
     const TestCase = struct {
         note1: []const u8,
         note2: []const u8,
@@ -379,10 +275,11 @@ test "interval between" {
     };
 
     const test_cases = [_]TestCase{
-        // D to F♯ is a major third, while D to G♭ is a diminished fourth
+        // Enharmonic equivalents...
+        // D to F♯ is a major third, D to G♭ is a diminished fourth
         TestCase{ .note1 = "D4", .note2 = "F#4", .expected = "M3" },
         TestCase{ .note1 = "D4", .note2 = "Gb4", .expected = "d4" },
-        // Exhaustive C Major simple intervals
+        // Exhaustive C Major simple intervals...
         // https://en.wikipedia.org/wiki/File:Diatonic_intervals.png
         TestCase{ .note1 = "C4", .note2 = "C4", .expected = "P1" },
         TestCase{ .note1 = "C4", .note2 = "D4", .expected = "M2" },
@@ -455,10 +352,7 @@ test "interval between" {
         const result = try intervalBetween(note1, note2);
 
         if (!std.meta.eql(expected, result)) {
-            std.debug.print(
-                "\nTest case: from {s} to {s}, result: {}\n",
-                .{ note1, note2, result },
-            );
+            std.debug.print("\nTestCase: Note({s}), Note({s})\n", .{ note1, note2 });
         }
         try std.testing.expectEqual(expected, result);
     }
