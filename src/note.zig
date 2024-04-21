@@ -193,7 +193,13 @@ pub const Note = struct {
         assert(0 <= target_pitch_class and target_pitch_class < semitones_per_octave);
 
         const natural_pitch_class = target_letter.pitchClass();
-        const adjustment = target_pitch_class - natural_pitch_class;
+        var adjustment = target_pitch_class - natural_pitch_class;
+
+        if (adjustment > 2) {
+            adjustment -= semitones_per_octave;
+        } else if (adjustment < -2) {
+            adjustment += semitones_per_octave;
+        }
         const accidental: ?Accidental = try Accidental.fromPitchAdjustment(adjustment);
 
         return Pitch{
