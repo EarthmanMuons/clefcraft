@@ -120,8 +120,9 @@ pub const Quality = enum {
     }
 };
 
-pub const Number = enum {
-    unison,
+pub const Number = enum(u8) {
+    // Override ordinal values to match the conventional one-based integer representation.
+    unison = 1,
     second,
     third,
     fourth,
@@ -129,19 +130,6 @@ pub const Number = enum {
     sixth,
     seventh,
     octave,
-
-    // Creates a number from a conventional positive integer representation.
-    pub fn fromInt(value: i32) !Number {
-        assert(1 <= value and value <= 8);
-        return try std.meta.intToEnum(Number, value - 1);
-    }
-
-    // Returns the conventional positive integer representation of the number.
-    pub fn toInt(self: Number) i32 {
-        // We must cast to prevent integer overflow when adding 1,
-        // as the compiler optimizes the enum into a `u3` type.
-        return @as(i32, @intCast(@intFromEnum(self))) + 1;
-    }
 
     pub fn asText(self: Number) []const u8 {
         return switch (self) {
