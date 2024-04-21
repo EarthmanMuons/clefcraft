@@ -121,8 +121,7 @@ pub const Quality = enum {
 };
 
 pub const Number = enum(u8) {
-    // Override ordinal values to match the conventional one-based integer representation.
-    unison = 1,
+    unison,
     second,
     third,
     fourth,
