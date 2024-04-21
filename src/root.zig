@@ -8,4 +8,5 @@ test {
     _ = @import("interval.zig");
     _ = @import("note.zig");
     _ = @import("pitch.zig");
+    _ = @import("scale.zig");
 }
