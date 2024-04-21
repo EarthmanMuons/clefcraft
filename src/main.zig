@@ -1,24 +1,28 @@
 const std = @import("std");
 
+const clefcraft = @import("root.zig");
+const Note = clefcraft.Note;
+
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    const stdin = std.io.getStdIn().reader();
+    const stdout = std.io.getStdOut().writer();
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    try stdout.print("Enter a note: ", .{});
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    var buffer: [8]u8 = undefined;
+    const input = (try nextLine(stdin, &buffer)).?;
 
-    try bw.flush(); // don't forget to flush!
+    const note = try Note.parse(input);
+    try stdout.print("Your note is: Note({s})\n", .{note});
 }
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+fn nextLine(reader: anytype, buffer: []u8) !?[]const u8 {
+    const line = (try reader.readUntilDelimiterOrEof(buffer, '\n')) orelse return null;
+
+    // trim windows-specific carriage return character
+    if (@import("builtin").os.tag == .windows) {
+        return std.mem.trimRight(u8, line, "\r");
+    } else {
+        return line;
+    }
 }
