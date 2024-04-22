@@ -22,15 +22,40 @@ pub const Scale = struct {
 
     // Stores the notes of the scale in the given list.
     pub fn notes(self: Scale, note_list: *ArrayList(Note)) !void {
-        const intervals = try self.pattern.intervals(note_list.allocator);
-        defer note_list.allocator.free(intervals);
+        const intervals_list = try self.intervals(note_list.allocator);
+        defer note_list.allocator.free(intervals_list);
 
-        try note_list.ensureTotalCapacity(intervals.len);
+        try note_list.ensureTotalCapacity(intervals_list.len);
 
-        for (intervals) |interval| {
+        for (intervals_list) |interval| {
             const note = try self.tonic.applyInterval(interval);
             try note_list.append(note);
         }
+    }
+
+    pub fn intervals(self: Scale, allocator: std.mem.Allocator) ![]const Interval {
+        const shorthands = switch (self.pattern) {
+            .chromatic => &[_][]const u8{
+                // "P1", "m2", "M2", "m3", "M3", "P4", "d5", "P5", "m6", "M6", "m7", "M7",
+                "P1", "A1", "M2", "A2", "M3", "P4", "A4", "P5", "A5", "M6", "A6", "M7",
+            },
+            .major => &[_][]const u8{
+                "P1", "M2", "M3", "P4", "P5", "M6", "M7",
+            },
+            .minor => &[_][]const u8{
+                "P1", "M2", "m3", "P4", "P5", "m6", "m7",
+            },
+        };
+
+        var interval_list = try std.ArrayList(Interval).initCapacity(allocator, shorthands.len);
+        errdefer interval_list.deinit();
+
+        for (shorthands) |shorthand| {
+            const interval = try Interval.parse(shorthand);
+            try interval_list.append(interval);
+        }
+
+        return interval_list.items;
     }
 
     // Checks if the given note is part of the scale.
@@ -61,31 +86,6 @@ pub const Pattern = enum {
     // minor_melodic,
     // ...
 
-    pub fn intervals(self: Pattern, allocator: std.mem.Allocator) ![]const Interval {
-        const shorthands = switch (self) {
-            .chromatic => &[_][]const u8{
-                // "P1", "m2", "M2", "m3", "M3", "P4", "d5", "P5", "m6", "M6", "m7", "M7",
-                "P1", "A1", "M2", "A2", "M3", "P4", "A4", "P5", "A5", "M6", "A6", "M7",
-            },
-            .major => &[_][]const u8{
-                "P1", "M2", "M3", "P4", "P5", "M6", "M7",
-            },
-            .minor => &[_][]const u8{
-                "P1", "M2", "m3", "P4", "P5", "m6", "m7",
-            },
-        };
-
-        var interval_list = try std.ArrayList(Interval).initCapacity(allocator, shorthands.len);
-        errdefer interval_list.deinit();
-
-        for (shorthands) |shorthand| {
-            const interval = try Interval.parse(shorthand);
-            try interval_list.append(interval);
-        }
-
-        return interval_list.items;
-    }
-
     pub fn asText(self: Pattern) []const u8 {
         return switch (self) {
             .chromatic => "Chromatic",
@@ -110,15 +110,20 @@ pub const Pattern = enum {
 
 test "notes()" {
     std.testing.log_level = .debug;
-    const scale = Scale.init(try Note.parse("C4"), .chromatic);
+    const tonics = [_][]const u8{ "C4", "G4", "D4", "A4", "E4", "B4", "F4" };
     var note_list = ArrayList(Note).init(std.testing.allocator);
     defer note_list.deinit();
 
-    try scale.notes(&note_list);
+    for (tonics) |tonic| {
+        const scale = Scale.init(try Note.parse(tonic), .chromatic);
 
-    std.debug.print("{}: ", .{scale});
-    for (note_list.items) |note| {
-        std.debug.print("{} ", .{note.pitch});
+        note_list.clearAndFree();
+        try scale.notes(&note_list);
+
+        std.debug.print("{}: ", .{scale});
+        for (note_list.items) |note| {
+            std.debug.print("{} ", .{note.pitch});
+        }
+        std.debug.print("\n", .{});
     }
-    std.debug.print("\n", .{});
 }
