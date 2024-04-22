@@ -20,17 +20,36 @@ pub const Scale = struct {
     // Creates a scale from string representations of the tonic and interval pattern name.
     // pub fn parse(tonic: []const u8, pattern: []const u8) !Scale { }
 
-    // Stores the notes of the scale in the given list.
-    pub fn notes(self: Scale, note_list: *ArrayList(Note)) !void {
-        const intervals_list = try self.intervals(note_list.allocator);
-        defer note_list.allocator.free(intervals_list);
+    // Returns a slice of notes representing the scale.
+    pub fn notes(self: Scale, allocator: std.mem.Allocator) ![]Note {
+        const intervals_slice = try self.intervals(allocator);
+        defer allocator.free(intervals_slice);
 
-        try note_list.ensureTotalCapacity(intervals_list.len);
+        const notes_slice = try allocator.alloc(Note, intervals_slice.len);
+        errdefer allocator.free(notes_slice);
 
-        for (intervals_list) |interval| {
-            const note = try self.tonic.applyInterval(interval);
-            try note_list.append(note);
+        for (intervals_slice, 0..) |interval, i| {
+            notes_slice[i] = try self.tonic.applyInterval(interval);
         }
+
+        return notes_slice;
+    }
+
+    // Returns a slice of semitone distances between each successive note in the scale.
+    pub fn semitones(self: Scale, allocator: std.mem.Allocator) ![]i32 {
+        const notes_slice = try self.notes(allocator);
+        defer allocator.free(notes_slice);
+
+        const distances = try allocator.alloc(i32, notes_slice.len - 1);
+        errdefer allocator.free(distances);
+
+        for (notes_slice, 0..) |note, i| {
+            if (i == notes_slice.len - 1) break;
+            const next_note = notes_slice[i + 1];
+            distances[i] = note.semitoneDifference(next_note);
+        }
+
+        return distances;
     }
 
     fn intervals(self: Scale, allocator: std.mem.Allocator) ![]const Interval {
@@ -133,7 +152,6 @@ const chromatic_patterns = std.ComptimeStringMap([]const []const u8, .{
 });
 
 test "notes()" {
-    std.testing.log_level = .debug;
     const tonics = [_][]const u8{
         "C4",
         "G4",
@@ -149,18 +167,51 @@ test "notes()" {
         "Bb4",
         "F4",
     };
-    var note_list = ArrayList(Note).init(std.testing.allocator);
-    defer note_list.deinit();
 
     for (tonics) |tonic| {
         const scale = Scale.init(try Note.parse(tonic), .chromatic);
 
-        note_list.clearAndFree();
-        try scale.notes(&note_list);
+        const notes = try scale.notes(std.testing.allocator);
+        defer std.testing.allocator.free(notes);
 
         std.debug.print("{}:\t", .{scale});
-        for (note_list.items) |note| {
+        for (notes) |note| {
             std.debug.print("{} ", .{note.pitch});
+        }
+        std.debug.print("\n", .{});
+    }
+}
+
+test "semitones()" {
+    const tonics = [_][]const u8{
+        "C4",
+        "C#4",
+        "Db4",
+        "D4",
+        "D#4",
+        "Eb4",
+        "E4",
+        "F4",
+        "F#4",
+        "Gb4",
+        "G4",
+        "G#4",
+        "Ab4",
+        "A4",
+        "A#4",
+        "Bb4",
+        "B4",
+    };
+
+    for (tonics) |tonic| {
+        const scale = Scale.init(try Note.parse(tonic), .chromatic);
+
+        const semitones = try scale.semitones(std.testing.allocator);
+        defer std.testing.allocator.free(semitones);
+
+        std.debug.print("Semitones for {}:\t", .{scale});
+        for (semitones) |distance| {
+            std.debug.print("{} ", .{distance});
         }
         std.debug.print("\n", .{});
     }
