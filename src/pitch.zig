@@ -33,6 +33,19 @@ pub const Pitch = struct {
         return utils.wrap(base_pitch_class + adjustment, semitones_per_octave);
     }
 
+    pub fn asText(self: Pitch) []const u8 {
+        var result: [3]u8 = undefined;
+        const letter_text = self.letter.asText();
+        std.mem.copyForwards(u8, &result, letter_text);
+        if (self.accidental) |accidental| {
+            const accidental_text = accidental.asText();
+            std.mem.copyForwards(u8, result[letter_text.len..], accidental_text);
+            return result[0 .. letter_text.len + accidental_text.len];
+        } else {
+            return result[0..letter_text.len];
+        }
+    }
+
     // Formats the pitch as a string.
     pub fn format(
         self: Pitch,
@@ -92,6 +105,18 @@ pub const Letter = enum {
         return @enumFromInt(result_index);
     }
 
+    pub fn asText(self: Letter) []const u8 {
+        return switch (self) {
+            .a => "A",
+            .b => "B",
+            .c => "C",
+            .d => "D",
+            .e => "E",
+            .f => "F",
+            .g => "G",
+        };
+    }
+
     // Formats the letter as a string.
     pub fn format(
         self: Letter,
@@ -101,16 +126,8 @@ pub const Letter = enum {
     ) !void {
         _ = fmt;
         _ = options;
-        const letter = switch (self) {
-            .a => "A",
-            .b => "B",
-            .c => "C",
-            .d => "D",
-            .e => "E",
-            .f => "F",
-            .g => "G",
-        };
-        try writer.print("{s}", .{letter});
+        const output = self.asText();
+        try writer.print("{s}", .{output});
     }
 };
 
@@ -143,6 +160,26 @@ pub const Accidental = enum {
         };
     }
 
+    pub fn asText(self: Accidental) []const u8 {
+        return switch (self) {
+            .double_flat => "bb",
+            .flat => "b",
+            .natural => "",
+            .sharp => "#",
+            .double_sharp => "##",
+        };
+    }
+
+    pub fn asSymbol(self: Accidental) []const u8 {
+        return switch (self) {
+            .double_flat => "𝄫",
+            .flat => "♭",
+            .natural => "♮",
+            .sharp => "♯",
+            .double_sharp => "𝄪",
+        };
+    }
+
     // Formats the accidental as a string.
     pub fn format(
         self: Accidental,
@@ -152,14 +189,8 @@ pub const Accidental = enum {
     ) !void {
         _ = fmt;
         _ = options;
-        const symbol = switch (self) {
-            .double_flat => "𝄫",
-            .flat => "♭",
-            .natural => "♮",
-            .sharp => "♯",
-            .double_sharp => "𝄪",
-        };
-        try writer.print("{s}", .{symbol});
+        const output = self.asSymbol();
+        try writer.print("{s}", .{output});
     }
 };
 

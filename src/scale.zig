@@ -33,11 +33,15 @@ pub const Scale = struct {
         }
     }
 
-    pub fn intervals(self: Scale, allocator: std.mem.Allocator) ![]const Interval {
+    fn intervals(self: Scale, allocator: std.mem.Allocator) ![]const Interval {
         const shorthands = switch (self.pattern) {
-            .chromatic => &[_][]const u8{
-                // "P1", "m2", "M2", "m3", "M3", "P4", "d5", "P5", "m6", "M6", "m7", "M7",
-                "P1", "A1", "M2", "A2", "M3", "P4", "A4", "P5", "A5", "M6", "A6", "M7",
+            .chromatic => blk: {
+                const pitch_str = self.tonic.pitch.asText();
+                const chromatic_shorthands = chromatic_patterns.get(pitch_str) orelse {
+                    log.err("Chromatic scale pattern not found for tonic {s}", .{self.tonic.pitch});
+                    return error.InvalidTonic;
+                };
+                break :blk chromatic_shorthands;
             },
             .major => &[_][]const u8{
                 "P1", "M2", "M3", "P4", "P5", "M6", "M7",
@@ -74,7 +78,7 @@ pub const Scale = struct {
         _ = fmt;
         _ = options;
         const pattern_text = self.pattern.asText();
-        try writer.print("Scale({s} {s})", .{ self.tonic, pattern_text });
+        try writer.print("Scale({s} {s})", .{ self.tonic.pitch, pattern_text });
     }
 };
 
@@ -108,9 +112,43 @@ pub const Pattern = enum {
     }
 };
 
+const chromatic_patterns = std.ComptimeStringMap([]const []const u8, .{
+    .{ "C", &[_][]const u8{ "P1", "A1", "M2", "A2", "M3", "P4", "A4", "P5", "A5", "M6", "A6", "M7" } },
+    .{ "C#", &[_][]const u8{ "P1", "m2", "M2", "m3", "d4", "P4", "d5", "P5", "m6", "M6", "m7", "d8" } },
+    .{ "Db", &[_][]const u8{ "P1", "A1", "M2", "A2", "M3", "P4", "A4", "P5", "A5", "M6", "A6", "M7" } },
+    .{ "D", &[_][]const u8{ "P1", "A1", "M2", "m3", "M3", "P4", "A4", "P5", "A5", "M6", "m7", "M7" } },
+    .{ "D#", &[_][]const u8{ "P1", "m2", "d3", "m3", "d4", "P4", "d5", "P5", "m6", "d7", "m7", "d8" } },
+    .{ "Eb", &[_][]const u8{ "P1", "A1", "M2", "m3", "M3", "P4", "A4", "P5", "A5", "M6", "m7", "M7" } },
+    .{ "E", &[_][]const u8{ "P1", "m2", "M2", "m3", "M3", "P4", "A4", "P5", "m6", "M6", "m7", "M7" } },
+    .{ "F", &[_][]const u8{ "P1", "m2", "M2", "m3", "M3", "P4", "A4", "P5", "m6", "M6", "m7", "M7" } },
+    .{ "F#", &[_][]const u8{ "P1", "m2", "M2", "m3", "M3", "P4", "d5", "P5", "m6", "M6", "m7", "d8" } },
+    .{ "Gb", &[_][]const u8{ "P1", "A1", "M2", "A2", "M3", "A3", "A4", "P5", "A5", "M6", "A6", "M7" } },
+    .{ "G", &[_][]const u8{ "P1", "A1", "M2", "A2", "M3", "P4", "A4", "P5", "A5", "M6", "m7", "M7" } },
+    .{ "G#", &[_][]const u8{ "P1", "m2", "M2", "m3", "m4", "P4", "d5", "P5", "m6", "d7", "m7", "d8" } },
+    .{ "Ab", &[_][]const u8{ "P1", "A1", "M2", "A2", "M3", "P4", "A4", "P5", "A5", "M6", "m7", "M7" } },
+    .{ "A", &[_][]const u8{ "P1", "A1", "M2", "m3", "M3", "P4", "A4", "P5", "m6", "M6", "m7", "M7" } },
+    .{ "A#", &[_][]const u8{ "P1", "m2", "d3", "m3", "m4", "P4", "d5", "d6", "m6", "d7", "m7", "d8" } },
+    .{ "Bb", &[_][]const u8{ "P1", "A1", "M2", "m3", "M3", "P4", "A4", "P5", "m6", "M6", "m7", "M7" } },
+    .{ "B", &[_][]const u8{ "P1", "m2", "M2", "m3", "M3", "P4", "d5", "P5", "m6", "M6", "m7", "M7" } },
+});
+
 test "notes()" {
     std.testing.log_level = .debug;
-    const tonics = [_][]const u8{ "C4", "G4", "D4", "A4", "E4", "B4", "F4" };
+    const tonics = [_][]const u8{
+        "C4",
+        "G4",
+        "D4",
+        "A4",
+        "E4",
+        "B4",
+        "F#4",
+        "Gb4",
+        "Db4",
+        "Ab4",
+        "Eb4",
+        "Bb4",
+        "F4",
+    };
     var note_list = ArrayList(Note).init(std.testing.allocator);
     defer note_list.deinit();
 
@@ -120,7 +158,7 @@ test "notes()" {
         note_list.clearAndFree();
         try scale.notes(&note_list);
 
-        std.debug.print("{}: ", .{scale});
+        std.debug.print("{}:\t", .{scale});
         for (note_list.items) |note| {
             std.debug.print("{} ", .{note.pitch});
         }
