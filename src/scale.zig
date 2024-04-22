@@ -56,9 +56,9 @@ pub const Scale = struct {
 pub const Pattern = enum {
     chromatic,
     major,
-    natural_minor,
-    // harmonic_minor,
-    // melodic_minor,
+    minor,
+    // minor_harmonic,
+    // minor_melodic,
     // ...
 
     pub fn intervals(self: Pattern, allocator: std.mem.Allocator) ![]const Interval {
@@ -70,7 +70,7 @@ pub const Pattern = enum {
             .major => &[_][]const u8{
                 "P1", "M2", "M3", "P4", "P5", "M6", "M7",
             },
-            .natural_minor => &[_][]const u8{
+            .minor => &[_][]const u8{
                 "P1", "M2", "m3", "P4", "P5", "m6", "m7",
             },
         };
@@ -90,7 +90,7 @@ pub const Pattern = enum {
         return switch (self) {
             .chromatic => "Chromatic",
             .major => "Major",
-            .natural_minor => "Minor",
+            .minor => "Natural Minor",
         };
     }
 
@@ -107,16 +107,6 @@ pub const Pattern = enum {
         try writer.print("Pattern({s})", .{output});
     }
 };
-
-test "intervals()" {
-    const major_intervals = try Pattern.major.intervals(std.testing.allocator);
-    defer std.testing.allocator.free(major_intervals);
-
-    std.debug.print("Major scale intervals:\n", .{});
-    for (major_intervals) |interval| {
-        std.debug.print("{}\n", .{interval});
-    }
-}
 
 test "notes()" {
     std.testing.log_level = .debug;
