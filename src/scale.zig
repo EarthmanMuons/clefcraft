@@ -53,6 +53,7 @@ pub const Scale = struct {
 
     fn intervals(self: Scale, allocator: std.mem.Allocator) ![]const Interval {
         const shorthands = switch (self.pattern) {
+            .blues => &[_][]const u8{ "P1", "m3", "P4", "d5", "P5", "m7", "P8" },
             .chromatic => blk: {
                 const pitch_str = self.tonic.pitch.asText();
                 const chromatic_shorthands = chromatic_intervals.get(pitch_str) orelse {
@@ -65,8 +66,12 @@ pub const Scale = struct {
                 break :blk chromatic_shorthands;
             },
             .major => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "M7", "P8" },
+            .major_pentatonic => &[_][]const u8{ "P1", "M2", "M3", "P5", "M6", "P8" },
             .minor => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "m7", "P8" },
             .minor_harmonic => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "M7", "P8" },
+            .minor_melodic => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "M6", "M7", "P8" },
+            .minor_pentatonic => &[_][]const u8{ "P1", "m3", "P4", "P5", "m7", "P8" },
+            .whole_tone => &[_][]const u8{ "P1", "M2", "M3", "A4", "A5", "A6", "P8" },
         };
 
         var intervals_slice = try allocator.alloc(Interval, shorthands.len);
@@ -100,19 +105,27 @@ pub const Scale = struct {
 };
 
 pub const Pattern = enum {
+    blues,
     chromatic,
     major,
+    major_pentatonic,
     minor,
     minor_harmonic,
-    // minor_melodic,
-    // ...
+    minor_melodic,
+    minor_pentatonic,
+    whole_tone,
 
     pub fn asText(self: Pattern) []const u8 {
         return switch (self) {
+            .blues => "Blues",
             .chromatic => "Chromatic",
             .major => "Major",
+            .major_pentatonic => "Major Pentatonic",
             .minor => "Natural Minor",
             .minor_harmonic => "Harmonic Minor",
+            .minor_melodic => "Melodic Minor",
+            .minor_pentatonic => "Minor Pentatonic",
+            .whole_tone => "Whole-Tone",
         };
     }
 
@@ -172,7 +185,7 @@ test "notes()" {
     };
 
     for (tonics) |tonic| {
-        const scale = Scale.init(try Note.parse(tonic), .major);
+        const scale = Scale.init(try Note.parse(tonic), .blues);
 
         const notes = try scale.notes(std.testing.allocator);
         defer std.testing.allocator.free(notes);
@@ -207,7 +220,7 @@ test "semitones()" {
     };
 
     for (tonics) |tonic| {
-        const scale = Scale.init(try Note.parse(tonic), .major);
+        const scale = Scale.init(try Note.parse(tonic), .blues);
 
         const semitones = try scale.semitones(std.testing.allocator);
         defer std.testing.allocator.free(semitones);
