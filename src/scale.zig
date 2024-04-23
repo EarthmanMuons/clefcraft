@@ -156,29 +156,33 @@ const chromatic_intervals = std.ComptimeStringMap([]const []const u8, .{
 test "notes()" {
     const tonics = [_][]const u8{
         "C4",
-        "G4",
+        "C#4",
+        "Db4",
         "D4",
-        "A4",
+        "D#4",
+        "Eb4",
         "E4",
-        "B4",
+        "F4",
         "F#4",
         "Gb4",
-        "Db4",
+        "G4",
+        "G#4",
         "Ab4",
-        "Eb4",
+        "A4",
+        "A#4",
         "Bb4",
-        "F4",
+        "B4",
     };
 
     for (tonics) |tonic| {
-        const scale = Scale.init(try Note.parse(tonic), .chromatic);
+        const scale = Scale.init(try Note.parse(tonic), .major);
 
         const notes = try scale.notes(std.testing.allocator);
         defer std.testing.allocator.free(notes);
 
-        std.debug.print("{}:\t", .{scale});
+        std.debug.print("Notes for {}\t", .{scale});
         for (notes) |note| {
-            std.debug.print("{} ", .{note.pitch});
+            std.debug.print("{} ", .{note});
         }
         std.debug.print("\n", .{});
     }
@@ -206,7 +210,7 @@ test "semitones()" {
     };
 
     for (tonics) |tonic| {
-        const scale = Scale.init(try Note.parse(tonic), .chromatic);
+        const scale = Scale.init(try Note.parse(tonic), .major);
 
         const semitones = try scale.semitones(std.testing.allocator);
         defer std.testing.allocator.free(semitones);

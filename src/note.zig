@@ -181,7 +181,17 @@ pub const Note = struct {
         const target_pitch = try selectEnharmonic(target_pitch_class, target_letter);
 
         const octave_adjustment = @divFloor(start_pitch_class + interval_semitones, 12);
-        const target_octave = self.octave + octave_adjustment;
+
+        var boundary_adjustment: i32 = 0;
+        if (target_pitch.accidental) |acc| {
+            boundary_adjustment += switch (acc) {
+                .flat, .double_flat => if (target_pitch.letter == .c) 1 else 0,
+                .sharp, .double_sharp => if (target_pitch.letter == .b) -1 else 0,
+                else => 0,
+            };
+        }
+
+        const target_octave = self.octave + octave_adjustment + boundary_adjustment;
 
         return Note{
             .pitch = target_pitch,
