@@ -40,12 +40,16 @@ pub const Scale = struct {
         const notes_slice = try self.notes(allocator);
         defer allocator.free(notes_slice);
 
-        const distances = try allocator.alloc(i32, notes_slice.len - 1);
+        const distances = try allocator.alloc(i32, notes_slice.len);
         errdefer allocator.free(distances);
 
         for (notes_slice, 0..) |note, i| {
-            if (i == notes_slice.len - 1) break;
-            const next_note = notes_slice[i + 1];
+            const is_last_note = i == notes_slice.len - 1;
+            const next_note = if (is_last_note) blk: {
+                var tonic_copy = self.tonic;
+                tonic_copy.octave += 1;
+                break :blk tonic_copy;
+            } else notes_slice[i + 1];
             distances[i] = note.semitoneDifference(next_note);
         }
 
@@ -175,7 +179,7 @@ test "notes()" {
     };
 
     for (tonics) |tonic| {
-        const scale = Scale.init(try Note.parse(tonic), .major);
+        const scale = Scale.init(try Note.parse(tonic), .minor);
 
         const notes = try scale.notes(std.testing.allocator);
         defer std.testing.allocator.free(notes);
@@ -210,7 +214,7 @@ test "semitones()" {
     };
 
     for (tonics) |tonic| {
-        const scale = Scale.init(try Note.parse(tonic), .major);
+        const scale = Scale.init(try Note.parse(tonic), .minor);
 
         const semitones = try scale.semitones(std.testing.allocator);
         defer std.testing.allocator.free(semitones);
