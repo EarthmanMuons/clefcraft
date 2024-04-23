@@ -56,8 +56,11 @@ pub const Scale = struct {
         const shorthands = switch (self.pattern) {
             .chromatic => blk: {
                 const pitch_str = self.tonic.pitch.asText();
-                const chromatic_shorthands = chromatic_patterns.get(pitch_str) orelse {
-                    log.err("Chromatic scale pattern not found for tonic {s}", .{self.tonic.pitch});
+                const chromatic_shorthands = chromatic_intervals.get(pitch_str) orelse {
+                    log.err(
+                        "Chromatic scale intervals not found for tonic {s}",
+                        .{self.tonic.pitch},
+                    );
                     return error.InvalidTonic;
                 };
                 break :blk chromatic_shorthands;
@@ -70,15 +73,14 @@ pub const Scale = struct {
             },
         };
 
-        var interval_list = try std.ArrayList(Interval).initCapacity(allocator, shorthands.len);
-        errdefer interval_list.deinit();
+        var intervals_slice = try allocator.alloc(Interval, shorthands.len);
+        errdefer allocator.free(intervals_slice);
 
-        for (shorthands) |shorthand| {
-            const interval = try Interval.parse(shorthand);
-            try interval_list.append(interval);
+        for (shorthands, 0..) |shorthand, i| {
+            intervals_slice[i] = try Interval.parse(shorthand);
         }
 
-        return interval_list.items;
+        return intervals_slice;
     }
 
     // Checks if the given note is part of the scale.
@@ -131,7 +133,7 @@ pub const Pattern = enum {
     }
 };
 
-const chromatic_patterns = std.ComptimeStringMap([]const []const u8, .{
+const chromatic_intervals = std.ComptimeStringMap([]const []const u8, .{
     .{ "C", &[_][]const u8{ "P1", "A1", "M2", "A2", "M3", "P4", "A4", "P5", "A5", "M6", "A6", "M7" } },
     .{ "C#", &[_][]const u8{ "P1", "m2", "M2", "m3", "d4", "P4", "d5", "P5", "m6", "M6", "m7", "d8" } },
     .{ "Db", &[_][]const u8{ "P1", "A1", "M2", "A2", "M3", "P4", "A4", "P5", "A5", "M6", "A6", "M7" } },
