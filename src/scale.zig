@@ -1,5 +1,4 @@
 const std = @import("std");
-const ArrayList = std.ArrayList;
 const assert = std.debug.assert;
 const log = std.log.scoped(.scale);
 
