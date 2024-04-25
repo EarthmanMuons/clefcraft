@@ -2,7 +2,9 @@ const std = @import("std");
 const assert = std.debug.assert;
 const log = std.log.scoped(.scale);
 
-const Note = @import("note.zig").Note;
+const _note = @import("note.zig");
+
+const Note = _note.Note;
 const Interval = @import("interval.zig").Interval;
 
 pub const Scale = struct {
@@ -20,7 +22,39 @@ pub const Scale = struct {
     // pub fn parse(tonic: []const u8, pattern: []const u8) !Scale { }
 
     // Checks if the given note is part of the scale.
-    // pub fn contains(self: Scale, note: Note) bool {}
+    pub fn contains(self: Scale, allocator: std.mem.Allocator, note: Note) bool {
+        return self.degreeOf(allocator, note) != null;
+    }
+
+    // Checks if any note in the scale is an enharmonic equivalent to the given note.
+    pub fn containsEnharmonicOf(
+        self: Scale,
+        allocator: std.mem.Allocator,
+        note: Note,
+    ) bool {
+        const scale_notes = self.notes(allocator) catch return false;
+        defer allocator.free(scale_notes);
+
+        for (scale_notes) |scale_note| {
+            if (_note.isEnharmonic(scale_note, note)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Returns the degree of the given note, if it exists in the scale.
+    pub fn degreeOf(self: Scale, allocator: std.mem.Allocator, note: Note) ?usize {
+        const scale_notes = self.notes(allocator) catch return null;
+        defer allocator.free(scale_notes);
+
+        for (scale_notes, 0..) |scale_note, i| {
+            if (std.meta.eql(scale_note, note)) {
+                return i + 1;
+            }
+        }
+        return null;
+    }
 
     // Returns the note of the scale at the given degree position.
     pub fn nthDegree(self: Scale, allocator: std.mem.Allocator, degree: usize) !Note {
@@ -34,9 +68,6 @@ pub const Scale = struct {
         const index = degree - 1;
         return notes_slice[index];
     }
-
-    // Returns the scale degree of the given note, if it exists in the scale.
-    // pub fn degreeOf(self: Scale, note: Note) ?usize {}
 
     // Returns a slice of notes representing the scale.
     pub fn notes(self: Scale, allocator: std.mem.Allocator) ![]Note {
@@ -286,6 +317,38 @@ test "asType()" {
     const result = try scale.asType(std.testing.allocator);
 
     std.debug.print("{} is type: {s}\n", .{ scale, result });
+}
+
+test "contains" {
+    const scale = Scale.init(try Note.parse("C4"), .major);
+    const note1 = try Note.parse("C4");
+    const note2 = try Note.parse("C#4");
+    const result1 = scale.contains(std.testing.allocator, note1);
+    const result2 = scale.contains(std.testing.allocator, note2);
+
+    std.debug.print("{}.contains({}) = {}\n", .{ scale, note1.pitch, result1 });
+    std.debug.print("{}.contains({}) = {}\n", .{ scale, note2.pitch, result2 });
+
+    try std.testing.expect(result1);
+    try std.testing.expect(!result2);
+}
+
+test "containsEnharmonicEquivalent" {
+    const scale = Scale.init(try Note.parse("C4"), .major);
+    const note1 = try Note.parse("C4");
+    const note2 = try Note.parse("C#4");
+    const note3 = try Note.parse("B#4");
+    const result1 = scale.containsEnharmonicOf(std.testing.allocator, note1);
+    const result2 = scale.containsEnharmonicOf(std.testing.allocator, note2);
+    const result3 = scale.containsEnharmonicOf(std.testing.allocator, note3);
+
+    std.debug.print("{}.containsEnharmonicOf({}) = {}\n", .{ scale, note1.pitch, result1 });
+    std.debug.print("{}.containsEnharmonicOf({}) = {}\n", .{ scale, note2.pitch, result2 });
+    std.debug.print("{}.containsEnharmonicOf({}) = {}\n", .{ scale, note3.pitch, result3 });
+
+    try std.testing.expect(result1);
+    try std.testing.expect(!result2);
+    try std.testing.expect(result3);
 }
 
 test "notes()" {
