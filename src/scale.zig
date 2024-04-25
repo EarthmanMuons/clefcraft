@@ -12,7 +12,7 @@ pub const Scale = struct {
     pattern: Pattern,
     allocator: std.mem.Allocator,
     notes_cache: ?[]Note = null,
-    intervals_cache: ?[]const Interval = null,
+    intervals_cache: ?[]Interval = null,
     semitones_cache: ?[]i32 = null,
 
     pub fn init(allocator: std.mem.Allocator, tonic: Note, pattern: Pattern) Scale {
@@ -63,7 +63,7 @@ pub const Scale = struct {
     }
 
     // Returns a slice of the intervals between the scale's tonic and each degree.
-    pub fn intervals(self: *Scale) ![]const Interval {
+    pub fn intervals(self: *Scale) ![]Interval {
         if (self.intervals_cache) |cached_intervals| {
             return cached_intervals;
         }
