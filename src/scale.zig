@@ -68,10 +68,47 @@ pub const Scale = struct {
             return cached_intervals;
         }
 
-        const scale_intervals = try self.pattern.intervals(self.allocator, self.tonic);
+        const shorthands = switch (self.pattern) {
+            .aeolian => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "m7", "P8" },
+            .blues => &[_][]const u8{ "P1", "m3", "P4", "d5", "P5", "m7", "P8" },
+            .chromatic => try self.lookupShorthands(chromatic_map),
+            .dorian => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "M6", "m7", "P8" },
+            .ionian => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "M7", "P8" },
+            .locrian => &[_][]const u8{ "P1", "m2", "m3", "P4", "d5", "m6", "m7", "P8" },
+            .lydian => &[_][]const u8{ "P1", "M2", "M3", "A4", "P5", "M6", "M7", "P8" },
+            .major => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "M7", "P8" },
+            .major_pentatonic => &[_][]const u8{ "P1", "M2", "M3", "P5", "M6", "P8" },
+            .minor => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "m7", "P8" },
+            .minor_harmonic => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "M7", "P8" },
+            .minor_melodic => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "M6", "M7", "P8" },
+            .minor_pentatonic => &[_][]const u8{ "P1", "m3", "P4", "P5", "m7", "P8" },
+            .mixolydian => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "m7", "P8" },
+            .phrygian => &[_][]const u8{ "P1", "m2", "m3", "P4", "P5", "m6", "m7", "P8" },
+            .whole_tone => try self.lookupShorthands(whole_tone_map),
+        };
+
+        var scale_intervals = try self.allocator.alloc(Interval, shorthands.len);
+        errdefer self.allocator.free(scale_intervals);
+
+        for (shorthands, 0..) |shorthand, i| {
+            scale_intervals[i] = try Interval.parse(shorthand);
+        }
 
         self.intervals_cache = scale_intervals;
         return scale_intervals;
+    }
+
+    fn lookupShorthands(self: Scale, shorthands_map: type) ![]const []const u8 {
+        const pitch_str = self.tonic.pitch.asText();
+        const shorthands = shorthands_map.get(pitch_str) orelse {
+            log.err(
+                "{s} scale intervals not found for tonic {s}",
+                .{ self.pattern.asText(), self.tonic.pitch },
+            );
+            return error.InvalidTonic;
+        };
+
+        return shorthands;
     }
 
     // Returns a slice of semitone distances between each successive note in the scale.
@@ -183,61 +220,6 @@ pub const Pattern = enum {
     phrygian,
     whole_tone,
 
-    fn intervals(self: Pattern, allocator: std.mem.Allocator, tonic: Note) ![]const Interval {
-        const shorthands = switch (self) {
-            .aeolian => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "m7", "P8" },
-            .blues => &[_][]const u8{ "P1", "m3", "P4", "d5", "P5", "m7", "P8" },
-            .chromatic => return self.getIntervals(allocator, tonic, chromatic_intervals),
-            .dorian => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "M6", "m7", "P8" },
-            .ionian => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "M7", "P8" },
-            .locrian => &[_][]const u8{ "P1", "m2", "m3", "P4", "d5", "m6", "m7", "P8" },
-            .lydian => &[_][]const u8{ "P1", "M2", "M3", "A4", "P5", "M6", "M7", "P8" },
-            .major => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "M7", "P8" },
-            .major_pentatonic => &[_][]const u8{ "P1", "M2", "M3", "P5", "M6", "P8" },
-            .minor => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "m7", "P8" },
-            .minor_harmonic => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "M7", "P8" },
-            .minor_melodic => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "M6", "M7", "P8" },
-            .minor_pentatonic => &[_][]const u8{ "P1", "m3", "P4", "P5", "m7", "P8" },
-            .mixolydian => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "m7", "P8" },
-            .phrygian => &[_][]const u8{ "P1", "m2", "m3", "P4", "P5", "m6", "m7", "P8" },
-            .whole_tone => return self.getIntervals(allocator, tonic, whole_tone_intervals),
-        };
-
-        var pattern_intervals = try allocator.alloc(Interval, shorthands.len);
-        errdefer allocator.free(pattern_intervals);
-
-        for (shorthands, 0..) |shorthand, i| {
-            pattern_intervals[i] = try Interval.parse(shorthand);
-        }
-
-        return pattern_intervals;
-    }
-
-    fn getIntervals(
-        self: Pattern,
-        allocator: std.mem.Allocator,
-        tonic: Note,
-        intervals_map: type,
-    ) ![]const Interval {
-        const pitch_str = tonic.pitch.asText();
-        const shorthands = intervals_map.get(pitch_str) orelse {
-            log.err(
-                "{s} scale intervals not found for tonic {s}",
-                .{ self.asText(), tonic.pitch },
-            );
-            return error.InvalidTonic;
-        };
-
-        var scale_intervals = try allocator.alloc(Interval, shorthands.len);
-        errdefer allocator.free(scale_intervals);
-
-        for (shorthands, 0..) |shorthand, i| {
-            scale_intervals[i] = try Interval.parse(shorthand);
-        }
-
-        return scale_intervals;
-    }
-
     pub fn asText(self: Pattern) []const u8 {
         return switch (self) {
             .aeolian => "Aeolian",
@@ -273,7 +255,7 @@ pub const Pattern = enum {
     }
 };
 
-const chromatic_intervals = std.ComptimeStringMap([]const []const u8, .{
+const chromatic_map = std.ComptimeStringMap([]const []const u8, .{
     // sharp_pitches: A, A#, B, C, C#, D, D#, E, F, F#, G, G#
     .{ "A", &[_][]const u8{ "P1", "A1", "M2", "m3", "M3", "P4", "A4", "P5", "m6", "M6", "m7", "M7", "P8" } },
     .{ "A#", &[_][]const u8{ "P1", "m2", "d3", "m3", "m4", "P4", "d5", "d6", "m6", "d7", "m7", "d8", "P8" } },
@@ -295,7 +277,7 @@ const chromatic_intervals = std.ComptimeStringMap([]const []const u8, .{
     .{ "Ab", &[_][]const u8{ "P1", "A1", "M2", "A2", "M3", "P4", "A4", "P5", "A5", "M6", "m7", "M7", "P8" } },
 });
 
-const whole_tone_intervals = std.ComptimeStringMap([]const []const u8, .{
+const whole_tone_map = std.ComptimeStringMap([]const []const u8, .{
     // cn_pitches: C, D, E, F#, G#, A#
     .{ "C", &[_][]const u8{ "P1", "M2", "M3", "A4", "A5", "A6", "P8" } },
     .{ "D", &[_][]const u8{ "P1", "M2", "M3", "A4", "A5", "m7", "P8" } },
@@ -311,61 +293,6 @@ const whole_tone_intervals = std.ComptimeStringMap([]const []const u8, .{
     .{ "A", &[_][]const u8{ "P1", "M2", "d4", "d5", "m6", "m7", "P8" } },
     .{ "B", &[_][]const u8{ "P1", "d3", "d4", "d5", "m6", "m7", "P8" } },
 });
-
-test "nthDegree()" {
-    var scale = Scale.init(std.testing.allocator, try Note.parse("A4"), .major);
-    defer scale.deinit();
-
-    const degree = 7;
-    const result = try scale.nthDegree(degree);
-
-    std.debug.print("Degree {} of {}: {}\n", .{ degree, scale, result.pitch });
-}
-
-test "asType()" {
-    var scale = Scale.init(std.testing.allocator, try Note.parse("C4"), .whole_tone);
-    defer scale.deinit();
-
-    const result = try scale.asType();
-
-    std.debug.print("{} is type: {s}\n", .{ scale, result });
-}
-
-test "contains" {
-    var scale = Scale.init(std.testing.allocator, try Note.parse("C4"), .major);
-    defer scale.deinit();
-
-    const note1 = try Note.parse("C4");
-    const note2 = try Note.parse("C#4");
-    const result1 = scale.contains(note1);
-    const result2 = scale.contains(note2);
-
-    std.debug.print("{}.contains({}) = {}\n", .{ scale, note1.pitch, result1 });
-    std.debug.print("{}.contains({}) = {}\n", .{ scale, note2.pitch, result2 });
-
-    try std.testing.expect(result1);
-    try std.testing.expect(!result2);
-}
-
-test "containsEnharmonicEquivalent" {
-    var scale = Scale.init(std.testing.allocator, try Note.parse("C4"), .major);
-    defer scale.deinit();
-
-    const note1 = try Note.parse("C4");
-    const note2 = try Note.parse("C#4");
-    const note3 = try Note.parse("B#4");
-    const result1 = scale.containsEnharmonicOf(note1);
-    const result2 = scale.containsEnharmonicOf(note2);
-    const result3 = scale.containsEnharmonicOf(note3);
-
-    std.debug.print("{}.containsEnharmonicOf({}) = {}\n", .{ scale, note1.pitch, result1 });
-    std.debug.print("{}.containsEnharmonicOf({}) = {}\n", .{ scale, note2.pitch, result2 });
-    std.debug.print("{}.containsEnharmonicOf({}) = {}\n", .{ scale, note3.pitch, result3 });
-
-    try std.testing.expect(result1);
-    try std.testing.expect(!result2);
-    try std.testing.expect(result3);
-}
 
 test "notes()" {
     const tonics = [_][]const u8{
@@ -435,4 +362,59 @@ test "semitones()" {
         }
         std.debug.print("\n", .{});
     }
+}
+
+test "contains" {
+    var scale = Scale.init(std.testing.allocator, try Note.parse("C4"), .major);
+    defer scale.deinit();
+
+    const note1 = try Note.parse("C4");
+    const note2 = try Note.parse("C#4");
+    const result1 = scale.contains(note1);
+    const result2 = scale.contains(note2);
+
+    std.debug.print("{}.contains({}) = {}\n", .{ scale, note1.pitch, result1 });
+    std.debug.print("{}.contains({}) = {}\n", .{ scale, note2.pitch, result2 });
+
+    try std.testing.expect(result1);
+    try std.testing.expect(!result2);
+}
+
+test "containsEnharmonicEquivalent" {
+    var scale = Scale.init(std.testing.allocator, try Note.parse("C4"), .major);
+    defer scale.deinit();
+
+    const note1 = try Note.parse("C4");
+    const note2 = try Note.parse("C#4");
+    const note3 = try Note.parse("B#4");
+    const result1 = scale.containsEnharmonicOf(note1);
+    const result2 = scale.containsEnharmonicOf(note2);
+    const result3 = scale.containsEnharmonicOf(note3);
+
+    std.debug.print("{}.containsEnharmonicOf({}) = {}\n", .{ scale, note1.pitch, result1 });
+    std.debug.print("{}.containsEnharmonicOf({}) = {}\n", .{ scale, note2.pitch, result2 });
+    std.debug.print("{}.containsEnharmonicOf({}) = {}\n", .{ scale, note3.pitch, result3 });
+
+    try std.testing.expect(result1);
+    try std.testing.expect(!result2);
+    try std.testing.expect(result3);
+}
+
+test "nthDegree()" {
+    var scale = Scale.init(std.testing.allocator, try Note.parse("A4"), .major);
+    defer scale.deinit();
+
+    const degree = 7;
+    const result = try scale.nthDegree(degree);
+
+    std.debug.print("Degree {} of {}: {}\n", .{ degree, scale, result.pitch });
+}
+
+test "asType()" {
+    var scale = Scale.init(std.testing.allocator, try Note.parse("C4"), .whole_tone);
+    defer scale.deinit();
+
+    const result = try scale.asType();
+
+    std.debug.print("{} is type: {s}\n", .{ scale, result });
 }
