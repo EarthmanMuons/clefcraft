@@ -134,7 +134,7 @@ pub const Scale = struct {
         return self.degreeOf(needle) != null;
     }
 
-    // Checks if any note in the scale is an enharmonic equivalent to the given note.
+    // Checks if the given note is an enharmonic equivalent to any note in the scale.
     pub fn containsEnharmonicOf(self: *Scale, needle: Note) bool {
         const haystack = self.notes() catch return false;
 
@@ -158,7 +158,7 @@ pub const Scale = struct {
         return null;
     }
 
-    // Returns the note of the scale at the given degree position.
+    // Returns the note of the scale at the given degree.
     pub fn nthDegree(self: *Scale, degree: usize) !Note {
         const scale_notes = try self.notes();
 
