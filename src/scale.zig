@@ -10,11 +10,13 @@ const Interval = @import("interval.zig").Interval;
 pub const Scale = struct {
     tonic: Note,
     pattern: Pattern,
+    allocator: std.mem.Allocator,
 
-    pub fn init(tonic: Note, pattern: Pattern) Scale {
+    pub fn init(allocator: std.mem.Allocator, tonic: Note, pattern: Pattern) Scale {
         return Scale{
             .tonic = tonic,
             .pattern = pattern,
+            .allocator = allocator,
         };
     }
 
@@ -22,18 +24,14 @@ pub const Scale = struct {
     // pub fn parse(tonic: []const u8, pattern: []const u8) !Scale { }
 
     // Checks if the given note is part of the scale.
-    pub fn contains(self: Scale, allocator: std.mem.Allocator, needle: Note) bool {
-        return self.degreeOf(allocator, needle) != null;
+    pub fn contains(self: Scale, needle: Note) bool {
+        return self.degreeOf(needle) != null;
     }
 
     // Checks if any note in the scale is an enharmonic equivalent to the given note.
-    pub fn containsEnharmonicOf(
-        self: Scale,
-        allocator: std.mem.Allocator,
-        needle: Note,
-    ) bool {
-        const haystack = self.notes(allocator) catch return false;
-        defer allocator.free(haystack);
+    pub fn containsEnharmonicOf(self: Scale, needle: Note) bool {
+        const haystack = self.notes() catch return false;
+        defer self.allocator.free(haystack);
 
         for (haystack) |item| {
             if (_note.isEnharmonic(item, needle)) {
@@ -44,9 +42,9 @@ pub const Scale = struct {
     }
 
     // Returns the degree of the given note, if it exists in the scale.
-    pub fn degreeOf(self: Scale, allocator: std.mem.Allocator, needle: Note) ?usize {
-        const haystack = self.notes(allocator) catch return null;
-        defer allocator.free(haystack);
+    pub fn degreeOf(self: Scale, needle: Note) ?usize {
+        const haystack = self.notes() catch return null;
+        defer self.allocator.free(haystack);
 
         for (haystack, 0..) |item, i| {
             if (std.meta.eql(item, needle)) {
@@ -57,9 +55,9 @@ pub const Scale = struct {
     }
 
     // Returns the note of the scale at the given degree position.
-    pub fn nthDegree(self: Scale, allocator: std.mem.Allocator, degree: usize) !Note {
-        const scale_notes = try self.notes(allocator);
-        defer allocator.free(scale_notes);
+    pub fn nthDegree(self: Scale, degree: usize) !Note {
+        const scale_notes = try self.notes();
+        defer self.allocator.free(scale_notes);
 
         if (degree < 1 or degree > scale_notes.len - 1) {
             return error.InvalidDegree;
@@ -70,22 +68,22 @@ pub const Scale = struct {
     }
 
     // Returns a slice of notes representing the scale.
-    pub fn notes(self: Scale, allocator: std.mem.Allocator) ![]Note {
-        const scale_intervals = try self.intervals(allocator);
-        defer allocator.free(scale_intervals);
+    pub fn notes(self: Scale) ![]Note {
+        const scale_intervals = try self.intervals();
+        defer self.allocator.free(scale_intervals);
 
-        const scale_notes = try self.applyIntervals(allocator, scale_intervals);
+        const scale_notes = try self.applyIntervals(scale_intervals);
 
         return scale_notes;
     }
 
     // Returns a slice of semitone distances between each successive note in the scale.
-    pub fn semitones(self: Scale, allocator: std.mem.Allocator) ![]i32 {
-        const scale_notes = try self.notes(allocator);
-        defer allocator.free(scale_notes);
+    pub fn semitones(self: Scale) ![]i32 {
+        const scale_notes = try self.notes();
+        defer self.allocator.free(scale_notes);
 
-        const distances = try allocator.alloc(i32, scale_notes.len - 1);
-        errdefer allocator.free(distances);
+        const distances = try self.allocator.alloc(i32, scale_notes.len - 1);
+        errdefer self.allocator.free(distances);
 
         const all_but_last = scale_notes[0 .. scale_notes.len - 1];
 
@@ -96,27 +94,23 @@ pub const Scale = struct {
         return distances;
     }
 
-    pub fn intervals(self: Scale, allocator: std.mem.Allocator) ![]const Interval {
+    pub fn intervals(self: Scale) ![]const Interval {
         return switch (self.pattern) {
-            .chromatic => try self.chromaticIntervals(allocator),
-            .whole_tone => try self.wholeToneIntervals(allocator),
-            else => try self.pattern.intervals(allocator),
+            .chromatic => try self.chromaticIntervals(),
+            .whole_tone => try self.wholeToneIntervals(),
+            else => try self.pattern.intervals(self.allocator),
         };
     }
 
-    fn chromaticIntervals(self: Scale, allocator: std.mem.Allocator) ![]const Interval {
-        return self.getIntervals(allocator, chromatic_intervals);
+    fn chromaticIntervals(self: Scale) ![]const Interval {
+        return self.getIntervals(chromatic_intervals);
     }
 
-    fn wholeToneIntervals(self: Scale, allocator: std.mem.Allocator) ![]const Interval {
-        return self.getIntervals(allocator, whole_tone_intervals);
+    fn wholeToneIntervals(self: Scale) ![]const Interval {
+        return self.getIntervals(whole_tone_intervals);
     }
 
-    fn getIntervals(
-        self: Scale,
-        allocator: std.mem.Allocator,
-        intervals_map: type,
-    ) ![]const Interval {
+    fn getIntervals(self: Scale, intervals_map: type) ![]const Interval {
         const pitch_str = self.tonic.pitch.asText();
         const shorthands = intervals_map.get(pitch_str) orelse {
             log.err(
@@ -126,8 +120,8 @@ pub const Scale = struct {
             return error.InvalidTonic;
         };
 
-        var scale_intervals = try allocator.alloc(Interval, shorthands.len);
-        errdefer allocator.free(scale_intervals);
+        var scale_intervals = try self.allocator.alloc(Interval, shorthands.len);
+        errdefer self.allocator.free(scale_intervals);
 
         for (shorthands, 0..) |shorthand, i| {
             scale_intervals[i] = try Interval.parse(shorthand);
@@ -136,13 +130,9 @@ pub const Scale = struct {
         return scale_intervals;
     }
 
-    fn applyIntervals(
-        self: Scale,
-        allocator: std.mem.Allocator,
-        scale_intervals: []const Interval,
-    ) ![]Note {
-        const scale_notes = try allocator.alloc(Note, scale_intervals.len);
-        errdefer allocator.free(scale_notes);
+    fn applyIntervals(self: Scale, scale_intervals: []const Interval) ![]Note {
+        const scale_notes = try self.allocator.alloc(Note, scale_intervals.len);
+        errdefer self.allocator.free(scale_notes);
 
         for (scale_intervals, 0..) |shorthand, i| {
             scale_notes[i] = try self.tonic.applyInterval(shorthand);
@@ -152,9 +142,9 @@ pub const Scale = struct {
     }
 
     // Returns the type of scale based on the number of notes it contains.
-    pub fn asType(self: Scale, allocator: std.mem.Allocator) ![]const u8 {
-        const scale_intervals = try self.intervals(allocator);
-        defer allocator.free(scale_intervals);
+    pub fn asType(self: Scale) ![]const u8 {
+        const scale_intervals = try self.intervals();
+        defer self.allocator.free(scale_intervals);
 
         return switch (scale_intervals.len - 1) {
             12 => "Dodecatonic",
@@ -306,26 +296,26 @@ const whole_tone_intervals = std.ComptimeStringMap([]const []const u8, .{
 });
 
 test "nthDegree()" {
-    const scale = Scale.init(try Note.parse("A4"), .major);
+    const scale = Scale.init(std.testing.allocator, try Note.parse("A4"), .major);
     const degree = 7;
-    const result = try scale.nthDegree(std.testing.allocator, degree);
+    const result = try scale.nthDegree(degree);
 
     std.debug.print("Degree {} of {}: {}\n", .{ degree, scale, result.pitch });
 }
 
 test "asType()" {
-    const scale = Scale.init(try Note.parse("C4"), .whole_tone);
-    const result = try scale.asType(std.testing.allocator);
+    const scale = Scale.init(std.testing.allocator, try Note.parse("C4"), .whole_tone);
+    const result = try scale.asType();
 
     std.debug.print("{} is type: {s}\n", .{ scale, result });
 }
 
 test "contains" {
-    const scale = Scale.init(try Note.parse("C4"), .major);
+    const scale = Scale.init(std.testing.allocator, try Note.parse("C4"), .major);
     const note1 = try Note.parse("C4");
     const note2 = try Note.parse("C#4");
-    const result1 = scale.contains(std.testing.allocator, note1);
-    const result2 = scale.contains(std.testing.allocator, note2);
+    const result1 = scale.contains(note1);
+    const result2 = scale.contains(note2);
 
     std.debug.print("{}.contains({}) = {}\n", .{ scale, note1.pitch, result1 });
     std.debug.print("{}.contains({}) = {}\n", .{ scale, note2.pitch, result2 });
@@ -335,13 +325,13 @@ test "contains" {
 }
 
 test "containsEnharmonicEquivalent" {
-    const scale = Scale.init(try Note.parse("C4"), .major);
+    const scale = Scale.init(std.testing.allocator, try Note.parse("C4"), .major);
     const note1 = try Note.parse("C4");
     const note2 = try Note.parse("C#4");
     const note3 = try Note.parse("B#4");
-    const result1 = scale.containsEnharmonicOf(std.testing.allocator, note1);
-    const result2 = scale.containsEnharmonicOf(std.testing.allocator, note2);
-    const result3 = scale.containsEnharmonicOf(std.testing.allocator, note3);
+    const result1 = scale.containsEnharmonicOf(note1);
+    const result2 = scale.containsEnharmonicOf(note2);
+    const result3 = scale.containsEnharmonicOf(note3);
 
     std.debug.print("{}.containsEnharmonicOf({}) = {}\n", .{ scale, note1.pitch, result1 });
     std.debug.print("{}.containsEnharmonicOf({}) = {}\n", .{ scale, note2.pitch, result2 });
@@ -374,9 +364,9 @@ test "notes()" {
     };
 
     for (tonics) |tonic| {
-        const scale = Scale.init(try Note.parse(tonic), .major);
+        const scale = Scale.init(std.testing.allocator, try Note.parse(tonic), .major);
 
-        const notes = try scale.notes(std.testing.allocator);
+        const notes = try scale.notes();
         defer std.testing.allocator.free(notes);
 
         std.debug.print("Notes for {}\t", .{scale});
@@ -409,9 +399,9 @@ test "semitones()" {
     };
 
     for (tonics) |tonic| {
-        const scale = Scale.init(try Note.parse(tonic), .major);
+        const scale = Scale.init(std.testing.allocator, try Note.parse(tonic), .major);
 
-        const semitones = try scale.semitones(std.testing.allocator);
+        const semitones = try scale.semitones();
         defer std.testing.allocator.free(semitones);
 
         std.debug.print("Semitones for {}:\t", .{scale});
