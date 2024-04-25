@@ -8,7 +8,6 @@ const Interval = @import("interval.zig").Interval;
 pub const Scale = struct {
     tonic: Note,
     pattern: Pattern,
-    mode: u8 = 1,
 
     pub fn init(tonic: Note, pattern: Pattern) Scale {
         return Scale{
@@ -26,9 +25,8 @@ pub const Scale = struct {
         defer allocator.free(intervals_slice);
 
         const notes_slice = try self.applyIntervals(allocator, intervals_slice);
-        defer allocator.free(notes_slice);
 
-        return try self.rotateNotesForMode(allocator, notes_slice);
+        return notes_slice;
     }
 
     // Returns a slice of semitone distances between each successive note in the scale.
@@ -102,24 +100,6 @@ pub const Scale = struct {
         return notes_slice;
     }
 
-    fn rotateNotesForMode(self: Scale, allocator: std.mem.Allocator, notes_slice: []Note) ![]Note {
-        const notes_without_p8 = notes_slice[0 .. notes_slice.len - 1];
-
-        std.mem.rotate(Note, notes_without_p8, self.mode - 1);
-
-        const new_first_note = notes_without_p8[0];
-        const p8_interval = try Interval.parse("P8");
-        const new_p8_note = try new_first_note.applyInterval(p8_interval);
-
-        const new_notes_slice = try allocator.alloc(Note, notes_without_p8.len + 1);
-        errdefer allocator.free(new_notes_slice);
-
-        std.mem.copyForwards(Note, new_notes_slice, notes_without_p8);
-        new_notes_slice[notes_without_p8.len] = new_p8_note;
-
-        return new_notes_slice;
-    }
-
     // Checks if the given note is part of the scale.
     // pub fn contains(self: Scale, note: Note) bool {}
 
@@ -141,6 +121,13 @@ pub const Scale = struct {
 };
 
 pub const Pattern = enum {
+    ionian,
+    dorian,
+    phrygian,
+    lydian,
+    mixolydian,
+    aeolian,
+    locrian,
     blues,
     chromatic,
     major,
@@ -153,6 +140,13 @@ pub const Pattern = enum {
 
     fn intervals(self: Pattern, allocator: std.mem.Allocator) ![]const Interval {
         const shorthands = switch (self) {
+            .ionian => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "M7", "P8" },
+            .dorian => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "M6", "m7", "P8" },
+            .phrygian => &[_][]const u8{ "P1", "m2", "m3", "P4", "P5", "m6", "m7", "P8" },
+            .lydian => &[_][]const u8{ "P1", "M2", "M3", "A4", "P5", "M6", "M7", "P8" },
+            .mixolydian => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "m7", "P8" },
+            .aeolian => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "m7", "P8" },
+            .locrian => &[_][]const u8{ "P1", "m2", "m3", "P4", "d5", "m6", "m7", "P8" },
             .blues => &[_][]const u8{ "P1", "m3", "P4", "d5", "P5", "m7", "P8" },
             .major => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "M7", "P8" },
             .major_pentatonic => &[_][]const u8{ "P1", "M2", "M3", "P5", "M6", "P8" },
@@ -175,6 +169,13 @@ pub const Pattern = enum {
 
     pub fn asText(self: Pattern) []const u8 {
         return switch (self) {
+            .ionian => "Ionian",
+            .dorian => "Dorian",
+            .phrygian => "Phrygian",
+            .lydian => "Lydian",
+            .mixolydian => "Mixolydian",
+            .aeolian => "Aeolian",
+            .locrian => "Locrian",
             .blues => "Blues",
             .chromatic => "Chromatic",
             .major => "Major",
@@ -201,25 +202,25 @@ pub const Pattern = enum {
     }
 };
 
-// sharp_pitches: A, A#, B, C, C#, D, D#, E, F, F#, G, G#
-//  flat_pitches: A, Bb, B, C, Db, D, Eb, E, F, Gb, G, Ab
 const chromatic_intervals = std.ComptimeStringMap([]const []const u8, .{
+    // sharp_pitches: A, A#, B, C, C#, D, D#, E, F, F#, G, G#
     .{ "A", &[_][]const u8{ "P1", "A1", "M2", "m3", "M3", "P4", "A4", "P5", "m6", "M6", "m7", "M7", "P8" } },
     .{ "A#", &[_][]const u8{ "P1", "m2", "d3", "m3", "m4", "P4", "d5", "d6", "m6", "d7", "m7", "d8", "P8" } },
-    .{ "Bb", &[_][]const u8{ "P1", "A1", "M2", "m3", "M3", "P4", "A4", "P5", "m6", "M6", "m7", "M7", "P8" } },
     .{ "B", &[_][]const u8{ "P1", "m2", "M2", "m3", "M3", "P4", "d5", "P5", "m6", "M6", "m7", "M7", "P8" } },
     .{ "C", &[_][]const u8{ "P1", "A1", "M2", "A2", "M3", "P4", "A4", "P5", "A5", "M6", "A6", "M7", "P8" } },
     .{ "C#", &[_][]const u8{ "P1", "m2", "M2", "m3", "d4", "P4", "d5", "P5", "m6", "M6", "m7", "d8", "P8" } },
-    .{ "Db", &[_][]const u8{ "P1", "A1", "M2", "A2", "M3", "P4", "A4", "P5", "A5", "M6", "A6", "M7", "P8" } },
     .{ "D", &[_][]const u8{ "P1", "A1", "M2", "m3", "M3", "P4", "A4", "P5", "A5", "M6", "m7", "M7", "P8" } },
     .{ "D#", &[_][]const u8{ "P1", "m2", "d3", "m3", "d4", "P4", "d5", "P5", "m6", "d7", "m7", "d8", "P8" } },
-    .{ "Eb", &[_][]const u8{ "P1", "A1", "M2", "m3", "M3", "P4", "A4", "P5", "A5", "M6", "m7", "M7", "P8" } },
     .{ "E", &[_][]const u8{ "P1", "m2", "M2", "m3", "M3", "P4", "A4", "P5", "m6", "M6", "m7", "M7", "P8" } },
-    .{ "F", &[_][]const u8{ "P1", "m2", "M2", "m3", "M3", "P4", "A4", "P5", "m6", "M6", "m7", "M7", "P8" } },
     .{ "F#", &[_][]const u8{ "P1", "m2", "M2", "m3", "M3", "P4", "d5", "P5", "m6", "M6", "m7", "d8", "P8" } },
-    .{ "Gb", &[_][]const u8{ "P1", "A1", "M2", "A2", "M3", "A3", "A4", "P5", "A5", "M6", "A6", "M7", "P8" } },
     .{ "G", &[_][]const u8{ "P1", "A1", "M2", "A2", "M3", "P4", "A4", "P5", "A5", "M6", "m7", "M7", "P8" } },
     .{ "G#", &[_][]const u8{ "P1", "m2", "M2", "m3", "m4", "P4", "d5", "P5", "m6", "d7", "m7", "d8", "P8" } },
+    //  flat_pitches: A, Bb, B, C, Db, D, Eb, E, F, Gb, G, Ab
+    .{ "Bb", &[_][]const u8{ "P1", "A1", "M2", "m3", "M3", "P4", "A4", "P5", "m6", "M6", "m7", "M7", "P8" } },
+    .{ "Db", &[_][]const u8{ "P1", "A1", "M2", "A2", "M3", "P4", "A4", "P5", "A5", "M6", "A6", "M7", "P8" } },
+    .{ "Eb", &[_][]const u8{ "P1", "A1", "M2", "m3", "M3", "P4", "A4", "P5", "A5", "M6", "m7", "M7", "P8" } },
+    .{ "F", &[_][]const u8{ "P1", "m2", "M2", "m3", "M3", "P4", "A4", "P5", "m6", "M6", "m7", "M7", "P8" } },
+    .{ "Gb", &[_][]const u8{ "P1", "A1", "M2", "A2", "M3", "A3", "A4", "P5", "A5", "M6", "A6", "M7", "P8" } },
     .{ "Ab", &[_][]const u8{ "P1", "A1", "M2", "A2", "M3", "P4", "A4", "P5", "A5", "M6", "m7", "M7", "P8" } },
 });
 
@@ -242,22 +243,27 @@ const whole_tone_intervals = std.ComptimeStringMap([]const []const u8, .{
 
 test "notes()" {
     const tonics = [_][]const u8{
-        "C4",
-        "D4",
-        "E4",
-        "F#4",
-        "G#4",
-        "A#4",
-        "Db4",
-        "Eb4",
-        "F4",
-        "G4",
         "A4",
+        "A#4",
+        "Bb4",
         "B4",
+        "C4",
+        "C#4",
+        "Db4",
+        "D4",
+        "D#4",
+        "Eb4",
+        "E4",
+        "F4",
+        "F#4",
+        "Gb4",
+        "G4",
+        "G#4",
+        "Ab4",
     };
 
     for (tonics) |tonic| {
-        const scale = Scale.init(try Note.parse(tonic), .major);
+        const scale = Scale.init(try Note.parse(tonic), .locrian);
 
         const notes = try scale.notes(std.testing.allocator);
         defer std.testing.allocator.free(notes);
@@ -272,22 +278,27 @@ test "notes()" {
 
 test "semitones()" {
     const tonics = [_][]const u8{
-        "C4",
-        "D4",
-        "E4",
-        "F#4",
-        "G#4",
-        "A#4",
-        "Db4",
-        "Eb4",
-        "F4",
-        "G4",
         "A4",
+        "A#4",
+        "Bb4",
         "B4",
+        "C4",
+        "C#4",
+        "Db4",
+        "D4",
+        "D#4",
+        "Eb4",
+        "E4",
+        "F4",
+        "F#4",
+        "Gb4",
+        "G4",
+        "G#4",
+        "Ab4",
     };
 
     for (tonics) |tonic| {
-        const scale = Scale.init(try Note.parse(tonic), .major);
+        const scale = Scale.init(try Note.parse(tonic), .locrian);
 
         const semitones = try scale.semitones(std.testing.allocator);
         defer std.testing.allocator.free(semitones);
