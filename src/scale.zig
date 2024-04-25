@@ -19,6 +19,25 @@ pub const Scale = struct {
     // Creates a scale from string representations of the tonic and interval pattern name.
     // pub fn parse(tonic: []const u8, pattern: []const u8) !Scale { }
 
+    // Checks if the given note is part of the scale.
+    // pub fn contains(self: Scale, note: Note) bool {}
+
+    // Returns the note of the scale at the given degree position.
+    pub fn nthDegree(self: Scale, allocator: std.mem.Allocator, degree: usize) !Note {
+        const notes_slice = try self.notes(allocator);
+        defer allocator.free(notes_slice);
+
+        if (degree < 1 or degree > notes_slice.len - 1) {
+            return error.InvalidDegree;
+        }
+
+        const index = degree - 1;
+        return notes_slice[index];
+    }
+
+    // Returns the scale degree of the given note, if it exists in the scale.
+    // pub fn degreeOf(self: Scale, note: Note) ?usize {}
+
     // Returns a slice of notes representing the scale.
     pub fn notes(self: Scale, allocator: std.mem.Allocator) ![]Note {
         const intervals_slice = try self.intervals(allocator);
@@ -100,11 +119,24 @@ pub const Scale = struct {
         return notes_slice;
     }
 
-    // Checks if the given note is part of the scale.
-    // pub fn contains(self: Scale, note: Note) bool {}
+    // Returns the type of scale based on the number of notes it contains.
+    pub fn asType(self: Scale, allocator: std.mem.Allocator) ![]const u8 {
+        const intervals_slice = try self.intervals(allocator);
+        defer allocator.free(intervals_slice);
 
-    // Returns the scale degree of the given note, if it exists in the scale.
-    // pub fn degreeOf(self: Scale, note: Note) ?usize {}
+        return switch (intervals_slice.len - 1) {
+            12 => "Dodecatonic",
+            9 => "Nonatonic",
+            8 => "Octatonic",
+            7 => "Heptatonic",
+            6 => "Hexatonic",
+            5 => "Pentatonic",
+            4 => "Tetratonic",
+            3 => "Tritonic",
+            2 => "Ditonic",
+            else => "Unknown",
+        };
+    }
 
     // Formats the scale as a string.
     pub fn format(
@@ -241,6 +273,21 @@ const whole_tone_intervals = std.ComptimeStringMap([]const []const u8, .{
     .{ "B", &[_][]const u8{ "P1", "d3", "d4", "d5", "m6", "m7", "P8" } },
 });
 
+test "nthDegree()" {
+    const scale = Scale.init(try Note.parse("A4"), .major);
+    const degree = 7;
+    const result = try scale.nthDegree(std.testing.allocator, degree);
+
+    std.debug.print("Degree {} of {}: {}\n", .{ degree, scale, result.pitch });
+}
+
+test "asType()" {
+    const scale = Scale.init(try Note.parse("C4"), .whole_tone);
+    const result = try scale.asType(std.testing.allocator);
+
+    std.debug.print("{} is type: {s}\n", .{ scale, result });
+}
+
 test "notes()" {
     const tonics = [_][]const u8{
         "A4",
@@ -263,7 +310,7 @@ test "notes()" {
     };
 
     for (tonics) |tonic| {
-        const scale = Scale.init(try Note.parse(tonic), .locrian);
+        const scale = Scale.init(try Note.parse(tonic), .major);
 
         const notes = try scale.notes(std.testing.allocator);
         defer std.testing.allocator.free(notes);
@@ -298,7 +345,7 @@ test "semitones()" {
     };
 
     for (tonics) |tonic| {
-        const scale = Scale.init(try Note.parse(tonic), .locrian);
+        const scale = Scale.init(try Note.parse(tonic), .major);
 
         const semitones = try scale.semitones(std.testing.allocator);
         defer std.testing.allocator.free(semitones);
