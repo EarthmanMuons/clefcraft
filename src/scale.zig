@@ -40,31 +40,23 @@ pub const Scale = struct {
     }
 
     fn chromaticIntervals(self: Scale, allocator: std.mem.Allocator) ![]const Interval {
-        const pitch_str = self.tonic.pitch.asText();
-        const shorthands = chromatic_intervals.get(pitch_str) orelse {
-            log.err(
-                "Chromatic scale intervals not found for tonic {s}",
-                .{self.tonic.pitch},
-            );
-            return error.InvalidTonic;
-        };
-
-        var intervals_slice = try allocator.alloc(Interval, shorthands.len);
-        errdefer allocator.free(intervals_slice);
-
-        for (shorthands, 0..) |shorthand, i| {
-            intervals_slice[i] = try Interval.parse(shorthand);
-        }
-
-        return intervals_slice;
+        return getIntervals(self, allocator, chromatic_intervals);
     }
 
     fn wholeToneIntervals(self: Scale, allocator: std.mem.Allocator) ![]const Interval {
+        return getIntervals(self, allocator, whole_tone_intervals);
+    }
+
+    fn getIntervals(
+        self: Scale,
+        allocator: std.mem.Allocator,
+        intervals_map: type,
+    ) ![]const Interval {
         const pitch_str = self.tonic.pitch.asText();
-        const shorthands = whole_tone_intervals.get(pitch_str) orelse {
+        const shorthands = intervals_map.get(pitch_str) orelse {
             log.err(
-                "Whole-tone scale intervals not found for tonic {s}",
-                .{self.tonic.pitch},
+                "{s} scale intervals not found for tonic {s}",
+                .{ self.pattern.asText(), self.tonic.pitch },
             );
             return error.InvalidTonic;
         };
