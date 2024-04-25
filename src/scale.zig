@@ -51,7 +51,7 @@ pub const Scale = struct {
         return scale_notes;
     }
 
-    fn applyIntervals(self: Scale, scale_intervals: []const Interval) ![]Note {
+    fn applyIntervals(self: Scale, scale_intervals: []Interval) ![]Note {
         const scale_notes = try self.allocator.alloc(Note, scale_intervals.len);
         errdefer self.allocator.free(scale_notes);
 
@@ -70,6 +70,7 @@ pub const Scale = struct {
 
         const shorthands = switch (self.pattern) {
             .aeolian => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "m7", "P8" },
+            .augmented => &[_][]const u8{ "P1", "m3", "M3", "P5", "A5", "M7", "P8" },
             .blues => &[_][]const u8{ "P1", "m3", "P4", "d5", "P5", "m7", "P8" },
             .chromatic => try self.lookupShorthands(chromatic_map),
             .dorian => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "M6", "m7", "P8" },
@@ -204,6 +205,7 @@ pub const Scale = struct {
 
 pub const Pattern = enum {
     aeolian,
+    augmented,
     blues,
     chromatic,
     dorian,
@@ -223,6 +225,7 @@ pub const Pattern = enum {
     pub fn asText(self: Pattern) []const u8 {
         return switch (self) {
             .aeolian => "Aeolian",
+            .augmented => "Augmented",
             .blues => "Blues",
             .chromatic => "Chromatic",
             .dorian => "Dorian",
@@ -316,7 +319,7 @@ test "notes()" {
     };
 
     for (tonics) |tonic| {
-        var scale = Scale.init(std.testing.allocator, try Note.parse(tonic), .major);
+        var scale = Scale.init(std.testing.allocator, try Note.parse(tonic), .augmented);
         defer scale.deinit();
 
         const notes = try scale.notes();
@@ -351,7 +354,7 @@ test "semitones()" {
     };
 
     for (tonics) |tonic| {
-        var scale = Scale.init(std.testing.allocator, try Note.parse(tonic), .major);
+        var scale = Scale.init(std.testing.allocator, try Note.parse(tonic), .augmented);
         defer scale.deinit();
 
         const semitones = try scale.semitones();
