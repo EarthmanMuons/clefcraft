@@ -22,29 +22,45 @@ pub const Scale = struct {
 
     // Returns a slice of notes representing the scale.
     pub fn notes(self: Scale, allocator: std.mem.Allocator) ![]Note {
-        const intervals_slice = try intervals(self, allocator);
+        const intervals_slice = try self.intervals(allocator);
         defer allocator.free(intervals_slice);
 
-        const notes_slice = try applyIntervals(self, allocator, intervals_slice);
-        std.mem.rotate(Note, notes_slice, self.mode - 1);
+        const notes_slice = try self.applyIntervals(allocator, intervals_slice);
+        defer allocator.free(notes_slice);
 
-        return notes_slice;
+        return try self.rotateNotesForMode(allocator, notes_slice);
+    }
+
+    // Returns a slice of semitone distances between each successive note in the scale.
+    pub fn semitones(self: Scale, allocator: std.mem.Allocator) ![]i32 {
+        const notes_slice = try self.notes(allocator);
+        defer allocator.free(notes_slice);
+
+        const distances = try allocator.alloc(i32, notes_slice.len - 1);
+        errdefer allocator.free(distances);
+
+        for (notes_slice[0 .. notes_slice.len - 1], 0..) |note, i| {
+            const next_note = notes_slice[i + 1];
+            distances[i] = note.semitoneDifference(next_note);
+        }
+
+        return distances;
     }
 
     pub fn intervals(self: Scale, allocator: std.mem.Allocator) ![]const Interval {
         return switch (self.pattern) {
-            .chromatic => try chromaticIntervals(self, allocator),
-            .whole_tone => try wholeToneIntervals(self, allocator),
+            .chromatic => try self.chromaticIntervals(allocator),
+            .whole_tone => try self.wholeToneIntervals(allocator),
             else => try self.pattern.intervals(allocator),
         };
     }
 
     fn chromaticIntervals(self: Scale, allocator: std.mem.Allocator) ![]const Interval {
-        return getIntervals(self, allocator, chromatic_intervals);
+        return self.getIntervals(allocator, chromatic_intervals);
     }
 
     fn wholeToneIntervals(self: Scale, allocator: std.mem.Allocator) ![]const Interval {
-        return getIntervals(self, allocator, whole_tone_intervals);
+        return self.getIntervals(allocator, whole_tone_intervals);
     }
 
     fn getIntervals(
@@ -86,22 +102,22 @@ pub const Scale = struct {
         return notes_slice;
     }
 
-    // Returns a slice of semitone distances between each successive note in the scale.
-    pub fn semitones(self: Scale, allocator: std.mem.Allocator) ![]i32 {
-        const notes_slice = try self.notes(allocator);
-        defer allocator.free(notes_slice);
+    fn rotateNotesForMode(self: Scale, allocator: std.mem.Allocator, notes_slice: []Note) ![]Note {
+        const notes_without_p8 = notes_slice[0 .. notes_slice.len - 1];
 
-        const distances = try allocator.alloc(i32, notes_slice.len - 1);
-        errdefer allocator.free(distances);
+        std.mem.rotate(Note, notes_without_p8, self.mode - 1);
 
-        for (notes_slice[0 .. notes_slice.len - 1], 0..) |note, i| {
-            const next_note = notes_slice[i + 1];
-            distances[i] = note.semitoneDifference(next_note);
-        }
+        const new_first_note = notes_without_p8[0];
+        const p8_interval = try Interval.parse("P8");
+        const new_p8_note = try new_first_note.applyInterval(p8_interval);
 
-        std.mem.rotate(Note, notes_slice, self.mode - 1);
+        const new_notes_slice = try allocator.alloc(Note, notes_without_p8.len + 1);
+        errdefer allocator.free(new_notes_slice);
 
-        return distances;
+        std.mem.copyForwards(Note, new_notes_slice, notes_without_p8);
+        new_notes_slice[notes_without_p8.len] = new_p8_note;
+
+        return new_notes_slice;
     }
 
     // Checks if the given note is part of the scale.
@@ -241,7 +257,7 @@ test "notes()" {
     };
 
     for (tonics) |tonic| {
-        const scale = Scale.init(try Note.parse(tonic), .whole_tone);
+        const scale = Scale.init(try Note.parse(tonic), .major);
 
         const notes = try scale.notes(std.testing.allocator);
         defer std.testing.allocator.free(notes);
@@ -271,7 +287,7 @@ test "semitones()" {
     };
 
     for (tonics) |tonic| {
-        const scale = Scale.init(try Note.parse(tonic), .whole_tone);
+        const scale = Scale.init(try Note.parse(tonic), .major);
 
         const semitones = try scale.semitones(std.testing.allocator);
         defer std.testing.allocator.free(semitones);
