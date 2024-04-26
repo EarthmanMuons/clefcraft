@@ -4,7 +4,7 @@ const testing = std.testing;
 pub const Interval = @import("note.zig").Interval;
 pub const Note = @import("note.zig").Note;
 pub const Pitch = @import("note.zig").Pitch;
-pub const Scale = @import("note.zig").Scale;
+pub const Scale = @import("scale.zig").Scale;
 
 test {
     // Run all unit tests.
