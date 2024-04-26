@@ -33,17 +33,15 @@ pub const Pitch = struct {
         return utils.wrap(base_pitch_class + adjustment, semitones_per_octave);
     }
 
-    pub fn asText(self: Pitch) []const u8 {
-        var result: [3]u8 = undefined;
+    pub fn asText(self: Pitch, allocator: std.mem.Allocator) ![]const u8 {
         const letter_text = self.letter.asText();
-        std.mem.copyForwards(u8, &result, letter_text);
-        if (self.accidental) |accidental| {
-            const accidental_text = accidental.asText();
-            std.mem.copyForwards(u8, result[letter_text.len..], accidental_text);
-            return result[0 .. letter_text.len + accidental_text.len];
-        } else {
-            return result[0..letter_text.len];
-        }
+        const accidental_text = if (self.accidental) |accidental| accidental.asText() else "";
+
+        const pitch_str = try allocator.alloc(u8, letter_text.len + accidental_text.len);
+        std.mem.copyForwards(u8, pitch_str, letter_text);
+        std.mem.copyForwards(u8, pitch_str[letter_text.len..], accidental_text);
+
+        return pitch_str;
     }
 
     // Formats the pitch as a string.

@@ -99,11 +99,16 @@ pub const Scale = struct {
         return scale_intervals;
     }
 
-    fn lookupShorthands(self: Scale, shorthands_map: type) ![]const []const u8 {
-        const pitch_str = self.tonic.pitch.asText();
+    fn lookupShorthands(
+        self: *Scale,
+        shorthands_map: std.StaticStringMap([]const []const u8),
+    ) ![]const []const u8 {
+        const pitch_str = try self.tonic.pitch.asText(self.allocator);
+        defer self.allocator.free(pitch_str);
+
         const shorthands = shorthands_map.get(pitch_str) orelse {
             log.err(
-                "{s} scale intervals not found for tonic {s}",
+                "{s} scale intervals not found for tonic {}",
                 .{ self.pattern.asText(), self.tonic.pitch },
             );
             return error.InvalidTonic;
@@ -258,7 +263,7 @@ pub const Pattern = enum {
     }
 };
 
-const chromatic_map = std.ComptimeStringMap([]const []const u8, .{
+const chromatic_map = std.StaticStringMap([]const []const u8).initComptime(.{
     // sharp_pitches: A, A#, B, C, C#, D, D#, E, F, F#, G, G#
     .{ "A", &[_][]const u8{ "P1", "A1", "M2", "m3", "M3", "P4", "A4", "P5", "m6", "M6", "m7", "M7", "P8" } },
     .{ "A#", &[_][]const u8{ "P1", "m2", "d3", "m3", "m4", "P4", "d5", "d6", "m6", "d7", "m7", "d8", "P8" } },
@@ -280,7 +285,7 @@ const chromatic_map = std.ComptimeStringMap([]const []const u8, .{
     .{ "Ab", &[_][]const u8{ "P1", "A1", "M2", "A2", "M3", "P4", "A4", "P5", "A5", "M6", "m7", "M7", "P8" } },
 });
 
-const whole_tone_map = std.ComptimeStringMap([]const []const u8, .{
+const whole_tone_map = std.StaticStringMap([]const []const u8).initComptime(.{
     // cn_pitches: C, D, E, F#, G#, A#
     .{ "C", &[_][]const u8{ "P1", "M2", "M3", "A4", "A5", "A6", "P8" } },
     .{ "D", &[_][]const u8{ "P1", "M2", "M3", "A4", "A5", "m7", "P8" } },
@@ -319,7 +324,7 @@ test "notes()" {
     };
 
     for (tonics) |tonic| {
-        var scale = Scale.init(std.testing.allocator, try Note.parse(tonic), .augmented);
+        var scale = Scale.init(std.testing.allocator, try Note.parse(tonic), .chromatic);
         defer scale.deinit();
 
         const notes = try scale.notes();
@@ -354,7 +359,7 @@ test "semitones()" {
     };
 
     for (tonics) |tonic| {
-        var scale = Scale.init(std.testing.allocator, try Note.parse(tonic), .augmented);
+        var scale = Scale.init(std.testing.allocator, try Note.parse(tonic), .chromatic);
         defer scale.deinit();
 
         const semitones = try scale.semitones();
