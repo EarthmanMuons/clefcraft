@@ -34,12 +34,12 @@ pub const Pitch = struct {
     }
 
     pub fn asText(self: Pitch, allocator: std.mem.Allocator) ![]const u8 {
-        const letter_text = self.letter.asText();
-        const accidental_text = if (self.accidental) |accidental| accidental.asText() else "";
+        const letter_str = self.letter.asText();
+        const accidental_str = if (self.accidental) |accidental| accidental.asText() else "";
 
-        const pitch_str = try allocator.alloc(u8, letter_text.len + accidental_text.len);
-        std.mem.copyForwards(u8, pitch_str, letter_text);
-        std.mem.copyForwards(u8, pitch_str[letter_text.len..], accidental_text);
+        const pitch_str = try allocator.alloc(u8, letter_str.len + accidental_str.len);
+        std.mem.copyForwards(u8, pitch_str, letter_str);
+        std.mem.copyForwards(u8, pitch_str[letter_str.len..], accidental_str);
 
         return pitch_str;
     }

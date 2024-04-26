@@ -203,8 +203,8 @@ pub const Scale = struct {
     ) !void {
         _ = fmt;
         _ = options;
-        const pattern_text = self.pattern.asText();
-        try writer.print("Scale({s} {s})", .{ self.tonic.pitch, pattern_text });
+        const pattern_str = self.pattern.asText();
+        try writer.print("Scale({} {s})", .{ self.tonic.pitch, pattern_str });
     }
 };
 
