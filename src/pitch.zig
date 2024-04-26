@@ -98,9 +98,9 @@ pub const Letter = enum {
 
     // Returns the letter that is offset from the current letter by the given amount.
     pub fn offsetBy(self: Letter, amount: i32) Letter {
-        const current_index = @intFromEnum(self);
-        const result_index = @mod(current_index + amount, letter_count);
-        return @enumFromInt(result_index);
+        const current_idx = @intFromEnum(self);
+        const result_idx = @mod(current_idx + amount, letter_count);
+        return @enumFromInt(result_idx);
     }
 
     pub fn asText(self: Letter) []const u8 {

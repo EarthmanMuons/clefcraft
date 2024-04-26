@@ -4,6 +4,9 @@ const log = std.log.scoped(.interval);
 
 const Note = @import("note.zig").Note;
 
+const notes_per_octave = @import("constants.zig").music_theory.notes_per_octave;
+const semitones_per_octave = @import("constants.zig").music_theory.semitones_per_octave;
+
 pub const Interval = struct {
     quality: Quality,
     number: Number,
@@ -12,26 +15,24 @@ pub const Interval = struct {
     pub fn parse(text: []const u8) !Interval {
         if (text.len < 2) return error.InvalidIntervalFormat;
 
-        const quality = switch (text[0]) {
-            'P' => Quality.perfect,
-            'M' => Quality.major,
-            'm' => Quality.minor,
-            'A' => Quality.augmented,
-            'd' => Quality.diminished,
+        const quality: Quality = switch (text[0]) {
+            'P' => .perfect,
+            'M' => .major,
+            'm' => .minor,
+            'A' => .augmented,
+            'd' => .diminished,
             else => return error.InvalidQuality,
         };
 
-        const number = switch (text[1]) {
-            '1' => Number.unison,
-            '2' => Number.second,
-            '3' => Number.third,
-            '4' => Number.fourth,
-            '5' => Number.fifth,
-            '6' => Number.sixth,
-            '7' => Number.seventh,
-            '8' => Number.octave,
-            else => return error.InvalidNumber,
-        };
+        const number_str = text[1..];
+        const number_max = @typeInfo(Number).Enum.fields.len;
+        const parsed_num = std.fmt.parseInt(u8, number_str, 10) catch return error.InvalidNumber;
+
+        // bounds check
+        if (parsed_num == 0 or parsed_num > number_max) {
+            return error.InvalidNumber;
+        }
+        const number: Number = @enumFromInt(parsed_num - 1);
 
         return Interval{ .quality = quality, .number = number };
     }
@@ -40,15 +41,11 @@ pub const Interval = struct {
     pub fn semitoneCount(self: Interval) i32 {
         const base_semitones = baseSemitones(self.number);
 
-        const is_perfect = switch (self.number) {
-            .unison, .fourth, .fifth, .octave => true,
-            else => false,
-        };
         const quality_adjustment: i32 = switch (self.quality) {
             .perfect, .major => 0,
             .minor => -1,
             .augmented => 1,
-            .diminished => if (is_perfect) -1 else -2,
+            .diminished => if (self.number.is_perfect()) -1 else -2,
         };
 
         return base_semitones + quality_adjustment;
@@ -129,6 +126,20 @@ pub const Number = enum(u8) {
     sixth,
     seventh,
     octave,
+    ninth,
+    tenth,
+    eleventh,
+    twelfth,
+    thirteenth,
+    fourteenth,
+    double_octave,
+
+    pub fn is_perfect(self: Number) bool {
+        return switch (self) {
+            .unison, .fourth, .fifth, .octave, .eleventh, .twelfth, .double_octave => true,
+            else => false,
+        };
+    }
 
     pub fn asText(self: Number) []const u8 {
         return switch (self) {
@@ -140,6 +151,13 @@ pub const Number = enum(u8) {
             .sixth => "Sixth",
             .seventh => "Seventh",
             .octave => "Octave",
+            .ninth => "Ninth",
+            .tenth => "Tenth",
+            .eleventh => "Eleventh",
+            .twelfth => "Twelfth",
+            .thirteenth => "Thirteenth",
+            .fourteenth => "Fourteenth",
+            .double_octave => "Double Octave",
         };
     }
 
@@ -153,6 +171,13 @@ pub const Number = enum(u8) {
             .sixth => "6th",
             .seventh => "7th",
             .octave => "8th",
+            .ninth => "9th",
+            .tenth => "10th",
+            .eleventh => "11th",
+            .twelfth => "12th",
+            .thirteenth => "13th",
+            .fourteenth => "14th",
+            .double_octave => "15th",
         };
     }
 
@@ -166,6 +191,13 @@ pub const Number = enum(u8) {
             .sixth => "6",
             .seventh => "7",
             .octave => "8",
+            .ninth => "9",
+            .tenth => "10",
+            .eleventh => "11",
+            .twelfth => "12",
+            .thirteenth => "13",
+            .fourteenth => "14",
+            .double_octave => "15",
         };
     }
 
@@ -187,20 +219,38 @@ pub const Number = enum(u8) {
 pub fn intervalBetween(note1: Note, note2: Note) !Interval {
     const letter_dist = note1.letterDistance(note2);
     const octave_diff = note1.octaveDifference(note2);
+    const semitones = note1.semitoneDifference(note2);
 
-    const number_dist = letter_dist + 1;
-    const number: Number = switch (number_dist) {
-        1 => if (octave_diff == 0) .unison else .octave,
-        2 => .second,
-        3 => .third,
-        4 => .fourth,
-        5 => .fifth,
-        6 => .sixth,
-        7 => .seventh,
-        else => unreachable,
+    const is_compound = semitones > semitones_per_octave;
+
+    const number: Number = blk: {
+        const base_number: Number = switch (letter_dist + 1) {
+            1 => .unison,
+            2 => .second,
+            3 => .third,
+            4 => .fourth,
+            5 => .fifth,
+            6 => .sixth,
+            7 => .seventh,
+            else => unreachable,
+        };
+
+        break :blk switch (base_number) {
+            .unison => switch (octave_diff) {
+                1 => .octave,
+                2 => .double_octave,
+                else => base_number,
+            },
+            .second => if (is_compound) .ninth else base_number,
+            .third => if (is_compound) .tenth else base_number,
+            .fourth => if (is_compound) .eleventh else base_number,
+            .fifth => if (is_compound) .twelfth else base_number,
+            .sixth => if (is_compound) .thirteenth else base_number,
+            .seventh => if (is_compound) .fourteenth else base_number,
+            else => unreachable,
+        };
     };
 
-    const semitones = note1.semitoneDifference(note2);
     const quality = try calcQuality(semitones, number);
 
     return Interval{ .quality = quality, .number = number };
@@ -210,21 +260,24 @@ fn calcQuality(semitones: i32, number: Number) !Quality {
     const base_semitones = baseSemitones(number);
     const semitone_diff = semitones - base_semitones;
 
-    return switch (number) {
-        .unison, .fourth, .fifth, .octave => switch (semitone_diff) {
+    const quality: Quality = if (number.is_perfect()) {
+        return switch (semitone_diff) {
             0 => .perfect,
             1 => .augmented,
             -1 => .diminished,
             else => error.InvalidInterval,
-        },
-        .second, .third, .sixth, .seventh => switch (semitone_diff) {
-            -1 => .minor,
+        };
+    } else {
+        return switch (semitone_diff) {
             0 => .major,
+            -1 => .minor,
             1 => .augmented,
             -2 => .diminished,
             else => error.InvalidInterval,
-        },
+        };
     };
+
+    return quality;
 }
 
 fn baseSemitones(number: Number) i32 {
@@ -237,6 +290,13 @@ fn baseSemitones(number: Number) i32 {
         .sixth => 9,
         .seventh => 11,
         .octave => 12,
+        .ninth => 14,
+        .tenth => 16,
+        .eleventh => 17,
+        .twelfth => 19,
+        .thirteenth => 21,
+        .fourteenth => 22,
+        .double_octave => 24,
     };
 }
 
@@ -316,6 +376,9 @@ test "intervalBetween()" {
         TestCase{ .note1 = "B4", .note2 = "g5", .expected = "m6" },
         TestCase{ .note1 = "B4", .note2 = "a5", .expected = "m7" },
         TestCase{ .note1 = "B4", .note2 = "b5", .expected = "P8" },
+        // Compound intervals...
+        TestCase{ .note1 = "C4", .note2 = "d5", .expected = "M9" },
+        TestCase{ .note1 = "C4", .note2 = "c6", .expected = "P15" },
     };
 
     for (test_cases) |test_case| {

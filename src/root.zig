@@ -1,9 +1,9 @@
 const std = @import("std");
 const testing = std.testing;
 
-pub const Interval = @import("note.zig").Interval;
+pub const Interval = @import("interval.zig").Interval;
 pub const Note = @import("note.zig").Note;
-pub const Pitch = @import("note.zig").Pitch;
+pub const Pitch = @import("pitch.zig").Pitch;
 pub const Scale = @import("scale.zig").Scale;
 
 test {
