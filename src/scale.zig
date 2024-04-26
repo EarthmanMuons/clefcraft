@@ -2,10 +2,8 @@ const std = @import("std");
 const assert = std.debug.assert;
 const log = std.log.scoped(.scale);
 
-const _note = @import("note.zig");
-
-const Note = _note.Note;
 const Interval = @import("interval.zig").Interval;
+const Note = @import("note.zig").Note;
 
 pub const Scale = struct {
     tonic: Note,
@@ -145,7 +143,7 @@ pub const Scale = struct {
         const haystack = self.notes() catch return false;
 
         for (haystack) |item| {
-            if (_note.isEnharmonic(item, needle)) {
+            if (item.isEnharmonic(needle)) {
                 return true;
             }
         }

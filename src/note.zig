@@ -152,6 +152,14 @@ pub const Note = struct {
         };
     }
 
+    // Tests if the current note and another note are enharmonic equivalents.
+    pub fn isEnharmonic(self: Note, other: Note) bool {
+        const same_octave = self.effectiveOctave() == other.effectiveOctave();
+        const same_pitch_class = self.pitchClass() == other.pitchClass();
+
+        return same_octave and same_pitch_class;
+    }
+
     // Returns the difference in octaves between two notes, which can be negative.
     pub fn octaveDifference(self: Note, other: Note) i32 {
         return other.effectiveOctave() - self.effectiveOctave();
@@ -229,14 +237,6 @@ pub const Note = struct {
         try writer.print("{d}", .{self.octave});
     }
 };
-
-// Tests if two notes are enharmonic equivalents.
-pub fn isEnharmonic(note1: Note, note2: Note) bool {
-    const same_octave = note1.effectiveOctave() == note2.effectiveOctave();
-    const same_pitch_class = note1.pitchClass() == note2.pitchClass();
-
-    return same_octave and same_pitch_class;
-}
 
 test "frequency calculation" {
     const TestCase = struct {
