@@ -34,6 +34,31 @@ pub const Interval = struct {
         }
         const number: Number = @enumFromInt(parsed_num - 1);
 
+        // validate the combination of quality and number
+        const is_valid = blk: {
+            if (number.is_perfect()) {
+                break :blk switch (quality) {
+                    .perfect => true,
+                    .major => false,
+                    .minor => false,
+                    .augmented => true,
+                    .diminished => true,
+                };
+            } else {
+                break :blk switch (quality) {
+                    .perfect => false,
+                    .major => true,
+                    .minor => true,
+                    .augmented => true,
+                    .diminished => true,
+                };
+            }
+        };
+
+        if (!is_valid) {
+            return error.InvalidInterval;
+        }
+
         return Interval{ .quality = quality, .number = number };
     }
 
@@ -260,21 +285,23 @@ fn calcQuality(semitones: i32, number: Number) !Quality {
     const base_semitones = baseSemitones(number);
     const semitone_diff = semitones - base_semitones;
 
-    const quality: Quality = if (number.is_perfect()) {
-        return switch (semitone_diff) {
-            0 => .perfect,
-            1 => .augmented,
-            -1 => .diminished,
-            else => error.InvalidInterval,
-        };
-    } else {
-        return switch (semitone_diff) {
-            0 => .major,
-            -1 => .minor,
-            1 => .augmented,
-            -2 => .diminished,
-            else => error.InvalidInterval,
-        };
+    const quality: Quality = blk: {
+        if (number.is_perfect()) {
+            break :blk switch (semitone_diff) {
+                0 => .perfect,
+                1 => .augmented,
+                -1 => .diminished,
+                else => return error.InvalidInterval,
+            };
+        } else {
+            break :blk switch (semitone_diff) {
+                0 => .major,
+                -1 => .minor,
+                1 => .augmented,
+                -2 => .diminished,
+                else => return error.InvalidInterval,
+            };
+        }
     };
 
     return quality;
