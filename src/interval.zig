@@ -134,7 +134,7 @@ pub const Number = enum(u8) {
     fourteenth,
     double_octave,
 
-    pub fn is_perfect(self: Number) bool {
+    fn is_perfect(self: Number) bool {
         return switch (self) {
             .unison, .fourth, .fifth, .octave, .eleventh, .twelfth, .double_octave => true,
             else => false,
