@@ -280,10 +280,7 @@ pub fn intervalBetween(note1: Note, note2: Note) !Interval {
 
     const quality = try calcQuality(semitones, number);
 
-    if (!isValidInterval(quality, number)) {
-        return error.InvalidInterval;
-    }
-
+    assert(isValidInterval(quality, number));
     return Interval{ .quality = quality, .number = number };
 }
 
