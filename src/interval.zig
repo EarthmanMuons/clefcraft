@@ -34,28 +34,7 @@ pub const Interval = struct {
         }
         const number: Number = @enumFromInt(parsed_num - 1);
 
-        // validate the combination of quality and number
-        const is_valid = blk: {
-            if (number.is_perfect()) {
-                break :blk switch (quality) {
-                    .perfect => true,
-                    .major => false,
-                    .minor => false,
-                    .augmented => true,
-                    .diminished => true,
-                };
-            } else {
-                break :blk switch (quality) {
-                    .perfect => false,
-                    .major => true,
-                    .minor => true,
-                    .augmented => true,
-                    .diminished => true,
-                };
-            }
-        };
-
-        if (!is_valid) {
+        if (!isValidInterval(quality, number)) {
             return error.InvalidInterval;
         }
 
@@ -240,6 +219,29 @@ pub const Number = enum(u8) {
     }
 };
 
+// Checks if the given combination of quality and number would make a valid interval.
+pub fn isValidInterval(quality: Quality, number: Number) bool {
+    return blk: {
+        if (number.is_perfect()) {
+            break :blk switch (quality) {
+                .perfect => true,
+                .major => false,
+                .minor => false,
+                .augmented => true,
+                .diminished => true,
+            };
+        } else {
+            break :blk switch (quality) {
+                .perfect => false,
+                .major => true,
+                .minor => true,
+                .augmented => true,
+                .diminished => true,
+            };
+        }
+    };
+}
+
 // Returns the calculated interval between two notes.
 pub fn intervalBetween(note1: Note, note2: Note) !Interval {
     const letter_dist = note1.letterDistance(note2);
@@ -277,6 +279,10 @@ pub fn intervalBetween(note1: Note, note2: Note) !Interval {
     };
 
     const quality = try calcQuality(semitones, number);
+
+    if (!isValidInterval(quality, number)) {
+        return error.InvalidInterval;
+    }
 
     return Interval{ .quality = quality, .number = number };
 }
