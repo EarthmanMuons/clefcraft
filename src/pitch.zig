@@ -7,11 +7,12 @@ const utils = @import("utils.zig");
 const letter_count = 7;
 const semitones_per_octave = @import("constants.zig").music_theory.semitones_per_octave;
 
+/// The distinct chroma spelling portion of a `Note`.
 pub const Pitch = struct {
     letter: Letter,
     accidental: ?Accidental,
 
-    /// Creates a pitch from a pitch class using the default accidental mapping.
+    /// Creates a `Pitch` from a pitch class using the default accidental mapping.
     ///
     /// 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
     pub fn fromPitchClass(pitch_class: i32) Pitch {
@@ -26,7 +27,7 @@ pub const Pitch = struct {
         return Pitch{ .letter = letter, .accidental = accidental };
     }
 
-    /// Returns the pitch class of the current pitch.
+    /// Returns the pitch class of the current `Pitch`.
     pub fn pitchClass(self: Pitch) i32 {
         const base_pitch_class = self.letter.pitchClass();
         const adjustment = if (self.accidental) |acc| acc.pitchAdjustment() else 0;
@@ -34,6 +35,7 @@ pub const Pitch = struct {
         return utils.wrap(base_pitch_class + adjustment, semitones_per_octave);
     }
 
+    /// Returns a text representation of the current `Pitch` as a string.
     pub fn asText(self: Pitch, allocator: std.mem.Allocator) ![]const u8 {
         const letter_str = self.letter.asText();
         const accidental_str = if (self.accidental) |accidental| accidental.asText() else "";
@@ -45,20 +47,21 @@ pub const Pitch = struct {
         return pitch_str;
     }
 
-    /// Formats the pitch as a string.
+    /// Renders a format string for the `Pitch` type.
     pub fn format(
-        self: Pitch,
+        value: Pitch,
         comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
         writer: anytype,
     ) !void {
-        try self.letter.format(fmt, options, writer);
-        if (self.accidental) |acc| {
+        try value.letter.format(fmt, options, writer);
+        if (value.accidental) |acc| {
             try acc.format(fmt, options, writer);
         }
     }
 };
 
+/// The alphabetic label portion of a `Pitch`.
 pub const Letter = enum {
     a,
     b,
@@ -68,7 +71,7 @@ pub const Letter = enum {
     f,
     g,
 
-    /// Creates a letter from the given pitch class.
+    /// Returns a `Letter` based on the given pitch class.
     pub fn fromPitchClass(pitch_class: i32) Letter {
         assert(0 <= pitch_class and pitch_class < semitones_per_octave);
 
@@ -84,7 +87,7 @@ pub const Letter = enum {
         };
     }
 
-    /// Returns the pitch class for the current letter.
+    /// Returns the pitch class of the current `Letter`.
     pub fn pitchClass(self: Letter) i32 {
         return switch (self) {
             .c => 0,
@@ -97,13 +100,14 @@ pub const Letter = enum {
         };
     }
 
-    /// Returns the letter that is offset from the current letter by the given amount.
+    /// Returns a `Letter` that is offset from the current letter by the given amount.
     pub fn offsetBy(self: Letter, amount: i32) Letter {
         const current_idx = @intFromEnum(self);
         const result_idx = @mod(current_idx + amount, letter_count);
         return @enumFromInt(result_idx);
     }
 
+    /// Returns a text representation of the current `Letter` as a string.
     pub fn asText(self: Letter) []const u8 {
         return switch (self) {
             .a => "A",
@@ -116,20 +120,21 @@ pub const Letter = enum {
         };
     }
 
-    /// Formats the letter as a string.
+    /// Renders a format string for the `Letter` type.
     pub fn format(
-        self: Letter,
+        value: Letter,
         comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
         writer: anytype,
     ) !void {
         _ = fmt;
         _ = options;
-        const output = self.asText();
+        const output = value.asText();
         try writer.print("{s}", .{output});
     }
 };
 
+/// The optional symbol portion of a `Pitch`, which indicates a semitone alteration.
 pub const Accidental = enum {
     double_flat,
     flat,
@@ -137,7 +142,7 @@ pub const Accidental = enum {
     sharp,
     double_sharp,
 
-    /// Returns a pitch adjustment based on the current accidental.
+    /// Returns a pitch adjustment based on the current `Accidental`.
     pub fn pitchAdjustment(self: Accidental) i32 {
         return switch (self) {
             .double_flat => -2,
@@ -148,6 +153,7 @@ pub const Accidental = enum {
         };
     }
 
+    /// Returns an `Accidental` based on the given pitch adjustment.
     pub fn fromPitchAdjustment(adjustment: i32) !?Accidental {
         return switch (adjustment) {
             -2 => .double_flat,
@@ -159,6 +165,7 @@ pub const Accidental = enum {
         };
     }
 
+    /// Returns an ASCII text representation of the current `Accidental` as a string.
     pub fn asText(self: Accidental) []const u8 {
         return switch (self) {
             .double_flat => "bb",
@@ -169,6 +176,7 @@ pub const Accidental = enum {
         };
     }
 
+    /// Returns a Unicode symbol representation of the current `Accidental` as a string.
     pub fn asSymbol(self: Accidental) []const u8 {
         return switch (self) {
             .double_flat => "𝄫",
@@ -179,16 +187,16 @@ pub const Accidental = enum {
         };
     }
 
-    /// Formats the `Accidental` as a string.
+    /// Renders a format string for the `Accidental` type.
     pub fn format(
-        self: Accidental,
+        value: Accidental,
         comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
         writer: anytype,
     ) !void {
         _ = fmt;
         _ = options;
-        const output = self.asSymbol();
+        const output = value.asSymbol();
         try writer.print("{s}", .{output});
     }
 };
