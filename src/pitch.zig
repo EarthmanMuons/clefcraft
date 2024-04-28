@@ -11,8 +11,9 @@ pub const Pitch = struct {
     letter: Letter,
     accidental: ?Accidental,
 
-    // Creates a pitch from a pitch class using the default accidental mapping.
-    // 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
+    /// Creates a pitch from a pitch class using the default accidental mapping.
+    ///
+    /// 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
     pub fn fromPitchClass(pitch_class: i32) Pitch {
         assert(0 <= pitch_class and pitch_class < semitones_per_octave);
 
@@ -25,7 +26,7 @@ pub const Pitch = struct {
         return Pitch{ .letter = letter, .accidental = accidental };
     }
 
-    // Returns the pitch class of the current pitch.
+    /// Returns the pitch class of the current pitch.
     pub fn pitchClass(self: Pitch) i32 {
         const base_pitch_class = self.letter.pitchClass();
         const adjustment = if (self.accidental) |acc| acc.pitchAdjustment() else 0;
@@ -44,7 +45,7 @@ pub const Pitch = struct {
         return pitch_str;
     }
 
-    // Formats the pitch as a string.
+    /// Formats the pitch as a string.
     pub fn format(
         self: Pitch,
         comptime fmt: []const u8,
@@ -67,7 +68,7 @@ pub const Letter = enum {
     f,
     g,
 
-    // Creates a letter from the given pitch class.
+    /// Creates a letter from the given pitch class.
     pub fn fromPitchClass(pitch_class: i32) Letter {
         assert(0 <= pitch_class and pitch_class < semitones_per_octave);
 
@@ -83,7 +84,7 @@ pub const Letter = enum {
         };
     }
 
-    // Returns the pitch class for the current letter.
+    /// Returns the pitch class for the current letter.
     pub fn pitchClass(self: Letter) i32 {
         return switch (self) {
             .c => 0,
@@ -96,7 +97,7 @@ pub const Letter = enum {
         };
     }
 
-    // Returns the letter that is offset from the current letter by the given amount.
+    /// Returns the letter that is offset from the current letter by the given amount.
     pub fn offsetBy(self: Letter, amount: i32) Letter {
         const current_idx = @intFromEnum(self);
         const result_idx = @mod(current_idx + amount, letter_count);
@@ -115,7 +116,7 @@ pub const Letter = enum {
         };
     }
 
-    // Formats the letter as a string.
+    /// Formats the letter as a string.
     pub fn format(
         self: Letter,
         comptime fmt: []const u8,
@@ -136,7 +137,7 @@ pub const Accidental = enum {
     sharp,
     double_sharp,
 
-    // Returns a pitch adjustment based on the current accidental.
+    /// Returns a pitch adjustment based on the current accidental.
     pub fn pitchAdjustment(self: Accidental) i32 {
         return switch (self) {
             .double_flat => -2,
@@ -178,7 +179,7 @@ pub const Accidental = enum {
         };
     }
 
-    // Formats the accidental as a string.
+    /// Formats the `Accidental` as a string.
     pub fn format(
         self: Accidental,
         comptime fmt: []const u8,

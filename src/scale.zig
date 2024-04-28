@@ -36,7 +36,7 @@ pub const Scale = struct {
     // Creates a scale from string representations of the tonic and interval pattern name.
     // pub fn parse(tonic: []const u8, pattern: []const u8) !Scale { }
 
-    // Returns a slice of notes representing the scale.
+    /// Returns a slice of notes representing the scale.
     pub fn notes(self: *Scale) ![]Note {
         if (self.notes_cache) |cached_notes| {
             return cached_notes;
@@ -60,7 +60,7 @@ pub const Scale = struct {
         return scale_notes;
     }
 
-    // Returns a slice of the intervals between the scale's tonic and each degree.
+    /// Returns a slice of the intervals between the scale's tonic and each degree.
     pub fn intervals(self: *Scale) ![]Interval {
         if (self.intervals_cache) |cached_intervals| {
             return cached_intervals;
@@ -115,7 +115,7 @@ pub const Scale = struct {
         return shorthands;
     }
 
-    // Returns a slice of semitone distances between each successive note in the scale.
+    /// Returns a slice of semitone distances between each successive note in the scale.
     pub fn semitones(self: *Scale) ![]i32 {
         if (self.semitones_cache) |cached_semitones| {
             return cached_semitones;
@@ -133,12 +133,12 @@ pub const Scale = struct {
         return scale_semitones;
     }
 
-    // Checks if the given note is part of the scale.
+    /// Checks if the given note is part of the scale.
     pub fn contains(self: *Scale, needle: Note) bool {
         return self.degreeOf(needle) != null;
     }
 
-    // Checks if the given note is an enharmonic equivalent to any note in the scale.
+    /// Checks if the given note is an enharmonic equivalent to any note in the scale.
     pub fn containsEnharmonicOf(self: *Scale, needle: Note) bool {
         const haystack = self.notes() catch return false;
 
@@ -150,7 +150,7 @@ pub const Scale = struct {
         return false;
     }
 
-    // Returns the degree of the given note, if it exists in the scale.
+    /// Returns the degree of the given note, if it exists in the scale.
     pub fn degreeOf(self: *Scale, needle: Note) ?usize {
         const haystack = self.notes() catch return null;
 
@@ -162,7 +162,7 @@ pub const Scale = struct {
         return null;
     }
 
-    // Returns the note of the scale at the given degree.
+    /// Returns the note of the scale at the given degree.
     pub fn nthDegree(self: *Scale, degree: usize) !Note {
         const scale_notes = try self.notes();
 
@@ -174,7 +174,7 @@ pub const Scale = struct {
         return scale_notes[index];
     }
 
-    // Returns the type of scale based on the number of notes it contains.
+    /// Returns the type of scale based on the number of notes it contains.
     pub fn asType(self: *Scale) ![]const u8 {
         const scale_intervals = try self.intervals();
 
@@ -192,7 +192,7 @@ pub const Scale = struct {
         };
     }
 
-    // Formats the scale as a string.
+    /// Formats the scale as a string.
     pub fn format(
         self: Scale,
         comptime fmt: []const u8,
@@ -247,7 +247,7 @@ pub const Pattern = enum {
         };
     }
 
-    // Formats the pattern as a string.
+    /// Formats the pattern as a string.
     pub fn format(
         self: Pattern,
         comptime fmt: []const u8,

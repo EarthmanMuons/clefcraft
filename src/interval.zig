@@ -11,7 +11,7 @@ pub const Interval = struct {
     quality: Quality,
     number: Number,
 
-    // Creates an interval from a shorthand string representation.
+    /// Creates an interval from a shorthand string representation.
     pub fn parse(text: []const u8) !Interval {
         if (text.len < 2) return error.InvalidIntervalFormat;
 
@@ -41,7 +41,7 @@ pub const Interval = struct {
         return Interval{ .quality = quality, .number = number };
     }
 
-    // Returns the number of semitones covered by the current interval.
+    /// Returns the number of semitones covered by the current interval.
     pub fn semitoneCount(self: Interval) i32 {
         const base_semitones = baseSemitones(self.number);
 
@@ -55,7 +55,7 @@ pub const Interval = struct {
         return base_semitones + quality_adjustment;
     }
 
-    // Formats the interval as a string.
+    /// Formats the interval as a string.
     pub fn format(
         self: Interval,
         comptime fmt: []const u8,
@@ -107,7 +107,7 @@ pub const Quality = enum {
         };
     }
 
-    // Formats the quality as a string.
+    /// Formats the quality as a string.
     pub fn format(
         self: Quality,
         comptime fmt: []const u8,
@@ -205,7 +205,7 @@ pub const Number = enum(u8) {
         };
     }
 
-    // Formats the number as a string.
+    /// Formats the number as a string.
     pub fn format(
         self: Number,
         comptime fmt: []const u8,
@@ -219,7 +219,7 @@ pub const Number = enum(u8) {
     }
 };
 
-// Checks if the given combination of quality and number would make a valid interval.
+/// Checks if the given combination of quality and number would make a valid interval.
 pub fn isValidInterval(quality: Quality, number: Number) bool {
     return blk: {
         if (number.is_perfect()) {
@@ -242,7 +242,7 @@ pub fn isValidInterval(quality: Quality, number: Number) bool {
     };
 }
 
-// Returns the calculated interval between two notes.
+/// Returns the calculated interval between two notes.
 pub fn intervalBetween(note1: Note, note2: Note) !Interval {
     const letter_dist = note1.letterDistance(note2);
     const octave_diff = note1.octaveDifference(note2);

@@ -21,7 +21,7 @@ pub const Note = struct {
     pitch: Pitch,
     octave: i32,
 
-    // Creates a note from a string representation.
+    /// Creates a `Note` from a string representation.
     pub fn parse(text: []const u8) !Note {
         if (text.len < 2) return error.InvalidNoteFormat;
 
@@ -67,12 +67,12 @@ pub const Note = struct {
         };
     }
 
-    // Returns the pitch class of the current note.
+    /// Returns the pitch class of the current note.
     pub fn pitchClass(self: Note) i32 {
         return self.pitch.pitchClass();
     }
 
-    // Returns the effective octave of the current note, considering accidentals.
+    /// Returns the effective octave of the current note, considering its `Accidental`.
     pub fn effectiveOctave(self: Note) i32 {
         var octave_adjustment: i32 = 0;
 
@@ -87,14 +87,14 @@ pub const Note = struct {
         return self.octave + octave_adjustment;
     }
 
-    // Returns the frequency of the current note in Hz, using twelve-tone equal temperament (12-TET)
-    // and the A440 standard pitch as the reference note.
+    /// Returns the frequency of the current note in Hz, using twelve-tone equal temperament (12-TET)
+    /// and the A440 standard pitch as the reference note.
     pub fn frequency(self: Note) f64 {
         return self.frequencyWithRef(standard_note, standard_freq);
     }
 
-    // Returns the frequency of the current note in Hz, using twelve-tone equal temperament (12-TET)
-    // and the given reference note.
+    /// Returns the frequency of the current note in Hz, using twelve-tone equal temperament (12-TET)
+    /// and the given reference note.
     pub fn frequencyWithRef(self: Note, ref_note: Note, ref_freq: f64) f64 {
         const semitone_diff = ref_note.semitoneDifference(self);
         const semitone_diff_ratio =
@@ -104,14 +104,14 @@ pub const Note = struct {
         return ref_freq * @exp2(semitone_diff_ratio);
     }
 
-    // Creates a note from a frequency in Hz, using twelve-tone equal temperament (12-TET)
-    // and the A440 standard pitch as the reference note.
+    /// Creates a note from a frequency in Hz, using twelve-tone equal temperament (12-TET)
+    /// and the A440 standard pitch as the reference note.
     pub fn fromFrequency(freq: f64) Note {
         return fromFrequencyWithRef(freq, standard_note, standard_freq);
     }
 
-    // Creates a note from a frequency in Hz, using twelve-tone equal temperament (12-TET)
-    // and the given reference note.
+    /// Creates a note from a frequency in Hz, using twelve-tone equal temperament (12-TET)
+    /// and the given reference note.
     pub fn fromFrequencyWithRef(freq: f64, ref_note: Note, ref_freq: f64) Note {
         assert(freq > 0);
 
@@ -130,7 +130,7 @@ pub const Note = struct {
         };
     }
 
-    // Returns the MIDI note number of the current note.
+    /// Returns the MIDI note number of the current note.
     pub fn midi(self: Note) i32 {
         const octave_offset = (self.effectiveOctave() + 1) * semitones_per_octave;
         const midi_note = octave_offset + self.pitchClass();
@@ -139,7 +139,7 @@ pub const Note = struct {
         return midi_note;
     }
 
-    // Creates a note from a MIDI note number.
+    /// Creates a note from a MIDI note number.
     pub fn fromMidi(midi_note: i32) Note {
         assert(0 <= midi_note and midi_note <= 127);
 
@@ -152,7 +152,7 @@ pub const Note = struct {
         };
     }
 
-    // Tests if the current note and another note are enharmonic equivalents.
+    /// Tests if the current note and another note are enharmonic equivalents.
     pub fn isEnharmonic(self: Note, other: Note) bool {
         const same_octave = self.effectiveOctave() == other.effectiveOctave();
         const same_pitch_class = self.pitchClass() == other.pitchClass();
@@ -160,12 +160,12 @@ pub const Note = struct {
         return same_octave and same_pitch_class;
     }
 
-    // Returns the difference in octaves between two notes, which can be negative.
+    /// Returns the difference in octaves between two notes, which can be negative.
     pub fn octaveDifference(self: Note, other: Note) i32 {
         return other.effectiveOctave() - self.effectiveOctave();
     }
 
-    // Returns the difference in semitones between two notes, which can be negative.
+    /// Returns the difference in semitones between two notes, which can be negative.
     pub fn semitoneDifference(self: Note, other: Note) i32 {
         const octave_diff = self.octaveDifference(other);
         const pitch_diff = other.pitchClass() - self.pitchClass();
@@ -173,12 +173,12 @@ pub const Note = struct {
         return (octave_diff * semitones_per_octave) + pitch_diff;
     }
 
-    // Returns the non-negative distance between two notes based on their letters.
+    /// Returns the non-negative distance between two notes based on their letters.
     pub fn letterDistance(self: Note, other: Note) i32 {
         return pitch.distanceBetween(self.pitch.letter, other.pitch.letter);
     }
 
-    // Applies the given interval to the current note and returns the resulting note.
+    /// Applies the given interval to the current note and returns the resulting note.
     pub fn applyInterval(self: Note, interval: Interval) !Note {
         const start_pitch_class = self.pitchClass();
         const interval_semitones = interval.semitoneCount();
@@ -226,7 +226,7 @@ pub const Note = struct {
         };
     }
 
-    // Formats the note as a string.
+    /// Formats the note as a string.
     pub fn format(
         self: Note,
         comptime fmt: []const u8,
