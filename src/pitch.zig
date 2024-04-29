@@ -7,7 +7,9 @@ const utils = @import("utils.zig");
 const letter_count = 7;
 const semitones_per_octave = @import("constants.zig").music_theory.semitones_per_octave;
 
-/// The distinct chroma spelling portion of a `Note`.
+/// The chosen notational spelling for a pitch class.
+///
+/// Multiple distinct spellings can refer to the same pitch class, for example, F♯ and G♭.
 pub const Pitch = struct {
     letter: Letter,
     accidental: ?Accidental,
@@ -49,13 +51,13 @@ pub const Pitch = struct {
 
     /// Renders a format string for the `Pitch` type.
     pub fn format(
-        value: Pitch,
+        self: Pitch,
         comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
         writer: anytype,
     ) !void {
-        try value.letter.format(fmt, options, writer);
-        if (value.accidental) |acc| {
+        try self.letter.format(fmt, options, writer);
+        if (self.accidental) |acc| {
             try acc.format(fmt, options, writer);
         }
     }
@@ -122,14 +124,14 @@ pub const Letter = enum {
 
     /// Renders a format string for the `Letter` type.
     pub fn format(
-        value: Letter,
+        self: Letter,
         comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
         writer: anytype,
     ) !void {
         _ = fmt;
         _ = options;
-        const output = value.asText();
+        const output = self.asText();
         try writer.print("{s}", .{output});
     }
 };
@@ -189,14 +191,14 @@ pub const Accidental = enum {
 
     /// Renders a format string for the `Accidental` type.
     pub fn format(
-        value: Accidental,
+        self: Accidental,
         comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
         writer: anytype,
     ) !void {
         _ = fmt;
         _ = options;
-        const output = value.asSymbol();
+        const output = self.asSymbol();
         try writer.print("{s}", .{output});
     }
 };

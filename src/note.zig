@@ -226,7 +226,7 @@ pub const Note = struct {
         };
     }
 
-    /// Formats the note as a string.
+    /// Renders a format string for the `Note` type.
     pub fn format(
         self: Note,
         comptime fmt: []const u8,

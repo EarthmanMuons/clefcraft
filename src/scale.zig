@@ -192,7 +192,7 @@ pub const Scale = struct {
         };
     }
 
-    /// Formats the scale as a string.
+    /// Renders a format string for the `Scale` type.
     pub fn format(
         self: Scale,
         comptime fmt: []const u8,
@@ -247,7 +247,7 @@ pub const Pattern = enum {
         };
     }
 
-    /// Formats the pattern as a string.
+    /// Renders a format string for the `Pattern` type.
     pub fn format(
         self: Pattern,
         comptime fmt: []const u8,

@@ -55,7 +55,7 @@ pub const Interval = struct {
         return base_semitones + quality_adjustment;
     }
 
-    /// Formats the interval as a string.
+    /// Renders a format string for the `Interval` type.
     pub fn format(
         self: Interval,
         comptime fmt: []const u8,
@@ -107,7 +107,7 @@ pub const Quality = enum {
         };
     }
 
-    /// Formats the quality as a string.
+    /// Renders a format string for the `Quality` type.
     pub fn format(
         self: Quality,
         comptime fmt: []const u8,
@@ -205,7 +205,7 @@ pub const Number = enum(u8) {
         };
     }
 
-    /// Formats the number as a string.
+    /// Renders a format string for the `Number` type.
     pub fn format(
         self: Number,
         comptime fmt: []const u8,
