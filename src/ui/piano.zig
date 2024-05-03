@@ -106,30 +106,26 @@ const Key = struct {
     }
 
     fn draw(self: Key) void {
-        if (self.state == .hovered) {
-            if (self.is_black) {
+        const main_color = self.color();
+        const border_color = rl.Color.dark_gray;
+
+        switch (self.state) {
+            .released => {
+                rl.drawRectangle(self.pos_x, self.pos_y, self.width, self.height, main_color);
+            },
+            .hovered, .pressed => {
+                const gradient_color = if (self.is_black) rl.Color.black else rl.Color.white;
                 rl.drawRectangleGradientV(
                     self.pos_x,
                     self.pos_y,
                     self.width,
                     self.height,
-                    self.color(),
-                    rl.Color.black,
+                    main_color,
+                    gradient_color,
                 );
-            } else {
-                rl.drawRectangleGradientV(
-                    self.pos_x,
-                    self.pos_y,
-                    self.width,
-                    self.height,
-                    self.color(),
-                    rl.Color.white,
-                );
-            }
-        } else {
-            rl.drawRectangle(self.pos_x, self.pos_y, self.width, self.height, self.color());
+            },
         }
-        rl.drawRectangleLines(self.pos_x, self.pos_y, self.width, self.height, rl.Color.dark_gray);
+        rl.drawRectangleLines(self.pos_x, self.pos_y, self.width, self.height, border_color);
 
         // Label the key with the note name if it's pressed.
         if (self.state == .pressed) {
