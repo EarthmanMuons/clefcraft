@@ -135,7 +135,10 @@ const Key = struct {
             // raylib's drawText() function requires a '0' sentinel.
             const note_name_z: [:0]const u8 = @ptrCast(note_name);
 
-            const rect_width = key_width_white - 2;
+            const font_size = 17;
+            const text_width = rl.measureText(note_name_z, font_size);
+
+            const rect_width = text_width + 8; // add padding to sides
             const rect_height = 22;
             const rect_x = self.pos_x + @divFloor(self.width - rect_width, 2);
             const rect_y = self.pos_y + self.height - rect_height - 5;
@@ -151,8 +154,7 @@ const Key = struct {
             const segments = 4;
             rl.drawRectangleRounded(rect, roundness, segments, rl.Color.orange);
 
-            const font_size = 14;
-            const text_x = (rect_x + (rect_width - font_size) / 2) - 1;
+            const text_x = rect_x + @divFloor(rect_width - text_width, 2);
             const text_y = (rect_y + (rect_height - font_size) / 2) + 1;
             rl.drawText(
                 note_name_z,
