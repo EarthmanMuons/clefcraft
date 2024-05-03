@@ -7,7 +7,7 @@ const key_width_white = 28;
 const key_height_black = 100;
 const key_height_white = 160;
 
-pub fn main() anyerror!void {
+pub fn main() !void {
     const key_count_white = 52;
     const screen_width = key_count_white * (key_width_white + key_spacing) - key_spacing;
     const screen_height = key_height_white + 100;
@@ -41,7 +41,6 @@ pub fn main() anyerror!void {
                 break;
             }
         }
-
         if (hovered_key == null) {
             for (&keys) |*key| {
                 if (!key.is_black and key.isHovered(mouse_x, mouse_y)) {
