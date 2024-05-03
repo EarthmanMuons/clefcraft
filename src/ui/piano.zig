@@ -7,10 +7,10 @@ const key_width_white = 26;
 const key_height_black = 100;
 const key_height_white = 160;
 
-pub const Keyboard = struct {
+pub const Piano = struct {
     keys: [key_count]Key,
 
-    pub fn init() Keyboard {
+    pub fn init() Piano {
         var keys = [_]Key{.{}} ** key_count;
 
         for (&keys, 0..) |*key, index| {
@@ -21,19 +21,19 @@ pub const Keyboard = struct {
             key.height = if (key.is_black) key_height_black else key_height_white;
         }
 
-        return Keyboard{ .keys = keys };
+        return Piano{ .keys = keys };
     }
 
-    pub fn width(_: Keyboard) i32 {
+    pub fn width(_: Piano) i32 {
         const key_count_white = 52;
         return key_count_white * (key_width_white + key_spacing) - key_spacing;
     }
 
-    pub fn height(_: Keyboard) i32 {
+    pub fn height(_: Piano) i32 {
         return key_height_white;
     }
 
-    pub fn update(self: *Keyboard, mouse_x: i32, mouse_y: i32, is_mouse_pressed: bool) void {
+    pub fn update(self: *Piano, mouse_x: i32, mouse_y: i32, is_mouse_pressed: bool) void {
         var hovered_key: ?*Key = null;
 
         // Find the hovered key, prioritizing black keys due to the overlap.
@@ -78,7 +78,7 @@ pub const Keyboard = struct {
         }
     }
 
-    pub fn draw(self: *const Keyboard) void {
+    pub fn draw(self: *const Piano) void {
         // Draw the white keys first, then the black keys on top.
         for (self.keys) |key| if (!key.is_black) key.draw();
         for (self.keys) |key| if (key.is_black) key.draw();
