@@ -3,7 +3,7 @@ const rl = @import("raylib");
 const key_count = 88;
 const key_spacing = 2;
 const key_width_black = 16;
-const key_width_white = 28;
+const key_width_white = 26;
 const key_height_black = 100;
 const key_height_white = 160;
 
@@ -104,9 +104,16 @@ fn getKeyX(index: usize) f64 {
         }
     }
 
-    // Black keys are centered between the previous and next white key.
+    // Center the black keys between the surrounding white keys.
     if (isBlackKey(index)) {
         pos_x -= (key_width_black + key_spacing) / 2.0;
+
+        // Nudge group ends for a more realistic layout.
+        pos_x += switch (index % 12) {
+            1, 6 => 2,
+            4, 9 => -2,
+            else => 0,
+        };
     }
 
     return pos_x;
