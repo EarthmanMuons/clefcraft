@@ -7,6 +7,7 @@ pub fn main() !void {
     const screen_width = piano.width();
     const screen_height = piano.height() + 100;
 
+    rl.setConfigFlags(.flag_window_highdpi);
     rl.initWindow(screen_width, screen_height, "ClefCraft");
     defer rl.closeWindow();
 

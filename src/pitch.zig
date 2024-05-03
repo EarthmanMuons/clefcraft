@@ -38,15 +38,29 @@ pub const Pitch = struct {
     }
 
     /// Returns a text representation of the current `Pitch` as a string.
-    pub fn asText(self: Pitch, allocator: std.mem.Allocator) ![]const u8 {
-        const letter_str = self.letter.asText();
-        const accidental_str = if (self.accidental) |accidental| accidental.asText() else "";
+    pub fn asText(self: Pitch) []const u8 {
+        const pitch_names = [_][]const u8{
+            "A",   "B",   "C",   "D",   "E",   "F",   "G",
+            "Abb", "Bbb", "Cbb", "Dbb", "Ebb", "Fbb", "Gbb",
+            "Ab",  "Bb",  "Cb",  "Db",  "Eb",  "Fb",  "Gb",
+            "A#",  "B#",  "C#",  "D#",  "E#",  "F#",  "G#",
+            "Ax",  "Bx",  "Cx",  "Dx",  "Ex",  "Fx",  "Gx",
+        };
 
-        const pitch_str = try allocator.alloc(u8, letter_str.len + accidental_str.len);
-        std.mem.copyForwards(u8, pitch_str, letter_str);
-        std.mem.copyForwards(u8, pitch_str[letter_str.len..], accidental_str);
+        const base_index = @as(usize, @intCast(@intFromEnum(self.letter)));
 
-        return pitch_str;
+        var adjustment: usize = 0;
+        if (self.accidental) |acc| {
+            adjustment = switch (acc) {
+                .natural => 0,
+                .double_flat => 7,
+                .flat => 14,
+                .sharp => 21,
+                .double_sharp => 28,
+            };
+        }
+
+        return pitch_names[base_index + adjustment];
     }
 
     /// Renders a format string for the `Pitch` type.

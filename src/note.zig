@@ -140,11 +140,11 @@ pub const Note = struct {
     }
 
     /// Creates a note from a MIDI note number.
-    pub fn fromMidi(midi_note: i32) Note {
-        assert(0 <= midi_note and midi_note <= 127);
+    pub fn fromMidi(midi_number: i32) Note {
+        assert(0 <= midi_number and midi_number <= 127);
 
-        const pitch_class = utils.wrap(midi_note, semitones_per_octave);
-        const octave = @divTrunc(midi_note, semitones_per_octave) - 1;
+        const pitch_class = utils.wrap(midi_number, semitones_per_octave);
+        const octave = @divTrunc(midi_number, semitones_per_octave) - 1;
 
         return Note{
             .pitch = Pitch.fromPitchClass(pitch_class),

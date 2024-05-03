@@ -1,5 +1,7 @@
 const rl = @import("raylib");
 
+const Note = @import("../note.zig").Note;
+
 const key_count = 88;
 const key_spacing = 2;
 const key_width_black = 16;
@@ -15,6 +17,7 @@ pub const Piano = struct {
 
         for (&keys, 0..) |*key, index| {
             key.is_black = isBlackKey(index);
+            key.midi_number = 21 + @as(i32, @intCast(index)); // A0:21, C8:108
             key.pos_x = @intFromFloat(getKeyX(index));
             key.pos_y = 0;
             key.width = if (key.is_black) key_width_black else key_width_white;
@@ -87,6 +90,7 @@ pub const Piano = struct {
 
 const Key = struct {
     is_black: bool = false,
+    midi_number: i32 = 0,
     state: KeyState = .released,
     pos_x: i32 = 0,
     pos_y: i32 = 0,
@@ -126,6 +130,42 @@ const Key = struct {
             rl.drawRectangle(self.pos_x, self.pos_y, self.width, self.height, self.color());
         }
         rl.drawRectangleLines(self.pos_x, self.pos_y, self.width, self.height, rl.Color.dark_gray);
+
+        // Label the key with the note name if it's pressed.
+        if (self.state == .pressed) {
+            const note = Note.fromMidi(self.midi_number);
+            const note_name = note.pitch.asText();
+
+            // raylib's drawText() function requires a '0' sentinel.
+            const note_name_z: [:0]const u8 = @ptrCast(note_name);
+
+            const rect_width = key_width_white - 2;
+            const rect_height = 22;
+            const rect_x = self.pos_x + @divFloor(self.width - rect_width, 2);
+            const rect_y = self.pos_y + self.height - rect_height - 5;
+
+            const rect = rl.Rectangle{
+                .x = @floatFromInt(rect_x),
+                .y = @floatFromInt(rect_y),
+                .width = @floatFromInt(rect_width),
+                .height = @floatFromInt(rect_height),
+            };
+
+            const roundness = 0.4;
+            const segments = 4;
+            rl.drawRectangleRounded(rect, roundness, segments, rl.Color.orange);
+
+            const font_size = 14;
+            const text_x = (rect_x + (rect_width - font_size) / 2) - 1;
+            const text_y = (rect_y + (rect_height - font_size) / 2) + 1;
+            rl.drawText(
+                note_name_z,
+                text_x,
+                text_y,
+                font_size,
+                rl.Color.dark_gray,
+            );
+        }
     }
 
     fn isHovered(self: Key, mouse_x: i32, mouse_y: i32) bool {

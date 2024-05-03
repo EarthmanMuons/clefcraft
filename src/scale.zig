@@ -101,8 +101,7 @@ pub const Scale = struct {
         self: *Scale,
         shorthands_map: std.StaticStringMap([]const []const u8),
     ) ![]const []const u8 {
-        const pitch_str = try self.tonic.pitch.asText(self.allocator);
-        defer self.allocator.free(pitch_str);
+        const pitch_str = self.tonic.pitch.asText();
 
         const shorthands = shorthands_map.get(pitch_str) orelse {
             log.err(
