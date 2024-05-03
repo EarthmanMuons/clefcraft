@@ -4,6 +4,10 @@
 
 [Zig]: https://ziglang.org/
 
+---
+
+![ClefCraft UI](/static/ui.webp "User Interface")
+
 ## License
 
 ClefCraft is distributed under the terms of the [MIT License](LICENSE).
