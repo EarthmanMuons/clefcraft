@@ -1,5 +1,9 @@
+const std = @import("std");
+const log = std.log.scoped(.piano);
+
 const rl = @import("raylib");
 
+const MidiOutput = @import("../midi/output.zig").MidiOutput;
 const Note = @import("../note.zig").Note;
 
 const key_count = 88;
@@ -36,7 +40,13 @@ pub const Piano = struct {
         return key_height_white;
     }
 
-    pub fn update(self: *Piano, mouse_x: i32, mouse_y: i32, is_mouse_pressed: bool) void {
+    pub fn update(
+        self: *Piano,
+        mouse_x: i32,
+        mouse_y: i32,
+        is_mouse_pressed: bool,
+        midi_output: *MidiOutput,
+    ) !void {
         var hovered_key: ?*Key = null;
 
         // Find the hovered key, prioritizing black keys due to the overlap.
@@ -77,7 +87,30 @@ pub const Piano = struct {
                 },
             }
 
-            // TODO: Handle MIDI input and update key.state accordingly
+            // Handle MIDI events.
+            switch (key.state) {
+                .pressed => {
+                    if (!key.was_pressed) {
+                        log.debug("sending message note on for: {}", .{key.midi_number});
+                        try midi_output.noteOn(1, @as(u7, @intCast(key.midi_number)), 112);
+                        key.was_pressed = true;
+                    }
+                },
+                .hovered => {
+                    if (key.was_pressed) {
+                        log.debug("sending message note off for: {}", .{key.midi_number});
+                        try midi_output.noteOff(1, @as(u7, @intCast(key.midi_number)), 0);
+                        key.was_pressed = false;
+                    }
+                },
+                .released => {
+                    if (key.was_pressed) {
+                        log.debug("sending message note off for: {}", .{key.midi_number});
+                        try midi_output.noteOff(1, @as(u7, @intCast(key.midi_number)), 0);
+                        key.was_pressed = false;
+                    }
+                },
+            }
         }
     }
 
@@ -102,6 +135,7 @@ const Key = struct {
     is_black: bool = false,
     midi_number: i32 = 0,
     state: KeyState = .released,
+    was_pressed: bool = false,
     pos_x: i32 = 0,
     pos_y: i32 = 0,
     width: i32 = 0,

@@ -1,5 +1,6 @@
 const rl = @import("raylib");
 
+const MidiOutput = @import("midi/output.zig").MidiOutput;
 const Piano = @import("ui/piano.zig").Piano;
 
 pub fn main() !void {
@@ -13,12 +14,15 @@ pub fn main() !void {
 
     rl.setTargetFPS(60);
 
+    var midi_output = try MidiOutput.init();
+    defer midi_output.deinit();
+
     while (!rl.windowShouldClose()) {
         const mouse_x = rl.getMouseX();
         const mouse_y = rl.getMouseY();
         const is_mouse_pressed = rl.isMouseButtonDown(rl.MouseButton.mouse_button_left);
 
-        piano.update(mouse_x, mouse_y, is_mouse_pressed);
+        try piano.update(mouse_x, mouse_y, is_mouse_pressed, &midi_output);
 
         rl.beginDrawing();
         defer rl.endDrawing();
@@ -28,4 +32,24 @@ pub fn main() !void {
         piano.draw();
         rl.drawFPS(15, screen_height - 30);
     }
+}
+
+pub const MidiMessage = struct {
+    status: u8,
+    data1: u8,
+    data2: u8,
+};
+
+// Send a Note On message.
+pub fn noteOn(self: *MidiOutput, channel: u4, note: u7, velocity: u7) !void {
+    const status = 0x90 | @as(u8, @intCast(channel));
+    const data = [_]u8{ status, note, velocity };
+    try self.sendMessage(&data);
+}
+
+// Send a Note Off message.
+pub fn noteOff(self: *MidiOutput, channel: u4, note: u7, velocity: u7) !void {
+    const status = 0x80 | @as(u8, @intCast(channel));
+    const data = [_]u8{ status, note, velocity };
+    try self.sendMessage(&data);
 }

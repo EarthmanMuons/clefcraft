@@ -8,8 +8,13 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    const raylib = raylib_dep.module("raylib");
     const raylib_artifact = raylib_dep.artifact("raylib");
+
+    const rtmidi_dep = b.dependency("rtmidi_z", .{
+        .target = target,
+        .optimize = optimize,
+        .static = true,
+    });
 
     const lib = b.addStaticLibrary(.{
         .name = "clefcraft",
@@ -26,7 +31,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     exe.linkLibrary(raylib_artifact);
-    exe.root_module.addImport("raylib", raylib);
+    exe.root_module.addImport("raylib", raylib_dep.module("raylib"));
+    exe.root_module.addImport("rtmidi", rtmidi_dep.module("rtmidi_z"));
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
