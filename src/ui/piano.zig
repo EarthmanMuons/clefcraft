@@ -137,43 +137,46 @@ const Key = struct {
         }
         rl.drawRectangleLines(self.pos_x, self.pos_y, self.width, self.height, border_color);
 
-        // Label the key with the note name if it's pressed.
         if (self.state == .pressed) {
-            const note = Note.fromMidi(self.midi_number);
-            const note_name = note.pitch.asText();
-
-            // raylib's drawText() function requires a '0' sentinel.
-            const note_name_z: [:0]const u8 = @ptrCast(note_name);
-
-            const font_size = 17;
-            const text_width = rl.measureText(note_name_z, font_size);
-
-            const rect_width = text_width + 8; // add padding to sides
-            const rect_height = 22;
-            const rect_x = self.pos_x + @divFloor(self.width - rect_width, 2);
-            const rect_y = self.pos_y + self.height - rect_height - 5;
-
-            const rect = rl.Rectangle{
-                .x = @floatFromInt(rect_x),
-                .y = @floatFromInt(rect_y),
-                .width = @floatFromInt(rect_width),
-                .height = @floatFromInt(rect_height),
-            };
-
-            const roundness = 0.4;
-            const segments = 4;
-            rl.drawRectangleRounded(rect, roundness, segments, rl.Color.orange);
-
-            const text_x = rect_x + @divFloor(rect_width - text_width, 2);
-            const text_y = (rect_y + (rect_height - font_size) / 2) + 1;
-            rl.drawText(
-                note_name_z,
-                text_x,
-                text_y,
-                font_size,
-                rl.Color.dark_gray,
-            );
+            self.drawLabel();
         }
+    }
+
+    fn drawLabel(self: Key) void {
+        const note = Note.fromMidi(self.midi_number);
+        const note_name = note.pitch.asText();
+
+        // raylib's drawText() function requires a '0' sentinel.
+        const note_name_z: [:0]const u8 = @ptrCast(note_name);
+
+        const font_size = 17;
+        const text_width = rl.measureText(note_name_z, font_size);
+
+        const rect_width = text_width + 8; // add padding to sides
+        const rect_height = 22;
+        const rect_x = self.pos_x + @divFloor(self.width - rect_width, 2);
+        const rect_y = self.pos_y + self.height - rect_height - 5;
+
+        const rect = rl.Rectangle{
+            .x = @floatFromInt(rect_x),
+            .y = @floatFromInt(rect_y),
+            .width = @floatFromInt(rect_width),
+            .height = @floatFromInt(rect_height),
+        };
+
+        const roundness = 0.4;
+        const segments = 4;
+        rl.drawRectangleRounded(rect, roundness, segments, rl.Color.orange);
+
+        const text_x = rect_x + @divFloor(rect_width - text_width, 2);
+        const text_y = (rect_y + (rect_height - font_size) / 2) + 1;
+        rl.drawText(
+            note_name_z,
+            text_x,
+            text_y,
+            font_size,
+            rl.Color.black,
+        );
     }
 
     fn isHovered(self: Key, mouse_x: i32, mouse_y: i32) bool {
