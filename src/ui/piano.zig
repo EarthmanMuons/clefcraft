@@ -85,6 +85,16 @@ pub const Piano = struct {
         // Draw the white keys first, then the black keys on top.
         for (self.keys) |key| if (!key.is_black) key.draw();
         for (self.keys) |key| if (key.is_black) key.draw();
+
+        // Draw a subtle fade at the top of all keys.
+        rl.drawRectangleGradientV(
+            0,
+            0,
+            self.width(),
+            6,
+            rl.colorAlpha(rl.Color.black, 0.8),
+            rl.colorAlpha(rl.Color.black, 0.0),
+        );
     }
 };
 
