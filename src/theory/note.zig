@@ -4,14 +4,14 @@ const log = std.log.scoped(.note);
 
 const pitch = @import("pitch.zig");
 const _interval = @import("interval.zig");
-const utils = @import("utils.zig");
+const utils = @import("../utils.zig");
 
 const Accidental = pitch.Accidental;
 const Interval = _interval.Interval;
 const Letter = pitch.Letter;
 const Pitch = pitch.Pitch;
 
-const semitones_per_octave = @import("constants.zig").music_theory.semitones_per_octave;
+const semitones_per_octave = @import("../constants.zig").theory.semitones_per_octave;
 
 // The international standard pitch, A440.
 const standard_note = Note{ .pitch = Pitch{ .letter = .a, .accidental = null }, .octave = 4 };

@@ -4,7 +4,7 @@ const log = std.log.scoped(.piano);
 const rl = @import("raylib");
 
 const MidiOutput = @import("../midi/output.zig").MidiOutput;
-const Note = @import("../note.zig").Note;
+const Note = @import("../theory/note.zig").Note;
 
 const key_count = 88;
 const key_spacing = 2;

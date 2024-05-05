@@ -14,7 +14,7 @@ pub fn main() !void {
 
     rl.setTargetFPS(60);
 
-    var midi_output = try MidiOutput.init();
+    var midi_output = try MidiOutput.init("ClefCraft");
     defer midi_output.deinit();
 
     while (!rl.windowShouldClose()) {

@@ -3,9 +3,9 @@ const rtmidi = @import("rtmidi");
 pub const MidiOutput = struct {
     output: ?*rtmidi.Out,
 
-    pub fn init() !MidiOutput {
+    pub fn init(name: [:0]const u8) !MidiOutput {
         var output = rtmidi.Out.createDefault() orelse return error.MidiOutFailed;
-        output.openVirtualPort("ClefCraft");
+        output.openVirtualPort(name);
         return MidiOutput{ .output = output };
     }
 

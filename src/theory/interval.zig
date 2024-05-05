@@ -4,8 +4,8 @@ const log = std.log.scoped(.interval);
 
 const Note = @import("note.zig").Note;
 
-const notes_per_octave = @import("constants.zig").music_theory.notes_per_octave;
-const semitones_per_octave = @import("constants.zig").music_theory.semitones_per_octave;
+const notes_per_octave = @import("../constants.zig").theory.notes_per_octave;
+const semitones_per_octave = @import("../constants.zig").theory.semitones_per_octave;
 
 pub const Interval = struct {
     quality: Quality,

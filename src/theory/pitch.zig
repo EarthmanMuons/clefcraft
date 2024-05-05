@@ -2,10 +2,10 @@ const std = @import("std");
 const assert = std.debug.assert;
 const log = std.log.scoped(.pitch);
 
-const utils = @import("utils.zig");
+const utils = @import("../utils.zig");
 
 const letter_count = 7;
-const semitones_per_octave = @import("constants.zig").music_theory.semitones_per_octave;
+const semitones_per_octave = @import("../constants.zig").theory.semitones_per_octave;
 
 /// The chosen notational spelling for a pitch class.
 ///

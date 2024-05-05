@@ -1,4 +1,4 @@
-pub const music_theory = struct {
+pub const theory = struct {
     const chromatic_pitches = []const u8{
         "A",
         "A#",
