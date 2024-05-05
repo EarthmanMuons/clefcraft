@@ -33,9 +33,6 @@ pub const Scale = struct {
         }
     }
 
-    // Creates a scale from string representations of the tonic and interval pattern name.
-    // pub fn parse(tonic: []const u8, pattern: []const u8) !Scale { }
-
     /// Returns a slice of notes representing the scale.
     pub fn notes(self: *Scale) ![]Note {
         if (self.notes_cache) |cached_notes| {
@@ -43,20 +40,14 @@ pub const Scale = struct {
         }
 
         const scale_intervals = try self.intervals();
-        const scale_notes = try self.applyIntervals(scale_intervals);
-
-        self.notes_cache = scale_notes;
-        return scale_notes;
-    }
-
-    fn applyIntervals(self: Scale, scale_intervals: []Interval) ![]Note {
         const scale_notes = try self.allocator.alloc(Note, scale_intervals.len);
         errdefer self.allocator.free(scale_notes);
 
-        for (scale_intervals, 0..) |shorthand, i| {
-            scale_notes[i] = try self.tonic.applyInterval(shorthand);
+        for (scale_intervals, 0..) |interval, i| {
+            scale_notes[i] = try self.tonic.applyInterval(interval);
         }
 
+        self.notes_cache = scale_notes;
         return scale_notes;
     }
 
@@ -86,7 +77,7 @@ pub const Scale = struct {
             .whole_tone => try self.lookupShorthands(whole_tone_map),
         };
 
-        var scale_intervals = try self.allocator.alloc(Interval, shorthands.len);
+        const scale_intervals = try self.allocator.alloc(Interval, shorthands.len);
         errdefer self.allocator.free(scale_intervals);
 
         for (shorthands, 0..) |shorthand, i| {
@@ -121,10 +112,9 @@ pub const Scale = struct {
         }
 
         const scale_notes = try self.notes();
-        const all_but_last = scale_notes[0 .. scale_notes.len - 1];
         const scale_semitones = try self.allocator.alloc(i32, scale_notes.len - 1);
 
-        for (all_but_last, 0..) |note, i| {
+        for (scale_notes[0 .. scale_notes.len - 1], 0..) |note, i| {
             scale_semitones[i] = note.semitoneDifference(scale_notes[i + 1]);
         }
 
@@ -178,15 +168,17 @@ pub const Scale = struct {
         const scale_intervals = try self.intervals();
 
         return switch (scale_intervals.len - 1) {
-            12 => "Dodecatonic",
-            9 => "Nonatonic",
-            8 => "Octatonic",
-            7 => "Heptatonic",
-            6 => "Hexatonic",
-            5 => "Pentatonic",
-            4 => "Tetratonic",
-            3 => "Tritonic",
             2 => "Ditonic",
+            3 => "Tritonic",
+            4 => "Tetratonic",
+            5 => "Pentatonic",
+            6 => "Hexatonic",
+            7 => "Heptatonic",
+            8 => "Octatonic",
+            9 => "Nonatonic",
+            10 => "Decatonic",
+            11 => "Undecatonic",
+            12 => "Dodecatonic",
             else => "Unknown",
         };
     }
