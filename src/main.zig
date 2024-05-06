@@ -9,9 +9,11 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
-    var piano = try Piano.init(allocator);
-    const screen_width = piano.width();
-    const screen_height = piano.height() + 100;
+    const piano_pos_x = 16;
+    const piano_pos_y = 100;
+    var piano = try Piano.init(allocator, piano_pos_x, piano_pos_y);
+    const screen_width = piano.width() + (piano_pos_x * 2);
+    const screen_height = piano.height() + 140;
 
     rl.setConfigFlags(.flag_window_highdpi);
     rl.initWindow(screen_width, screen_height, "ClefCraft");
@@ -35,7 +37,7 @@ pub fn main() !void {
         rl.clearBackground(rl.Color.light_gray);
 
         piano.draw();
-        rl.drawFPS(15, screen_height - 30);
+        rl.drawFPS(16, screen_height - 29);
     }
 }
 

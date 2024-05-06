@@ -16,15 +16,17 @@ const key_height_white = 160;
 pub const Piano = struct {
     keys: [key_count]Key,
     key_sig: KeySignature,
+    pos_x: i32,
+    pos_y: i32,
 
-    pub fn init(allocator: std.mem.Allocator) !Piano {
+    pub fn init(allocator: std.mem.Allocator, pos_x: i32, pos_y: i32) !Piano {
         var keys = [_]Key{.{}} ** key_count;
 
         for (&keys, 0..) |*key, index| {
             key.is_black = isBlackKey(index);
             key.midi_number = 21 + @as(i32, @intCast(index)); // A0:21, C8:108
-            key.pos_x = @intFromFloat(getKeyX(index));
-            key.pos_y = 0;
+            key.pos_x = pos_x + @as(i32, @intFromFloat(getKeyX(index)));
+            key.pos_y = pos_y;
             key.width = if (key.is_black) key_width_black else key_width_white;
             key.height = if (key.is_black) key_height_black else key_height_white;
         }
@@ -35,7 +37,7 @@ pub const Piano = struct {
             .major,
         );
 
-        return Piano{ .keys = keys, .key_sig = default_key_sig };
+        return Piano{ .keys = keys, .key_sig = default_key_sig, .pos_x = pos_x, .pos_y = pos_y };
     }
 
     pub fn width(_: Piano) i32 {
@@ -133,10 +135,10 @@ pub const Piano = struct {
         for (self.keys) |key| if (key.is_black) key.draw(self.key_sig);
 
         // Draw subtle red key felt and a fade at the top of all keys.
-        rl.drawRectangle(0, 0, self.width(), 3, rl.colorAlpha(rl.Color.maroon, 0.6));
+        rl.drawRectangle(self.pos_x, self.pos_y, self.width(), 3, rl.colorAlpha(rl.Color.maroon, 0.6));
         rl.drawRectangleGradientV(
-            0,
-            0,
+            self.pos_x,
+            self.pos_y,
             self.width(),
             18,
             rl.colorAlpha(rl.Color.black, 0.6),
@@ -165,12 +167,17 @@ const Key = struct {
     }
 
     fn draw(self: Key, key_sig: KeySignature) void {
-        const main_color = self.color();
         const border_color = rl.Color.dark_gray;
 
         switch (self.state) {
             .normal, .disabled => {
-                rl.drawRectangle(self.pos_x, self.pos_y, self.width, self.height, main_color);
+                rl.drawRectangle(
+                    self.pos_x,
+                    self.pos_y,
+                    self.width,
+                    self.height,
+                    self.color(),
+                );
             },
             .focused, .pressed => {
                 const gradient_color = if (self.is_black) rl.Color.black else rl.Color.white;
@@ -179,12 +186,18 @@ const Key = struct {
                     self.pos_y,
                     self.width,
                     self.height,
-                    main_color,
+                    self.color(),
                     gradient_color,
                 );
             },
         }
-        rl.drawRectangleLines(self.pos_x, self.pos_y, self.width, self.height, border_color);
+        rl.drawRectangleLines(
+            self.pos_x,
+            self.pos_y,
+            self.width,
+            self.height,
+            border_color,
+        );
 
         if (self.state == .pressed) {
             self.drawLabel(key_sig, rl.Color.black, true);
