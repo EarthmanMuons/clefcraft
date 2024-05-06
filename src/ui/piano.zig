@@ -54,19 +54,19 @@ pub const Piano = struct {
         is_mouse_pressed: bool,
         midi_output: *MidiOutput,
     ) !void {
-        var hovered_key: ?*Key = null;
+        var focused_key: ?*Key = null;
 
-        // Find the hovered key, prioritizing black keys due to the overlap.
+        // Find the focused key, prioritizing black keys due to the overlap.
         for (&self.keys) |*key| {
-            if (key.is_black and key.isHovered(mouse_x, mouse_y)) {
-                hovered_key = key;
+            if (key.is_black and key.isFocused(mouse_x, mouse_y)) {
+                focused_key = key;
                 break;
             }
         }
-        if (hovered_key == null) {
+        if (focused_key == null) {
             for (&self.keys) |*key| {
-                if (!key.is_black and key.isHovered(mouse_x, mouse_y)) {
-                    hovered_key = key;
+                if (!key.is_black and key.isFocused(mouse_x, mouse_y)) {
+                    focused_key = key;
                     break;
                 }
             }
@@ -75,31 +75,31 @@ pub const Piano = struct {
         // Update all of the key states.
         for (&self.keys) |*key| {
             switch (key.state) {
-                .inactive => {
+                .disabled => {
                     continue;
                 },
-                .released => {
-                    if (key == hovered_key) {
-                        key.state = .hovered;
+                .normal => {
+                    if (key == focused_key) {
+                        key.state = .focused;
                     }
                 },
-                .hovered => {
-                    if (key != hovered_key) {
-                        key.state = .released;
+                .focused => {
+                    if (key != focused_key) {
+                        key.state = .normal;
                     } else if (is_mouse_pressed) {
                         key.state = .pressed;
                     }
                 },
                 .pressed => {
                     if (!is_mouse_pressed) {
-                        key.state = if (key == hovered_key) .hovered else .released;
+                        key.state = if (key == focused_key) .focused else .normal;
                     }
                 },
             }
 
             // Handle MIDI events.
             switch (key.state) {
-                .inactive => {
+                .disabled => {
                     continue;
                 },
                 .pressed => {
@@ -109,14 +109,14 @@ pub const Piano = struct {
                         key.was_pressed = true;
                     }
                 },
-                .hovered => {
+                .focused => {
                     if (key.was_pressed) {
                         log.debug("sending message note off for: {}", .{key.midi_number});
                         try midi_output.noteOff(1, @as(u7, @intCast(key.midi_number)), 0);
                         key.was_pressed = false;
                     }
                 },
-                .released => {
+                .normal => {
                     if (key.was_pressed) {
                         log.debug("sending message note off for: {}", .{key.midi_number});
                         try midi_output.noteOff(1, @as(u7, @intCast(key.midi_number)), 0);
@@ -148,7 +148,7 @@ pub const Piano = struct {
 const Key = struct {
     is_black: bool = false,
     midi_number: i32 = 0,
-    state: KeyState = .released,
+    state: KeyState = .normal,
     was_pressed: bool = false,
     pos_x: i32 = 0,
     pos_y: i32 = 0,
@@ -157,10 +157,10 @@ const Key = struct {
 
     fn color(self: Key) rl.Color {
         return switch (self.state) {
-            .released => if (self.is_black) rl.Color.black else rl.Color.white,
-            .hovered => if (self.is_black) rl.Color.gray else rl.Color.light_gray,
+            .normal => if (self.is_black) rl.Color.black else rl.Color.white,
+            .focused => if (self.is_black) rl.Color.gray else rl.Color.light_gray,
             .pressed => rl.Color.sky_blue,
-            .inactive => if (self.is_black) rl.Color.dark_gray else rl.Color.gray,
+            .disabled => if (self.is_black) rl.Color.dark_gray else rl.Color.gray,
         };
     }
 
@@ -169,10 +169,10 @@ const Key = struct {
         const border_color = rl.Color.dark_gray;
 
         switch (self.state) {
-            .released, .inactive => {
+            .normal, .disabled => {
                 rl.drawRectangle(self.pos_x, self.pos_y, self.width, self.height, main_color);
             },
-            .hovered, .pressed => {
+            .focused, .pressed => {
                 const gradient_color = if (self.is_black) rl.Color.black else rl.Color.white;
                 rl.drawRectangleGradientV(
                     self.pos_x,
@@ -237,8 +237,8 @@ const Key = struct {
         );
     }
 
-    fn isHovered(self: Key, mouse_x: i32, mouse_y: i32) bool {
-        if (self.state == .inactive) {
+    fn isFocused(self: Key, mouse_x: i32, mouse_y: i32) bool {
+        if (self.state == .disabled) {
             return false;
         }
 
@@ -252,10 +252,10 @@ const Key = struct {
 };
 
 const KeyState = enum {
-    released,
-    hovered,
+    normal,
+    focused,
     pressed,
-    inactive,
+    disabled,
 };
 
 fn isBlackKey(index: usize) bool {
