@@ -313,7 +313,7 @@ test "notes()" {
     };
 
     for (tonics) |tonic| {
-        var scale = Scale.init(std.testing.allocator, try Note.parse(tonic), .chromatic);
+        var scale = Scale.init(std.testing.allocator, try Note.parse(tonic), .major);
         defer scale.deinit();
 
         const notes = try scale.notes();
@@ -348,7 +348,7 @@ test "semitones()" {
     };
 
     for (tonics) |tonic| {
-        var scale = Scale.init(std.testing.allocator, try Note.parse(tonic), .chromatic);
+        var scale = Scale.init(std.testing.allocator, try Note.parse(tonic), .major);
         defer scale.deinit();
 
         const semitones = try scale.semitones();

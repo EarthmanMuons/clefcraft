@@ -1,10 +1,15 @@
+const std = @import("std");
+
 const rl = @import("raylib");
 
 const MidiOutput = @import("midi/output.zig").MidiOutput;
 const Piano = @import("ui/piano.zig").Piano;
 
 pub fn main() !void {
-    var piano = Piano.init();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+
+    var piano = try Piano.init(allocator);
     const screen_width = piano.width();
     const screen_height = piano.height() + 100;
 

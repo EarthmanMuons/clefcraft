@@ -3,8 +3,10 @@ const log = std.log.scoped(.piano);
 
 const rl = @import("raylib");
 
+const KeySignature = @import("../theory/key_signature.zig").KeySignature;
 const MidiOutput = @import("../midi/output.zig").MidiOutput;
 const Note = @import("../theory/note.zig").Note;
+// const Pitch = @import("../theory/pitch.zig").Pitch;
 
 const key_count = 88;
 const key_spacing = 2;
@@ -15,8 +17,9 @@ const key_height_white = 160;
 
 pub const Piano = struct {
     keys: [key_count]Key,
+    key_sig: KeySignature,
 
-    pub fn init() Piano {
+    pub fn init(allocator: std.mem.Allocator) !Piano {
         var keys = [_]Key{.{}} ** key_count;
 
         for (&keys, 0..) |*key, index| {
@@ -28,7 +31,13 @@ pub const Piano = struct {
             key.height = if (key.is_black) key_height_black else key_height_white;
         }
 
-        return Piano{ .keys = keys };
+        const default_key_sig = try KeySignature.init(
+            allocator,
+            .{ .letter = .c, .accidental = null },
+            .major,
+        );
+
+        return Piano{ .keys = keys, .key_sig = default_key_sig };
     }
 
     pub fn width(_: Piano) i32 {
@@ -116,8 +125,8 @@ pub const Piano = struct {
 
     pub fn draw(self: *const Piano) void {
         // Draw the white keys first, then the black keys on top.
-        for (self.keys) |key| if (!key.is_black) key.draw();
-        for (self.keys) |key| if (key.is_black) key.draw();
+        for (self.keys) |key| if (!key.is_black) key.draw(self.key_sig);
+        for (self.keys) |key| if (key.is_black) key.draw(self.key_sig);
 
         // Draw a subtle fade at the top of all keys.
         rl.drawRectangleGradientV(
@@ -149,7 +158,7 @@ const Key = struct {
         };
     }
 
-    fn draw(self: Key) void {
+    fn draw(self: Key, key_sig: KeySignature) void {
         const main_color = self.color();
         const border_color = rl.Color.dark_gray;
 
@@ -172,12 +181,12 @@ const Key = struct {
         rl.drawRectangleLines(self.pos_x, self.pos_y, self.width, self.height, border_color);
 
         if (self.state == .pressed) {
-            self.drawLabel();
+            self.drawLabel(key_sig);
         }
     }
 
-    fn drawLabel(self: Key) void {
-        const note = Note.fromMidi(self.midi_number);
+    fn drawLabel(self: Key, key_sig: KeySignature) void {
+        const note = key_sig.noteFromMidi(self.midi_number);
         const note_name = note.pitch.asText();
 
         // raylib's drawText() function requires a '0' sentinel.
