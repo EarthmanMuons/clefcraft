@@ -5,8 +5,6 @@ const rl = @import("raylib");
 
 const KeySignature = @import("../theory/key_signature.zig").KeySignature;
 const MidiOutput = @import("../midi/output.zig").MidiOutput;
-const Note = @import("../theory/note.zig").Note;
-// const Pitch = @import("../theory/pitch.zig").Pitch;
 
 const key_count = 88;
 const key_spacing = 2;
