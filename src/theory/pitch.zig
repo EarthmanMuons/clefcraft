@@ -14,17 +14,14 @@ pub const Pitch = struct {
     letter: Letter,
     accidental: ?Accidental,
 
-    /// Creates a `Pitch` from a pitch class using the default accidental mapping.
+    /// Returns a `Pitch` based on the given pitch class, using the default mapping.
     ///
     /// 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
     pub fn fromPitchClass(pitch_class: i32) Pitch {
         assert(0 <= pitch_class and pitch_class < semitones_per_octave);
 
         const letter = Letter.fromPitchClass(pitch_class);
-        const accidental: ?Accidental = switch (pitch_class) {
-            1, 3, 6, 8, 10 => .sharp,
-            else => null,
-        };
+        const accidental = Accidental.fromPitchClass(pitch_class);
 
         return Pitch{ .letter = letter, .accidental = accidental };
     }
@@ -87,7 +84,9 @@ pub const Letter = enum {
     f,
     g,
 
-    /// Returns a `Letter` based on the given pitch class.
+    /// Returns a `Letter` based on the given pitch class, using the default mapping.
+    ///
+    /// 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
     pub fn fromPitchClass(pitch_class: i32) Letter {
         assert(0 <= pitch_class and pitch_class < semitones_per_octave);
 
@@ -157,6 +156,18 @@ pub const Accidental = enum {
     natural,
     sharp,
     double_sharp,
+
+    /// Returns an `Accidental` based on the given pitch class, using the default mapping.
+    ///
+    /// 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
+    pub fn fromPitchClass(pitch_class: i32) ?Accidental {
+        assert(0 <= pitch_class and pitch_class < semitones_per_octave);
+
+        return switch (pitch_class) {
+            1, 3, 6, 8, 10 => .sharp,
+            else => null,
+        };
+    }
 
     /// Returns a pitch adjustment based on the current `Accidental`.
     pub fn pitchAdjustment(self: Accidental) i32 {
