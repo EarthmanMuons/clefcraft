@@ -75,6 +75,9 @@ pub const Piano = struct {
         // Update all of the key states.
         for (&self.keys) |*key| {
             switch (key.state) {
+                .inactive => {
+                    continue;
+                },
                 .released => {
                     if (key == hovered_key) {
                         key.state = .hovered;
@@ -96,6 +99,9 @@ pub const Piano = struct {
 
             // Handle MIDI events.
             switch (key.state) {
+                .inactive => {
+                    continue;
+                },
                 .pressed => {
                     if (!key.was_pressed) {
                         log.debug("sending message note on for: {}", .{key.midi_number});
@@ -154,6 +160,7 @@ const Key = struct {
             .released => if (self.is_black) rl.Color.black else rl.Color.white,
             .hovered => if (self.is_black) rl.Color.gray else rl.Color.light_gray,
             .pressed => rl.Color.sky_blue,
+            .inactive => if (self.is_black) rl.Color.dark_gray else rl.Color.gray,
         };
     }
 
@@ -162,7 +169,7 @@ const Key = struct {
         const border_color = rl.Color.dark_gray;
 
         switch (self.state) {
-            .released => {
+            .released, .inactive => {
                 rl.drawRectangle(self.pos_x, self.pos_y, self.width, self.height, main_color);
             },
             .hovered, .pressed => {
@@ -222,6 +229,10 @@ const Key = struct {
     }
 
     fn isHovered(self: Key, mouse_x: i32, mouse_y: i32) bool {
+        if (self.state == .inactive) {
+            return false;
+        }
+
         return mouse_x >= self.pos_x and mouse_x <= self.pos_x + self.width and
             mouse_y >= self.pos_y and mouse_y <= self.pos_y + self.height;
     }
@@ -231,6 +242,7 @@ const KeyState = enum {
     released,
     hovered,
     pressed,
+    inactive,
 };
 
 fn isBlackKey(index: usize) bool {
