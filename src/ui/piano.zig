@@ -187,13 +187,20 @@ const Key = struct {
         rl.drawRectangleLines(self.pos_x, self.pos_y, self.width, self.height, border_color);
 
         if (self.state == .pressed) {
-            self.drawLabel(key_sig);
+            self.drawLabel(key_sig, rl.Color.black, true);
+        } else if (self.isMiddleC()) {
+            self.drawLabel(key_sig, rl.Color.light_gray, false);
         }
     }
 
-    fn drawLabel(self: Key, key_sig: KeySignature) void {
+    fn drawLabel(
+        self: Key,
+        key_sig: KeySignature,
+        text_color: rl.Color,
+        draw_background: bool,
+    ) void {
         const note = key_sig.noteFromMidi(self.midi_number);
-        const note_name = note.pitch.asText();
+        const note_name = if (self.state != .pressed and self.isMiddleC()) "C4" else note.pitch.asText();
 
         // raylib's drawText() function requires a '0' sentinel.
         const note_name_z: [:0]const u8 = @ptrCast(note_name);
@@ -206,16 +213,18 @@ const Key = struct {
         const rect_x = self.pos_x + @divFloor(self.width - rect_width, 2);
         const rect_y = self.pos_y + self.height - rect_height - 5;
 
-        const rect = rl.Rectangle{
-            .x = @floatFromInt(rect_x),
-            .y = @floatFromInt(rect_y),
-            .width = @floatFromInt(rect_width),
-            .height = @floatFromInt(rect_height),
-        };
+        if (draw_background) {
+            const rect = rl.Rectangle{
+                .x = @floatFromInt(rect_x),
+                .y = @floatFromInt(rect_y),
+                .width = @floatFromInt(rect_width),
+                .height = @floatFromInt(rect_height),
+            };
 
-        const roundness = 0.4;
-        const segments = 4;
-        rl.drawRectangleRounded(rect, roundness, segments, rl.Color.orange);
+            const roundness = 0.4;
+            const segments = 4;
+            rl.drawRectangleRounded(rect, roundness, segments, rl.Color.orange);
+        }
 
         const text_x = rect_x + @divFloor(rect_width - text_width, 2);
         const text_y = (rect_y + (rect_height - font_size) / 2) + 1;
@@ -224,7 +233,7 @@ const Key = struct {
             text_x,
             text_y,
             font_size,
-            rl.Color.black,
+            text_color,
         );
     }
 
@@ -235,6 +244,10 @@ const Key = struct {
 
         return mouse_x >= self.pos_x and mouse_x <= self.pos_x + self.width and
             mouse_y >= self.pos_y and mouse_y <= self.pos_y + self.height;
+    }
+
+    fn isMiddleC(self: Key) bool {
+        return self.midi_number == 60;
     }
 };
 
