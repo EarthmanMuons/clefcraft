@@ -126,13 +126,14 @@ pub const Piano = struct {
         for (self.keys) |key| if (!key.is_black) key.draw(self.key_sig);
         for (self.keys) |key| if (key.is_black) key.draw(self.key_sig);
 
-        // Draw a subtle fade at the top of all keys.
+        // Draw subtle red key felt and a fade at the top of all keys.
+        rl.drawRectangle(0, 0, self.width(), 3, rl.colorAlpha(rl.Color.maroon, 0.6));
         rl.drawRectangleGradientV(
             0,
             0,
             self.width(),
-            6,
-            rl.colorAlpha(rl.Color.black, 0.8),
+            18,
+            rl.colorAlpha(rl.Color.black, 0.6),
             rl.colorAlpha(rl.Color.black, 0.0),
         );
     }
