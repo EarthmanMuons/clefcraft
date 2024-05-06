@@ -6,7 +6,7 @@
 
 ---
 
-![ClefCraft UI](/static/ui.webp "User Interface")
+![ClefCraft UI](/static/ui.avif "User Interface")
 
 ## License
 
