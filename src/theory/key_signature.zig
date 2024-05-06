@@ -51,16 +51,32 @@ pub const KeySignature = struct {
 
         const pitch_class = utils.wrap(midi_number, semitones_per_octave);
         const octave = @divTrunc(midi_number, semitones_per_octave) - 1;
-        const letter = Letter.fromPitchClass(pitch_class);
+        const initial_letter = Letter.fromPitchClass(pitch_class);
 
-        // Get the accidental based on the key signature.
-        const accidental = self.accidentals[@intFromEnum(letter)];
+        var letter = initial_letter;
+        var accidental: ?Accidental = null;
 
-        // If the accidental is not defined in the key signature, determine it based on the pitch class.
-        const resolved_accidental = if (accidental) |acc| acc else Accidental.fromPitchClass(pitch_class);
+        // Select proper enharmonic equivalents based on the key signature.
+        switch (pitch_class) {
+            // These pitch classes correspond to the black keys on a piano.
+            1, 3, 6, 8, 10 => {
+                const is_flat_key_sig = self.accidentals[1] == .flat; // check for Bb
+
+                if (is_flat_key_sig) {
+                    letter = letter.offsetBy(1);
+                    accidental = .flat;
+                } else {
+                    accidental = .sharp;
+                }
+            },
+            else => {
+                // The remaining pitch classes correspond to the white keys on a piano.
+                accidental = null;
+            },
+        }
 
         return Note{
-            .pitch = Pitch{ .letter = letter, .accidental = resolved_accidental },
+            .pitch = Pitch{ .letter = letter, .accidental = accidental },
             .octave = octave,
         };
     }
