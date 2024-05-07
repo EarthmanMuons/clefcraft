@@ -104,27 +104,27 @@ pub const Piano = struct {
                     continue;
                 },
                 .pressed => {
-                    if (!key.was_pressed) {
+                    if (key.state_prev != .pressed) {
                         log.debug("sending message note on for: {}", .{key.midi_number});
                         try midi_output.noteOn(1, @as(u7, @intCast(key.midi_number)), 112);
-                        key.was_pressed = true;
                     }
                 },
                 .focused => {
-                    if (key.was_pressed) {
+                    if (key.state_prev == .pressed) {
                         log.debug("sending message note off for: {}", .{key.midi_number});
                         try midi_output.noteOff(1, @as(u7, @intCast(key.midi_number)), 0);
-                        key.was_pressed = false;
                     }
                 },
                 .normal => {
-                    if (key.was_pressed) {
+                    if (key.state_prev == .pressed) {
                         log.debug("sending message note off for: {}", .{key.midi_number});
                         try midi_output.noteOff(1, @as(u7, @intCast(key.midi_number)), 0);
-                        key.was_pressed = false;
                     }
                 },
             }
+
+            // Update the previous key state.
+            key.state_prev = key.state;
         }
     }
 
@@ -150,7 +150,7 @@ const Key = struct {
     is_black: bool = false,
     midi_number: i32 = 0,
     state: KeyState = .normal,
-    was_pressed: bool = false,
+    state_prev: KeyState = .normal,
     pos_x: i32 = 0,
     pos_y: i32 = 0,
     width: i32 = 0,
