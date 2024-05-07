@@ -2,6 +2,7 @@ const std = @import("std");
 
 const rl = @import("raylib");
 
+const Coord = @import("ui/coord.zig").Coord;
 const MidiOutput = @import("midi/output.zig").MidiOutput;
 const Piano = @import("ui/piano.zig").Piano;
 const Mouse = @import("ui/mouse.zig").Mouse;
@@ -10,10 +11,9 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
-    const piano_pos_x = 16;
-    const piano_pos_y = 100;
-    var piano = try Piano.init(allocator, piano_pos_x, piano_pos_y);
-    const screen_width = piano.width() + (piano_pos_x * 2);
+    const piano_pos = Coord{ .x = 16, .y = 100 };
+    var piano = try Piano.init(allocator, piano_pos);
+    const screen_width = piano.width() + (piano_pos.x * 2);
     const screen_height = piano.height() + 140;
 
     rl.setConfigFlags(.flag_window_highdpi);
