@@ -4,6 +4,7 @@ const rl = @import("raylib");
 
 const MidiOutput = @import("midi/output.zig").MidiOutput;
 const Piano = @import("ui/piano.zig").Piano;
+const Mouse = @import("ui/mouse.zig").Mouse;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -24,12 +25,11 @@ pub fn main() !void {
     var midi_output = try MidiOutput.init("ClefCraft");
     defer midi_output.deinit();
 
-    while (!rl.windowShouldClose()) {
-        const mouse_x = rl.getMouseX();
-        const mouse_y = rl.getMouseY();
-        const is_mouse_pressed = rl.isMouseButtonDown(rl.MouseButton.mouse_button_left);
+    var mouse = Mouse{};
 
-        try piano.update(mouse_x, mouse_y, is_mouse_pressed, &midi_output);
+    while (!rl.windowShouldClose()) {
+        mouse.update();
+        try piano.update(mouse, &midi_output);
 
         rl.beginDrawing();
         defer rl.endDrawing();

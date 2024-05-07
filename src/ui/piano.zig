@@ -5,6 +5,7 @@ const rl = @import("raylib");
 
 const KeySignature = @import("../theory/key_signature.zig").KeySignature;
 const MidiOutput = @import("../midi/output.zig").MidiOutput;
+const Mouse = @import("mouse.zig").Mouse;
 
 const key_count = 88;
 const key_spacing = 2;
@@ -51,23 +52,21 @@ pub const Piano = struct {
 
     pub fn update(
         self: *Piano,
-        mouse_x: i32,
-        mouse_y: i32,
-        is_mouse_pressed: bool,
+        mouse: Mouse,
         midi_output: *MidiOutput,
     ) !void {
         var focused_key: ?*Key = null;
 
         // Find the focused key, prioritizing black keys due to the overlap.
         for (&self.keys) |*key| {
-            if (key.is_black and key.isFocused(mouse_x, mouse_y)) {
+            if (key.is_black and key.isFocused(mouse)) {
                 focused_key = key;
                 break;
             }
         }
         if (focused_key == null) {
             for (&self.keys) |*key| {
-                if (!key.is_black and key.isFocused(mouse_x, mouse_y)) {
+                if (!key.is_black and key.isFocused(mouse)) {
                     focused_key = key;
                     break;
                 }
@@ -88,12 +87,12 @@ pub const Piano = struct {
                 .focused => {
                     if (key != focused_key) {
                         key.state = .normal;
-                    } else if (is_mouse_pressed) {
+                    } else if (mouse.is_pressed_left) {
                         key.state = .pressed;
                     }
                 },
                 .pressed => {
-                    if (!is_mouse_pressed) {
+                    if (!mouse.is_pressed_left) {
                         key.state = if (key == focused_key) .focused else .normal;
                     }
                 },
@@ -250,17 +249,21 @@ const Key = struct {
         );
     }
 
-    fn isFocused(self: Key, mouse_x: i32, mouse_y: i32) bool {
+    fn isFocused(self: Key, mouse: Mouse) bool {
         if (self.state == .disabled) {
             return false;
         }
 
-        return mouse_x >= self.pos_x and mouse_x <= self.pos_x + self.width and
-            mouse_y >= self.pos_y and mouse_y <= self.pos_y + self.height;
+        return mouse.pos_x >= self.pos_x and mouse.pos_x <= self.pos_x + self.width and
+            mouse.pos_y >= self.pos_y and mouse.pos_y <= self.pos_y + self.height;
     }
 
     fn isMiddleC(self: Key) bool {
         return self.midi_number == 60;
+    }
+
+    fn toggleDisabled(self: *Key) void {
+        self.state = if (self.state == .disabled) .normal else .disabled;
     }
 };
 
