@@ -158,8 +158,15 @@ const Key = struct {
     pos: Coord = .{ .x = 0, .y = 0 },
     width: i32 = 0,
     height: i32 = 0,
-    state: KeyState = .normal,
-    state_prev: KeyState = .normal,
+    state: State = .normal,
+    state_prev: State = .normal,
+
+    const State = enum {
+        normal,
+        focused,
+        pressed,
+        disabled,
+    };
 
     fn color(self: Key) rl.Color {
         return switch (self.state) {
@@ -266,13 +273,6 @@ const Key = struct {
     fn isMiddleC(self: Key) bool {
         return self.midi_number == 60;
     }
-};
-
-const KeyState = enum {
-    normal,
-    focused,
-    pressed,
-    disabled,
 };
 
 fn isBlackKey(index: usize) bool {
