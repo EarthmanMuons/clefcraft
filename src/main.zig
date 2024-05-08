@@ -40,23 +40,3 @@ pub fn main() !void {
         rl.drawFPS(16, screen_height - 29);
     }
 }
-
-pub const MidiMessage = struct {
-    status: u8,
-    data1: u8,
-    data2: u8,
-};
-
-// Send a Note On message.
-pub fn noteOn(self: *MidiOutput, channel: u4, note: u7, velocity: u7) !void {
-    const status = 0x90 | @as(u8, @intCast(channel));
-    const data = [_]u8{ status, note, velocity };
-    try self.sendMessage(&data);
-}
-
-// Send a Note Off message.
-pub fn noteOff(self: *MidiOutput, channel: u4, note: u7, velocity: u7) !void {
-    const status = 0x80 | @as(u8, @intCast(channel));
-    const data = [_]u8{ status, note, velocity };
-    try self.sendMessage(&data);
-}

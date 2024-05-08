@@ -22,10 +22,11 @@ pub const Piano = struct {
 
     pub fn init(allocator: std.mem.Allocator, pos: Coord) !Piano {
         var keys = [_]Key{.{}} ** key_count;
+        const midi_number_a0 = 21; // the first key on a piano
 
         for (&keys, 0..) |*key, index| {
+            key.midi_number = midi_number_a0 + @as(u7, @intCast(index));
             key.is_black = isBlackKey(index);
-            key.midi_number = 21 + @as(i32, @intCast(index)); // A0:21, C8:108
             key.pos = Coord{ .x = pos.x + getKeyX(index), .y = pos.y };
             key.width = if (key.is_black) key_width_black else key_width_white;
             key.height = if (key.is_black) key_height_black else key_height_white;
@@ -105,19 +106,19 @@ pub const Piano = struct {
                 .pressed => {
                     if (key.state_prev != .pressed) {
                         log.debug("sending message note on for: {}", .{key.midi_number});
-                        try midi_output.noteOn(1, @as(u7, @intCast(key.midi_number)), 112);
+                        try midi_output.noteOn(1, key.midi_number, 112);
                     }
                 },
                 .focused => {
                     if (key.state_prev == .pressed) {
                         log.debug("sending message note off for: {}", .{key.midi_number});
-                        try midi_output.noteOff(1, @as(u7, @intCast(key.midi_number)), 0);
+                        try midi_output.noteOff(1, key.midi_number, 0);
                     }
                 },
                 .normal => {
                     if (key.state_prev == .pressed) {
                         log.debug("sending message note off for: {}", .{key.midi_number});
-                        try midi_output.noteOff(1, @as(u7, @intCast(key.midi_number)), 0);
+                        try midi_output.noteOff(1, key.midi_number, 0);
                     }
                 },
             }
@@ -152,13 +153,13 @@ pub const Piano = struct {
 };
 
 const Key = struct {
+    midi_number: u7 = 0,
     is_black: bool = false,
-    midi_number: i32 = 0,
-    state: KeyState = .normal,
-    state_prev: KeyState = .normal,
     pos: Coord = .{ .x = 0, .y = 0 },
     width: i32 = 0,
     height: i32 = 0,
+    state: KeyState = .normal,
+    state_prev: KeyState = .normal,
 
     fn color(self: Key) rl.Color {
         return switch (self.state) {
