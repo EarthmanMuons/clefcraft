@@ -17,10 +17,9 @@ const key_height_white = 160;
 
 pub const Piano = struct {
     keys: [key_count]Key,
-    key_sig: KeySignature,
     pos: Coord,
 
-    pub fn init(allocator: std.mem.Allocator, pos: Coord) !Piano {
+    pub fn init(pos: Coord) !Piano {
         var keys = [_]Key{.{}} ** key_count;
         const midi_number_a0 = 21; // the first key on a piano
 
@@ -32,13 +31,7 @@ pub const Piano = struct {
             key.height = if (key.is_black) key_height_black else key_height_white;
         }
 
-        const default_key_sig = try KeySignature.init(
-            allocator,
-            .{ .letter = .c, .accidental = null },
-            .major,
-        );
-
-        return Piano{ .keys = keys, .key_sig = default_key_sig, .pos = pos };
+        return Piano{ .keys = keys, .pos = pos };
     }
 
     pub fn width(_: Piano) i32 {
@@ -128,10 +121,10 @@ pub const Piano = struct {
         }
     }
 
-    pub fn draw(self: *const Piano) void {
+    pub fn draw(self: *const Piano, key_sig: KeySignature) void {
         // Draw the white keys first, then the black keys on top.
-        for (self.keys) |key| if (!key.is_black) key.draw(self.key_sig);
-        for (self.keys) |key| if (key.is_black) key.draw(self.key_sig);
+        for (self.keys) |key| if (!key.is_black) key.draw(key_sig);
+        for (self.keys) |key| if (key.is_black) key.draw(key_sig);
 
         // Draw subtle red key felt and a fade at the top of all keys.
         rl.drawRectangle(
