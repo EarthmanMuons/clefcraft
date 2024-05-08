@@ -14,7 +14,7 @@ pub const Scale = struct {
     semitones_cache: ?[]i32 = null,
 
     pub fn init(allocator: std.mem.Allocator, tonic: Note, pattern: Pattern) Scale {
-        return Scale{
+        return .{
             .tonic = tonic,
             .pattern = pattern,
             .allocator = allocator,

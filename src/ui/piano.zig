@@ -26,7 +26,7 @@ pub const Piano = struct {
         for (&keys, 0..) |*key, index| {
             key.midi_number = midi_number_a0 + @as(u7, @intCast(index));
             key.is_black = isBlackKey(index);
-            key.pos = Coord{ .x = pos.x + getKeyX(index), .y = pos.y };
+            key.pos = .{ .x = pos.x + getKeyX(index), .y = pos.y };
             key.width = if (key.is_black) key_width_black else key_width_white;
             key.height = if (key.is_black) key_height_black else key_height_white;
         }

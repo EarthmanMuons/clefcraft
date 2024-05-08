@@ -23,7 +23,7 @@ pub const Pitch = struct {
         const letter = Letter.fromPitchClass(pitch_class);
         const accidental = Accidental.fromPitchClass(pitch_class);
 
-        return Pitch{ .letter = letter, .accidental = accidental };
+        return .{ .letter = letter, .accidental = accidental };
     }
 
     /// Returns the pitch class of the current `Pitch`.

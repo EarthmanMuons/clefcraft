@@ -13,7 +13,7 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
-    var mouse = Mouse{};
+    var mouse: Mouse = .{};
     var app = try Application.init(allocator, padding);
     const app_name = "ClefCraft";
 

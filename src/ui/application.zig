@@ -31,7 +31,7 @@ pub const Application = struct {
 
         const piano = try Piano.init(Coord{ .x = padding, .y = 100 });
 
-        return Application{
+        return .{
             .state = .key_signatures,
             .key_sig = key_sig,
             .piano = piano,

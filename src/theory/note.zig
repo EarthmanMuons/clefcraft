@@ -61,8 +61,8 @@ pub const Note = struct {
         const octave_str = text[octave_idx..];
         const octave = std.fmt.parseInt(i32, octave_str, 10) catch return error.InvalidOctave;
 
-        return Note{
-            .pitch = Pitch{ .letter = letter, .accidental = accidental },
+        return .{
+            .pitch = .{ .letter = letter, .accidental = accidental },
             .octave = octave,
         };
     }
@@ -124,7 +124,7 @@ pub const Note = struct {
         const pitch_class = utils.wrap(target_pos, semitones_per_octave);
         const octave = @divTrunc(target_pos, semitones_per_octave);
 
-        return Note{
+        return .{
             .pitch = Pitch.fromPitchClass(pitch_class),
             .octave = octave,
         };
@@ -146,7 +146,7 @@ pub const Note = struct {
         const pitch_class = utils.wrap(midi_number, semitones_per_octave);
         const octave = @divTrunc(midi_number, semitones_per_octave) - 1;
 
-        return Note{
+        return .{
             .pitch = Pitch.fromPitchClass(pitch_class),
             .octave = octave,
         };
@@ -201,7 +201,7 @@ pub const Note = struct {
 
         const target_octave = self.octave + octave_adjustment + boundary_adjustment;
 
-        return Note{
+        return .{
             .pitch = target_pitch,
             .octave = target_octave,
         };
@@ -218,9 +218,9 @@ pub const Note = struct {
         } else if (adjustment < -2) {
             adjustment += semitones_per_octave;
         }
-        const accidental: ?Accidental = try Accidental.fromPitchAdjustment(adjustment);
+        const accidental = try Accidental.fromPitchAdjustment(adjustment);
 
-        return Pitch{
+        return .{
             .letter = target_letter,
             .accidental = accidental,
         };
@@ -299,12 +299,12 @@ test "midi note number calculation" {
     };
 
     const test_cases = [_]TestCase{
-        TestCase{ .n1 = "C-1", .expected = 0 },
-        TestCase{ .n1 = "B3", .expected = 59 },
-        TestCase{ .n1 = "Cb4", .expected = 59 },
-        TestCase{ .n1 = "C4", .expected = 60 },
-        TestCase{ .n1 = "A4", .expected = 69 },
-        TestCase{ .n1 = "G9", .expected = 127 },
+        .{ .n1 = "C-1", .expected = 0 },
+        .{ .n1 = "B3", .expected = 59 },
+        .{ .n1 = "Cb4", .expected = 59 },
+        .{ .n1 = "C4", .expected = 60 },
+        .{ .n1 = "A4", .expected = 69 },
+        .{ .n1 = "G9", .expected = 127 },
     };
 
     for (test_cases) |test_case| {
@@ -339,45 +339,45 @@ test "semitoneDifference()" {
     };
 
     const test_cases = [_]TestCase{
-        TestCase{ .n1 = "C1", .n2 = "C8", .expected = 84 },
-        TestCase{ .n1 = "A0", .n2 = "C8", .expected = 87 },
-        TestCase{ .n1 = "C0", .n2 = "B8", .expected = 107 },
+        .{ .n1 = "C1", .n2 = "C8", .expected = 84 },
+        .{ .n1 = "A0", .n2 = "C8", .expected = 87 },
+        .{ .n1 = "C0", .n2 = "B8", .expected = 107 },
 
-        TestCase{ .n1 = "A0", .n2 = "C4", .expected = 39 },
-        TestCase{ .n1 = "C4", .n2 = "A0", .expected = -39 },
-        TestCase{ .n1 = "C4", .n2 = "C5", .expected = 12 },
-        TestCase{ .n1 = "C4", .n2 = "C3", .expected = -12 },
-        TestCase{ .n1 = "C4", .n2 = "A4", .expected = 9 },
-        TestCase{ .n1 = "C4", .n2 = "A3", .expected = -3 },
+        .{ .n1 = "A0", .n2 = "C4", .expected = 39 },
+        .{ .n1 = "C4", .n2 = "A0", .expected = -39 },
+        .{ .n1 = "C4", .n2 = "C5", .expected = 12 },
+        .{ .n1 = "C4", .n2 = "C3", .expected = -12 },
+        .{ .n1 = "C4", .n2 = "A4", .expected = 9 },
+        .{ .n1 = "C4", .n2 = "A3", .expected = -3 },
 
-        TestCase{ .n1 = "B3", .n2 = "B#3", .expected = 1 },
-        TestCase{ .n1 = "B3", .n2 = "C4", .expected = 1 },
-        TestCase{ .n1 = "C4", .n2 = "B3", .expected = -1 },
-        TestCase{ .n1 = "C4", .n2 = "Cb4", .expected = -1 },
+        .{ .n1 = "B3", .n2 = "B#3", .expected = 1 },
+        .{ .n1 = "B3", .n2 = "C4", .expected = 1 },
+        .{ .n1 = "C4", .n2 = "B3", .expected = -1 },
+        .{ .n1 = "C4", .n2 = "Cb4", .expected = -1 },
 
-        TestCase{ .n1 = "B#3", .n2 = "C4", .expected = 0 },
-        TestCase{ .n1 = "Cb4", .n2 = "B3", .expected = 0 },
-        TestCase{ .n1 = "C##4", .n2 = "D4", .expected = 0 },
-        TestCase{ .n1 = "Dbb4", .n2 = "C4", .expected = 0 },
-        TestCase{ .n1 = "E#4", .n2 = "F4", .expected = 0 },
-        TestCase{ .n1 = "Fb4", .n2 = "E4", .expected = 0 },
-        TestCase{ .n1 = "F#4", .n2 = "Gb4", .expected = 0 },
+        .{ .n1 = "B#3", .n2 = "C4", .expected = 0 },
+        .{ .n1 = "Cb4", .n2 = "B3", .expected = 0 },
+        .{ .n1 = "C##4", .n2 = "D4", .expected = 0 },
+        .{ .n1 = "Dbb4", .n2 = "C4", .expected = 0 },
+        .{ .n1 = "E#4", .n2 = "F4", .expected = 0 },
+        .{ .n1 = "Fb4", .n2 = "E4", .expected = 0 },
+        .{ .n1 = "F#4", .n2 = "Gb4", .expected = 0 },
 
-        TestCase{ .n1 = "C4", .n2 = "Cbb4", .expected = -2 },
-        TestCase{ .n1 = "C4", .n2 = "Cb4", .expected = -1 },
-        TestCase{ .n1 = "C4", .n2 = "C4", .expected = 0 },
-        TestCase{ .n1 = "C4", .n2 = "C#4", .expected = 1 },
-        TestCase{ .n1 = "C4", .n2 = "C##4", .expected = 2 },
+        .{ .n1 = "C4", .n2 = "Cbb4", .expected = -2 },
+        .{ .n1 = "C4", .n2 = "Cb4", .expected = -1 },
+        .{ .n1 = "C4", .n2 = "C4", .expected = 0 },
+        .{ .n1 = "C4", .n2 = "C#4", .expected = 1 },
+        .{ .n1 = "C4", .n2 = "C##4", .expected = 2 },
 
-        TestCase{ .n1 = "G4", .n2 = "G#4", .expected = 1 },
-        TestCase{ .n1 = "G4", .n2 = "G##4", .expected = 2 },
-        TestCase{ .n1 = "Gb4", .n2 = "G4", .expected = 1 },
-        TestCase{ .n1 = "Gb4", .n2 = "G#4", .expected = 2 },
-        TestCase{ .n1 = "Gb4", .n2 = "G##4", .expected = 3 },
-        TestCase{ .n1 = "Gbb4", .n2 = "Gb4", .expected = 1 },
-        TestCase{ .n1 = "Gbb4", .n2 = "G4", .expected = 2 },
-        TestCase{ .n1 = "Gbb4", .n2 = "G#4", .expected = 3 },
-        TestCase{ .n1 = "Gbb4", .n2 = "G##4", .expected = 4 },
+        .{ .n1 = "G4", .n2 = "G#4", .expected = 1 },
+        .{ .n1 = "G4", .n2 = "G##4", .expected = 2 },
+        .{ .n1 = "Gb4", .n2 = "G4", .expected = 1 },
+        .{ .n1 = "Gb4", .n2 = "G#4", .expected = 2 },
+        .{ .n1 = "Gb4", .n2 = "G##4", .expected = 3 },
+        .{ .n1 = "Gbb4", .n2 = "Gb4", .expected = 1 },
+        .{ .n1 = "Gbb4", .n2 = "G4", .expected = 2 },
+        .{ .n1 = "Gbb4", .n2 = "G#4", .expected = 3 },
+        .{ .n1 = "Gbb4", .n2 = "G##4", .expected = 4 },
     };
 
     for (test_cases) |test_case| {
@@ -400,12 +400,12 @@ test "applyInterval()" {
     };
 
     const test_cases = [_]TestCase{
-        TestCase{ .note = "C4", .interval = "P1", .expected = "C4" },
-        TestCase{ .note = "C4", .interval = "P8", .expected = "C5" },
-        TestCase{ .note = "C4", .interval = "M3", .expected = "E4" },
-        TestCase{ .note = "E4", .interval = "m6", .expected = "C5" },
-        TestCase{ .note = "D4", .interval = "M3", .expected = "F#4" },
-        TestCase{ .note = "D4", .interval = "d4", .expected = "Gb4" },
+        .{ .note = "C4", .interval = "P1", .expected = "C4" },
+        .{ .note = "C4", .interval = "P8", .expected = "C5" },
+        .{ .note = "C4", .interval = "M3", .expected = "E4" },
+        .{ .note = "E4", .interval = "m6", .expected = "C5" },
+        .{ .note = "D4", .interval = "M3", .expected = "F#4" },
+        .{ .note = "D4", .interval = "d4", .expected = "Gb4" },
     };
 
     for (test_cases) |test_case| {
