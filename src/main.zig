@@ -11,9 +11,10 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
-    const piano_pos = Coord{ .x = 16, .y = 100 };
-    var piano = try Piano.init(allocator, piano_pos);
-    const screen_width = piano.width() + (piano_pos.x * 2);
+    const margin = 16;
+
+    var piano = try Piano.init(allocator, Coord{ .x = margin, .y = 100 });
+    const screen_width = piano.width() + (margin * 2);
     const screen_height = piano.height() + 140;
 
     rl.setConfigFlags(.flag_window_highdpi);
@@ -37,6 +38,6 @@ pub fn main() !void {
         rl.clearBackground(rl.Color.light_gray);
 
         piano.draw();
-        rl.drawFPS(16, screen_height - 29);
+        rl.drawFPS(margin, screen_height - 29);
     }
 }
