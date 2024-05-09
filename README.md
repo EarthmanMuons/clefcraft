@@ -6,7 +6,7 @@
 
 ---
 
-![ClefCraft UI](/static/ui.avif "User Interface")
+![ClefCraft UI](screenshot.avif "User Interface")
 
 ## License
 
