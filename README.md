@@ -10,11 +10,12 @@
 
 ## License
 
-ClefCraft is distributed under the terms of the [MIT License](LICENSE).
+ClefCraft is released under the [Zero Clause BSD License][LICENSE] (SPDX: 0BSD).
 
-Copyright &copy; 2024 [Aaron Bull Schaefer](mailto:aaron@elasticdog.com)
+Copyright &copy; 2024 [Aaron Bull Schaefer][EMAIL] and contributors
 
 [LICENSE]: https://github.com/EarthmanMuons/clefcraft/blob/main/LICENSE
+[EMAIL]: mailto:aaron@elasticdog.com
 
 ## Credits
 
