@@ -4,12 +4,12 @@
     .minimum_zig_version = "0.12.0",
     .dependencies = .{
         .@"raylib-zig" = .{
-            .url = "https://github.com/Not-Nik/raylib-zig/archive/dedc7c912ed44434c182fe29e7c997f37e99b068.tar.gz",
-            .hash = "12201895450c4309071f03d32a3f4bf012de2fe9f06baa9f6949dc6bb9f3850c5a7f",
+            .url = "https://github.com/Not-Nik/raylib-zig/archive/6cc4aec3c478b88559e7d7e40b9e29d01de0a18b.tar.gz",
+            .hash = "1220ff1a9e774784fe3f11ffe71bc0186f9e62eb0fe1727f676d038b62665a5c74c5",
         },
         .rtmidi_z = .{
-            .url = "https://github.com/ryleelyman/rtmidi_z/archive/de7c7a5f9dbdbe84f8792769e72a8347e0cc963f.tar.gz",
-            .hash = "12202255aa378adcdaada18c4f2b3a9b700a530fbf1fdb17b6ba8601c938e8c888e9",
+            .url = "https://github.com/ryleelyman/rtmidi_z/archive/74a1eaac4a679a7c71916b2ff2ec6881e5548124.tar.gz",
+            .hash = "12200ec3965148ae065d4c0f8547700d5a7f0494e2c7a59c09a951878ffb14f2d2d3",
         },
     },
     .paths = .{
