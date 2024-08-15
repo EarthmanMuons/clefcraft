@@ -23,7 +23,7 @@ pub fn main() !void {
     const window_width = app.piano.width() + (padding * 2);
     const window_height = app.piano.height() + 140;
 
-    rl.setConfigFlags(.flag_window_highdpi);
+    rl.setConfigFlags(rl.ConfigFlags{ .window_highdpi = true });
     rl.initWindow(window_width, window_height, app_name);
     defer rl.closeWindow();
 
