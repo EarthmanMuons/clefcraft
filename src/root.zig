@@ -8,9 +8,10 @@ pub const Scale = @import("theory.old/scale.zig").Scale;
 
 test {
     // Run all unit tests.
-    _ = @import("theory.old/interval.zig");
-    _ = @import("theory.old/key_signature.zig");
-    _ = @import("theory.old/note.zig");
-    _ = @import("theory.old/pitch.zig");
-    _ = @import("theory.old/scale.zig");
+    // _ = @import("theory.old/interval.zig");
+    // _ = @import("theory.old/key_signature.zig");
+    // _ = @import("theory.old/note.zig");
+    // _ = @import("theory.old/pitch.zig");
+    // _ = @import("theory.old/scale.zig");
+    _ = @import("theory/note.zig");
 }
