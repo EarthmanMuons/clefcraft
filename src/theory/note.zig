@@ -34,18 +34,20 @@ pub const Note = struct {
 
     pub fn toCustomString(self: Note, options: StringOptions) []const u8 {
         const note_table = switch (options.naming) {
-            .fixed_do => switch (options.encoding) {
-                .ascii => &note_names.solfege_ascii,
-                .unicode => &note_names.solfege_unicode,
-            },
             .german => &note_names.german,
             .latin => switch (options.encoding) {
                 .ascii => &note_names.latin_ascii,
                 .unicode => &note_names.latin_unicode,
             },
+            // Only "fixed do" solfège is supported for now.
+            .solfege => switch (options.encoding) {
+                .ascii => &note_names.solfege_ascii,
+                .unicode => &note_names.solfege_unicode,
+            },
         };
 
         const base_index = @as(usize, @intFromEnum(self.letter));
+
         const adjustment: usize = if (self.accidental) |acc| switch (acc) {
             .double_flat => 7,
             .flat => 14,
@@ -89,31 +91,31 @@ pub const Accidental = enum {
         };
     }
 
-    pub fn fromString(str: []const u8) !Accidental {
-        const AccidentalMapping = struct {
-            symbols: []const []const u8,
-            accidental: Accidental,
-        };
+    // pub fn fromString(str: []const u8) !Accidental {
+    //     const AccidentalMapping = struct {
+    //         symbols: []const []const u8,
+    //         accidental: Accidental,
+    //     };
 
-        const mappings = [_]AccidentalMapping{
-            .{ .symbols = &[_][]const u8{""}, .accidental = null },
-            .{ .symbols = &[_][]const u8{ "𝄫", "bb" }, .accidental = .double_flat },
-            .{ .symbols = &[_][]const u8{ "♭", "b" }, .accidental = .flat },
-            .{ .symbols = &[_][]const u8{ "♮", "n" }, .accidental = .natural },
-            .{ .symbols = &[_][]const u8{ "♯", "#" }, .accidental = .sharp },
-            .{ .symbols = &[_][]const u8{ "𝄪", "x", "##" }, .accidental = .double_sharp },
-        };
+    //     const mappings = [_]AccidentalMapping{
+    //         .{ .symbols = &[_][]const u8{""}, .accidental = null },
+    //         .{ .symbols = &[_][]const u8{ "𝄫", "bb" }, .accidental = .double_flat },
+    //         .{ .symbols = &[_][]const u8{ "♭", "b" }, .accidental = .flat },
+    //         .{ .symbols = &[_][]const u8{ "♮", "n" }, .accidental = .natural },
+    //         .{ .symbols = &[_][]const u8{ "♯", "#" }, .accidental = .sharp },
+    //         .{ .symbols = &[_][]const u8{ "𝄪", "x", "##" }, .accidental = .double_sharp },
+    //     };
 
-        for (mappings) |mapping| {
-            for (mapping.symbols) |symbol| {
-                if (std.mem.eql(u8, str, symbol)) {
-                    return mapping.accidental;
-                }
-            }
-        }
+    //     for (mappings) |mapping| {
+    //         for (mapping.symbols) |symbol| {
+    //             if (std.mem.eql(u8, str, symbol)) {
+    //                 return mapping.accidental;
+    //             }
+    //         }
+    //     }
 
-        return error.InvalidAccidental;
-    }
+    //     return error.InvalidAccidental;
+    // }
 };
 
 pub const StringOptions = struct {
@@ -122,9 +124,9 @@ pub const StringOptions = struct {
 };
 
 pub const NamingSystem = enum {
-    fixed_do,
     german,
     latin,
+    solfege,
 };
 
 pub const Encoding = enum {
