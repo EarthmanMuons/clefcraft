@@ -12,6 +12,55 @@ pub const Note = struct {
     letter: Letter,
     accidental: ?Accidental,
 
+    pub fn fromString(str: []const u8) !Note {
+        if (str.len < 1) return error.InvalidNoteString;
+
+        const first_char = std.ascii.toUpper(str[0]);
+        const letter = switch (first_char) {
+            'C' => Letter.c,
+            'D' => Letter.d,
+            'E' => Letter.e,
+            'F' => Letter.f,
+            'G' => Letter.g,
+            'A' => Letter.a,
+            'B' => Letter.b,
+            else => return error.InvalidLetter,
+        };
+
+        const accidental = if (str.len > 1) try parseAccidental(str[1..]) else null;
+
+        return Note{ .letter = letter, .accidental = accidental };
+    }
+
+    fn parseAccidental(str: []const u8) !Accidental {
+        const AccidentalMapping = struct {
+            symbol: []const u8,
+            accidental: Accidental,
+        };
+
+        const mappings = [_]AccidentalMapping{
+            .{ .symbol = "𝄫", .accidental = .double_flat },
+            .{ .symbol = "bb", .accidental = .double_flat },
+            .{ .symbol = "♭", .accidental = .flat },
+            .{ .symbol = "b", .accidental = .flat },
+            .{ .symbol = "♮", .accidental = .natural },
+            .{ .symbol = "n", .accidental = .natural },
+            .{ .symbol = "♯", .accidental = .sharp },
+            .{ .symbol = "#", .accidental = .sharp },
+            .{ .symbol = "𝄪", .accidental = .double_sharp },
+            .{ .symbol = "x", .accidental = .double_sharp },
+            .{ .symbol = "##", .accidental = .double_sharp },
+        };
+
+        for (mappings) |mapping| {
+            if (std.mem.eql(u8, str, mapping.symbol)) {
+                return mapping.accidental;
+            }
+        }
+
+        return error.InvalidAccidental;
+    }
+
     pub fn pitchClass(self: Note) u4 {
         const base_class = switch (self.letter) {
             .c => 0,
@@ -90,32 +139,6 @@ pub const Accidental = enum {
             .double_sharp => 2,
         };
     }
-
-    // pub fn fromString(str: []const u8) !Accidental {
-    //     const AccidentalMapping = struct {
-    //         symbols: []const []const u8,
-    //         accidental: Accidental,
-    //     };
-
-    //     const mappings = [_]AccidentalMapping{
-    //         .{ .symbols = &[_][]const u8{""}, .accidental = null },
-    //         .{ .symbols = &[_][]const u8{ "𝄫", "bb" }, .accidental = .double_flat },
-    //         .{ .symbols = &[_][]const u8{ "♭", "b" }, .accidental = .flat },
-    //         .{ .symbols = &[_][]const u8{ "♮", "n" }, .accidental = .natural },
-    //         .{ .symbols = &[_][]const u8{ "♯", "#" }, .accidental = .sharp },
-    //         .{ .symbols = &[_][]const u8{ "𝄪", "x", "##" }, .accidental = .double_sharp },
-    //     };
-
-    //     for (mappings) |mapping| {
-    //         for (mapping.symbols) |symbol| {
-    //             if (std.mem.eql(u8, str, symbol)) {
-    //                 return mapping.accidental;
-    //             }
-    //         }
-    //     }
-
-    //     return error.InvalidAccidental;
-    // }
 };
 
 pub const StringOptions = struct {
@@ -134,6 +157,59 @@ pub const Encoding = enum {
     unicode,
 };
 
+test "Note.fromString - valid inputs" {
+    const test_cases = [_]struct {
+        input: []const u8,
+        expected: Note,
+    }{
+        .{ .input = "C", .expected = .{ .letter = .c, .accidental = null } },
+        .{ .input = "d#", .expected = .{ .letter = .d, .accidental = .sharp } },
+        .{ .input = "Eb", .expected = .{ .letter = .e, .accidental = .flat } },
+        .{ .input = "f♯", .expected = .{ .letter = .f, .accidental = .sharp } },
+        .{ .input = "G♭", .expected = .{ .letter = .g, .accidental = .flat } },
+        .{ .input = "a𝄫", .expected = .{ .letter = .a, .accidental = .double_flat } },
+        .{ .input = "Bx", .expected = .{ .letter = .b, .accidental = .double_sharp } },
+        .{ .input = "cn", .expected = .{ .letter = .c, .accidental = .natural } },
+        .{ .input = "Dbb", .expected = .{ .letter = .d, .accidental = .double_flat } },
+        .{ .input = "e##", .expected = .{ .letter = .e, .accidental = .double_sharp } },
+    };
+
+    for (test_cases) |case| {
+        const result = try Note.fromString(case.input);
+        try testing.expectEqual(case.expected.letter, result.letter);
+        try testing.expectEqual(case.expected.accidental, result.accidental);
+    }
+}
+
+test "Note.fromString - invalid inputs" {
+    const invalid_inputs = [_][]const u8{
+        "",
+        "H",
+        "C###",
+        "Dxb",
+        "E#b",
+    };
+
+    for (invalid_inputs) |input| {
+        const result = Note.fromString(input);
+        try testing.expect(result == error.InvalidNoteString or
+            result == error.InvalidLetter or
+            result == error.InvalidAccidental);
+    }
+}
+
+test "Note.fromString and Note.toString roundtrip" {
+    const test_cases = [_][]const u8{
+        "C", "D♯", "E♭", "F♯", "G♭", "A𝄫", "B𝄪", "C♮",
+    };
+
+    for (test_cases) |case| {
+        const note = try Note.fromString(case);
+        const result = note.toString();
+        try testing.expectEqualStrings(case, result);
+    }
+}
+
 test "Note.toString - default options" {
     const note1 = Note{ .letter = .a, .accidental = null };
     const note2 = Note{ .letter = .b, .accidental = .flat };
@@ -144,4 +220,16 @@ test "Note.toString - default options" {
     try testing.expectEqualStrings("B♭", note2.toString());
     try testing.expectEqualStrings("C♯", note3.toString());
     try testing.expectEqualStrings("D♮", note4.toString());
+}
+
+test "Note.toCustomString - with custom options" {
+    const note1 = Note{ .letter = .a, .accidental = null };
+    const note2 = Note{ .letter = .b, .accidental = .flat };
+    const note3 = Note{ .letter = .c, .accidental = .sharp };
+    const note4 = Note{ .letter = .d, .accidental = .natural };
+
+    try testing.expectEqualStrings("La", note1.toCustomString(.{ .naming = .solfege }));
+    try testing.expectEqualStrings("B", note2.toCustomString(.{ .naming = .german }));
+    try testing.expectEqualStrings("C#", note3.toCustomString(.{ .encoding = .ascii }));
+    try testing.expectEqualStrings("D", note4.toCustomString(.{ .encoding = .ascii }));
 }
