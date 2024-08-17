@@ -3,10 +3,8 @@ const assert = std.debug.assert;
 const log = std.log.scoped(.note);
 const testing = std.testing;
 
+const constants = @import("constants.zig");
 const note_names = @import("note_names.zig");
-
-// The number of semitones per octave.
-const pitch_classes = 12;
 
 pub const Note = struct {
     letter: Letter,
@@ -62,7 +60,7 @@ pub const Note = struct {
     }
 
     pub fn pitchClass(self: Note) u4 {
-        const base_class = switch (self.letter) {
+        const base_class: u4 = switch (self.letter) {
             .c => 0,
             .d => 2,
             .e => 4,
@@ -71,10 +69,35 @@ pub const Note = struct {
             .a => 9,
             .b => 11,
         };
-        const adjustment = if (self.accidental) |acc| acc.pitchAdjustment() else 0;
+        const adjustment: i8 = if (self.accidental) |acc| acc.pitchAdjustment() else 0;
 
-        const result = @mod(base_class + adjustment, pitch_classes);
+        const result = @mod(base_class + adjustment, constants.pitch_classes);
         return @intCast(result);
+    }
+
+    /// Returns a `Note` based on the given pitch class, using the default mapping.
+    ///
+    /// 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
+    pub fn fromPitchClass(pitch_class: u4) Note {
+        assert(0 <= pitch_class and pitch_class < constants.pitch_classes);
+
+        const letter = switch (pitch_class) {
+            0, 1 => Letter.c,
+            2, 3 => Letter.d,
+            4 => Letter.e,
+            5, 6 => Letter.f,
+            7, 8 => Letter.g,
+            9, 10 => Letter.a,
+            11 => Letter.b,
+            else => unreachable,
+        };
+
+        const accidental = switch (pitch_class) {
+            1, 3, 6, 8, 10 => Accidental.sharp,
+            else => null,
+        };
+
+        return Note{ .letter = letter, .accidental = accidental };
     }
 
     pub fn toString(self: Note) []const u8 {
@@ -232,4 +255,60 @@ test "Note.toCustomString - with custom options" {
     try testing.expectEqualStrings("B", note2.toCustomString(.{ .naming = .german }));
     try testing.expectEqualStrings("C#", note3.toCustomString(.{ .encoding = .ascii }));
     try testing.expectEqualStrings("D", note4.toCustomString(.{ .encoding = .ascii }));
+}
+
+test "Note.pitchClass calculations" {
+    const test_cases = [_]struct {
+        note: Note,
+        expected: u4,
+    }{
+        // Natural notes
+        .{ .note = .{ .letter = .c, .accidental = null }, .expected = 0 },
+        .{ .note = .{ .letter = .d, .accidental = null }, .expected = 2 },
+        .{ .note = .{ .letter = .e, .accidental = null }, .expected = 4 },
+        .{ .note = .{ .letter = .f, .accidental = null }, .expected = 5 },
+        .{ .note = .{ .letter = .g, .accidental = null }, .expected = 7 },
+        .{ .note = .{ .letter = .a, .accidental = null }, .expected = 9 },
+        .{ .note = .{ .letter = .b, .accidental = null }, .expected = 11 },
+
+        // Sharp notes
+        .{ .note = .{ .letter = .c, .accidental = .sharp }, .expected = 1 },
+        .{ .note = .{ .letter = .d, .accidental = .sharp }, .expected = 3 },
+        .{ .note = .{ .letter = .f, .accidental = .sharp }, .expected = 6 },
+        .{ .note = .{ .letter = .g, .accidental = .sharp }, .expected = 8 },
+        .{ .note = .{ .letter = .a, .accidental = .sharp }, .expected = 10 },
+
+        // Flat notes
+        .{ .note = .{ .letter = .d, .accidental = .flat }, .expected = 1 },
+        .{ .note = .{ .letter = .e, .accidental = .flat }, .expected = 3 },
+        .{ .note = .{ .letter = .g, .accidental = .flat }, .expected = 6 },
+        .{ .note = .{ .letter = .a, .accidental = .flat }, .expected = 8 },
+        .{ .note = .{ .letter = .b, .accidental = .flat }, .expected = 10 },
+
+        // Double sharp notes
+        .{ .note = .{ .letter = .c, .accidental = .double_sharp }, .expected = 2 },
+        .{ .note = .{ .letter = .f, .accidental = .double_sharp }, .expected = 7 },
+
+        // Double flat notes
+        .{ .note = .{ .letter = .d, .accidental = .double_flat }, .expected = 0 },
+        .{ .note = .{ .letter = .e, .accidental = .double_flat }, .expected = 2 },
+
+        // Edge cases
+        .{ .note = .{ .letter = .b, .accidental = .sharp }, .expected = 0 },
+        .{ .note = .{ .letter = .c, .accidental = .flat }, .expected = 11 },
+        .{ .note = .{ .letter = .e, .accidental = .sharp }, .expected = 5 },
+        .{ .note = .{ .letter = .f, .accidental = .flat }, .expected = 4 },
+    };
+
+    for (test_cases) |case| {
+        try std.testing.expectEqual(case.expected, case.note.pitchClass());
+    }
+}
+
+test "Note.fromPitchClass and Note.pitchClass roundtrip" {
+    var pitch_class: u4 = 0;
+    while (pitch_class < constants.pitch_classes) : (pitch_class += 1) {
+        const note = Note.fromPitchClass(pitch_class);
+        try std.testing.expectEqual(pitch_class, note.pitchClass());
+    }
 }
