@@ -10,8 +10,6 @@ pub const Note = struct {
     letter: Letter,
     accidental: ?Accidental,
 
-    // pub fn new(letter: Letter, accidental: ?Accidental) Note { }
-
     /// Returns a `Note` based on the given pitch class, using the default mapping.
     ///
     /// 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
