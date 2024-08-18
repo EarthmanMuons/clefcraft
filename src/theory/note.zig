@@ -6,6 +6,12 @@ const testing = std.testing;
 const constants = @import("constants.zig");
 const note_names = @import("note_names.zig");
 
+pub const NoteError = error{
+    InvalidAccidental,
+    InvalidLetter,
+    InvalidStringFormat,
+};
+
 pub const Note = struct {
     letter: Letter,
     accidental: ?Accidental,
@@ -37,8 +43,8 @@ pub const Note = struct {
         return Note{ .letter = letter, .accidental = accidental };
     }
 
-    pub fn fromString(str: []const u8) !Note {
-        if (str.len < 1) return error.InvalidNoteString;
+    pub fn fromString(str: []const u8) NoteError!Note {
+        if (str.len < 1) return error.InvalidStringFormat;
 
         const first_char = std.ascii.toUpper(str[0]);
         const letter = switch (first_char) {
@@ -217,9 +223,9 @@ test "Note.fromString - invalid inputs" {
 
     for (invalid_inputs) |input| {
         const result = Note.fromString(input);
-        try testing.expect(result == error.InvalidNoteString or
-            result == error.InvalidLetter or
-            result == error.InvalidAccidental);
+        try testing.expect(result == NoteError.InvalidStringFormat or
+            result == NoteError.InvalidLetter or
+            result == NoteError.InvalidAccidental);
     }
 }
 

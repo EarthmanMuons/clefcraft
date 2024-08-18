@@ -9,14 +9,14 @@ const Note = @import("note.zig").Note;
 const standard_pitch = Pitch{ .note = Note{ .letter = .a, .accidental = null }, .octave = 4 };
 const standard_freq = 440.0; // hertz
 
+pub const PitchError = error{
+    OutOfMidiRange,
+};
+
 // Musical pitch representation using Scientific Pitch Notation.
 pub const Pitch = struct {
     note: Note,
     octave: i8,
-
-    pub const Error = error{
-        OutOfMidiRange,
-    };
 
     // pub fn new(note: Note, octave: i8) Pitch {}
 
@@ -67,10 +67,10 @@ pub const Pitch = struct {
         return self.octave + adjustment;
     }
 
-    pub fn toMidiNumber(self: Pitch) Error!u7 {
+    pub fn toMidiNumber(self: Pitch) PitchError!u7 {
         const semitones_from_c_neg1 = self.semitonesFromC0() + constants.pitch_classes; // C-1 is 12 semitones below C0
         if (semitones_from_c_neg1 < 0 or semitones_from_c_neg1 > 127) {
-            return Error.OutOfMidiRange;
+            return error.OutOfMidiRange;
         }
         return @intCast(semitones_from_c_neg1);
     }
@@ -154,7 +154,7 @@ test "negative octaves and MIDI range boundaries" {
 
     const c_flat_neg1 = Pitch{ .note = Note{ .letter = .c, .accidental = .flat }, .octave = -1 };
     try std.testing.expectEqual(c_flat_neg1.getEffectiveOctave(), -2);
-    try std.testing.expectError(Pitch.Error.OutOfMidiRange, c_flat_neg1.toMidiNumber());
+    try std.testing.expectError(PitchError.OutOfMidiRange, c_flat_neg1.toMidiNumber());
 
     const b_neg1 = Pitch{ .note = Note{ .letter = .b, .accidental = null }, .octave = -1 };
     try std.testing.expectEqual(b_neg1.getEffectiveOctave(), -1);
@@ -171,8 +171,8 @@ test "negative octaves and MIDI range boundaries" {
     try std.testing.expectEqual(try g9.toMidiNumber(), 127);
 
     const g_sharp9 = Pitch{ .note = Note{ .letter = .g, .accidental = .sharp }, .octave = 9 };
-    try std.testing.expectError(Pitch.Error.OutOfMidiRange, g_sharp9.toMidiNumber());
+    try std.testing.expectError(PitchError.OutOfMidiRange, g_sharp9.toMidiNumber());
 
     const a9 = Pitch{ .note = Note{ .letter = .a, .accidental = null }, .octave = 9 };
-    try std.testing.expectError(Pitch.Error.OutOfMidiRange, a9.toMidiNumber());
+    try std.testing.expectError(PitchError.OutOfMidiRange, a9.toMidiNumber());
 }
