@@ -6,12 +6,6 @@ const testing = std.testing;
 const constants = @import("constants.zig");
 const note_names = @import("note_names.zig");
 
-pub const NoteError = error{
-    InvalidAccidental,
-    InvalidLetter,
-    InvalidStringFormat,
-};
-
 pub const Note = struct {
     letter: Letter,
     accidental: ?Accidental,
@@ -150,6 +144,12 @@ pub const Note = struct {
         const str = self.toString();
         try writer.print("Note({s})", .{str});
     }
+};
+
+pub const NoteError = error{
+    InvalidAccidental,
+    InvalidLetter,
+    InvalidStringFormat,
 };
 
 pub const Letter = enum { c, d, e, f, g, a, b };

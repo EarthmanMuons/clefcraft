@@ -9,10 +9,6 @@ const Note = @import("note.zig").Note;
 const standard_pitch = Pitch{ .note = Note{ .letter = .a, .accidental = null }, .octave = 4 };
 const standard_freq = 440.0; // hertz
 
-pub const PitchError = error{
-    OutOfMidiRange,
-};
-
 // Musical pitch representation using Scientific Pitch Notation.
 pub const Pitch = struct {
     note: Note,
@@ -39,18 +35,8 @@ pub const Pitch = struct {
 
     pub fn getFrequencyWithReference(self: Pitch, ref_pitch: Pitch, ref_freq: f64) f64 {
         const semitones_from_ref = self.semitonesFrom(ref_pitch);
-        return ref_freq * std.math.pow(f64, 2.0, @as(f64, @floatFromInt(semitones_from_ref)) / @as(f64, constants.pitch_classes));
-    }
-
-    fn semitonesFrom(self: Pitch, other: Pitch) i16 {
-        return self.semitonesFromC0() - other.semitonesFromC0();
-    }
-
-    fn semitonesFromC0(self: Pitch) i16 {
-        const pitch_class = self.note.getPitchClass();
-        const effective_octave = self.getEffectiveOctave();
-
-        return @as(i16, effective_octave) * constants.pitch_classes + @as(i16, pitch_class);
+        const exponent: f64 = @floatFromInt(semitones_from_ref);
+        return ref_freq * std.math.pow(f64, 2.0, exponent / @as(f64, constants.pitch_classes));
     }
 
     pub fn getEffectiveOctave(self: Pitch) i8 {
@@ -68,16 +54,34 @@ pub const Pitch = struct {
     }
 
     pub fn toMidiNumber(self: Pitch) PitchError!u7 {
-        const semitones_from_c_neg1 = self.semitonesFromC0() + constants.pitch_classes; // C-1 is 12 semitones below C0
-        if (semitones_from_c_neg1 < 0 or semitones_from_c_neg1 > 127) {
+        // C-1 is the lowest MIDI number (0).
+        const c_neg1_pitch = Pitch{ .note = Note{ .letter = .c, .accidental = null }, .octave = -1 };
+        const semitones_from_c_neg1 = self.semitonesFrom(c_neg1_pitch);
+
+        if (semitones_from_c_neg1 < 0 or 127 < semitones_from_c_neg1) {
             return error.OutOfMidiRange;
         }
+
         return @intCast(semitones_from_c_neg1);
     }
 
     // pub fn toString(self: Pitch) []const u8 { }
 
     // pub fn isEnharmonic(self: Pitch, other: Pitch) bool { }
+
+    pub fn semitonesFrom(self: Pitch, other: Pitch) i16 {
+        const self_effective_octave: i16 = @intCast(self.getEffectiveOctave());
+        const other_effective_octave: i16 = @intCast(other.getEffectiveOctave());
+        const self_pitch_class: i16 = @intCast(self.note.getPitchClass());
+        const other_pitch_class: i16 = @intCast(other.note.getPitchClass());
+
+        return (self_effective_octave * constants.pitch_classes + self_pitch_class) -
+            (other_effective_octave * constants.pitch_classes + other_pitch_class);
+    }
+};
+
+pub const PitchError = error{
+    OutOfMidiRange,
 };
 
 const epsilon = 0.001;
