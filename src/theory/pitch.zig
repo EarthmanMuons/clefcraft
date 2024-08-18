@@ -61,9 +61,9 @@ pub const Pitch = struct {
     }
 
     pub fn getFrequencyWithReference(self: Pitch, ref_pitch: Pitch, ref_freq: f64) f64 {
-        const semitones_from_ref = self.semitonesFrom(ref_pitch);
-        const exponent: f64 = @floatFromInt(semitones_from_ref);
-        return ref_freq * std.math.pow(f64, 2.0, exponent / @as(f64, constants.pitch_classes));
+        const semitones_from_ref: f64 = @floatFromInt(self.semitonesFrom(ref_pitch));
+        const ratio = semitones_from_ref / constants.pitch_classes;
+        return ref_freq * @exp2(ratio);
     }
 
     pub fn getEffectiveOctave(self: Pitch) i8 {
