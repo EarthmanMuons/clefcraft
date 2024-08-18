@@ -25,7 +25,34 @@ pub const Pitch = struct {
         return Pitch{ .note = note, .octave = @intCast(octave) };
     }
 
-    // pub fn fromString(str: []const u8) !Pitch {}
+    pub fn fromString(str: []const u8) !Pitch {
+        if (str.len < 2) return error.InvalidStringFormat;
+
+        // Parse the octave number from the end of the string.
+        var octave_start: usize = str.len;
+        while (octave_start > 0) : (octave_start -= 1) {
+            if (std.ascii.isDigit(str[octave_start - 1]) or str[octave_start - 1] == '-') {
+                continue;
+            } else {
+                break;
+            }
+        }
+
+        if (octave_start == str.len) return error.InvalidStringFormat;
+
+        const note_str = str[0..octave_start];
+        const octave_str = str[octave_start..];
+
+        const note = try Note.fromString(note_str);
+        const octave = try std.fmt.parseInt(i8, octave_str, 10);
+
+        // Check if the octave is within a practical range.
+        if (octave < -2 or 10 < octave) {
+            return error.OctaveOutOfRange;
+        }
+
+        return Pitch{ .note = note, .octave = octave };
+    }
 
     // pub fn transpose(self: Pitch, semitones: i8) Pitch {}
 
@@ -81,10 +108,40 @@ pub const Pitch = struct {
 };
 
 pub const PitchError = error{
+    InvalidStringFormat,
+    OctaveOutOfRange,
     OutOfMidiRange,
 };
 
 const epsilon = 0.001;
+
+test "Pitch.fromString" {
+    const TestCase = struct { input: []const u8, expected: Pitch };
+    const test_cases = [_]TestCase{
+        .{ .input = "C-2", .expected = .{ .note = .{ .letter = .c, .accidental = null }, .octave = -2 } },
+        .{ .input = "A0", .expected = .{ .note = .{ .letter = .a, .accidental = null }, .octave = 0 } },
+        .{ .input = "C4", .expected = .{ .note = .{ .letter = .c, .accidental = null }, .octave = 4 } },
+        .{ .input = "C♯4", .expected = .{ .note = .{ .letter = .c, .accidental = .sharp }, .octave = 4 } },
+        .{ .input = "A4", .expected = .{ .note = .{ .letter = .a, .accidental = null }, .octave = 4 } },
+        .{ .input = "C8", .expected = .{ .note = .{ .letter = .c, .accidental = null }, .octave = 8 } },
+        .{ .input = "C10", .expected = .{ .note = .{ .letter = .c, .accidental = null }, .octave = 10 } },
+    };
+
+    for (test_cases) |case| {
+        const result = try Pitch.fromString(case.input);
+        try std.testing.expectEqual(case.expected.note.letter, result.note.letter);
+        try std.testing.expectEqual(case.expected.note.accidental, result.note.accidental);
+        try std.testing.expectEqual(case.expected.octave, result.octave);
+    }
+
+    // Test error cases
+    try std.testing.expectError(error.InvalidStringFormat, Pitch.fromString("C"));
+    try std.testing.expectError(error.InvalidStringFormat, Pitch.fromString("4"));
+    try std.testing.expectError(error.InvalidLetter, Pitch.fromString("H4"));
+    try std.testing.expectError(error.InvalidAccidental, Pitch.fromString("Cy4"));
+    try std.testing.expectError(error.OctaveOutOfRange, Pitch.fromString("C-3"));
+    try std.testing.expectError(error.OctaveOutOfRange, Pitch.fromString("C11"));
+}
 
 test "frequency calculation" {
     const a4 = Pitch{ .note = Note{ .letter = .a, .accidental = null }, .octave = 4 };
