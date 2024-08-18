@@ -10,6 +10,33 @@ pub const Note = struct {
     letter: Letter,
     accidental: ?Accidental,
 
+    // pub fn new(letter: Letter, accidental: ?Accidental) Note { }
+
+    /// Returns a `Note` based on the given pitch class, using the default mapping.
+    ///
+    /// 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
+    pub fn fromPitchClass(pitch_class: u4) Note {
+        assert(0 <= pitch_class and pitch_class < constants.pitch_classes);
+
+        const letter = switch (pitch_class) {
+            0, 1 => Letter.c,
+            2, 3 => Letter.d,
+            4 => Letter.e,
+            5, 6 => Letter.f,
+            7, 8 => Letter.g,
+            9, 10 => Letter.a,
+            11 => Letter.b,
+            else => unreachable,
+        };
+
+        const accidental = switch (pitch_class) {
+            1, 3, 6, 8, 10 => Accidental.sharp,
+            else => null,
+        };
+
+        return Note{ .letter = letter, .accidental = accidental };
+    }
+
     pub fn fromString(str: []const u8) !Note {
         if (str.len < 1) return error.InvalidNoteString;
 
@@ -59,7 +86,7 @@ pub const Note = struct {
         return error.InvalidAccidental;
     }
 
-    pub fn pitchClass(self: Note) u4 {
+    pub fn getPitchClass(self: Note) u4 {
         const base_class: u4 = switch (self.letter) {
             .c => 0,
             .d => 2,
@@ -69,35 +96,10 @@ pub const Note = struct {
             .a => 9,
             .b => 11,
         };
-        const adjustment: i8 = if (self.accidental) |acc| acc.pitchAdjustment() else 0;
+        const adjustment: i8 = if (self.accidental) |acc| acc.getPitchAdjustment() else 0;
 
         const result = @mod(base_class + adjustment, constants.pitch_classes);
         return @intCast(result);
-    }
-
-    /// Returns a `Note` based on the given pitch class, using the default mapping.
-    ///
-    /// 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
-    pub fn fromPitchClass(pitch_class: u4) Note {
-        assert(0 <= pitch_class and pitch_class < constants.pitch_classes);
-
-        const letter = switch (pitch_class) {
-            0, 1 => Letter.c,
-            2, 3 => Letter.d,
-            4 => Letter.e,
-            5, 6 => Letter.f,
-            7, 8 => Letter.g,
-            9, 10 => Letter.a,
-            11 => Letter.b,
-            else => unreachable,
-        };
-
-        const accidental = switch (pitch_class) {
-            1, 3, 6, 8, 10 => Accidental.sharp,
-            else => null,
-        };
-
-        return Note{ .letter = letter, .accidental = accidental };
     }
 
     pub fn toString(self: Note) []const u8 {
@@ -153,7 +155,7 @@ pub const Accidental = enum {
     sharp,
     double_sharp,
 
-    pub fn pitchAdjustment(self: Accidental) i8 {
+    pub fn getPitchAdjustment(self: Accidental) i8 {
         return switch (self) {
             .double_flat => -2,
             .flat => -1,
@@ -257,7 +259,7 @@ test "Note.toCustomString - with custom options" {
     try testing.expectEqualStrings("D", note4.toCustomString(.{ .encoding = .ascii }));
 }
 
-test "Note.pitchClass calculations" {
+test "Note.getPitchClass calculations" {
     const test_cases = [_]struct {
         note: Note,
         expected: u4,
@@ -301,14 +303,14 @@ test "Note.pitchClass calculations" {
     };
 
     for (test_cases) |case| {
-        try std.testing.expectEqual(case.expected, case.note.pitchClass());
+        try std.testing.expectEqual(case.expected, case.note.getPitchClass());
     }
 }
 
-test "Note.fromPitchClass and Note.pitchClass roundtrip" {
+test "Note.fromPitchClass and Note.getPitchClass roundtrip" {
     var pitch_class: u4 = 0;
     while (pitch_class < constants.pitch_classes) : (pitch_class += 1) {
         const note = Note.fromPitchClass(pitch_class);
-        try std.testing.expectEqual(pitch_class, note.pitchClass());
+        try std.testing.expectEqual(pitch_class, note.getPitchClass());
     }
 }
