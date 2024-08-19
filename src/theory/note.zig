@@ -208,6 +208,13 @@ test "pitch class calculations" {
     }
 }
 
+test "pitch class roundtrip consistency" {
+    for (0..constants.pitch_classes) |pitch_class| {
+        const note = Note.fromPitchClass(@intCast(pitch_class));
+        try testing.expectEqual(pitch_class, note.getPitchClass());
+    }
+}
+
 test "valid string formats" {
     const test_cases = .{
         .{ "C", Note{ .letter = .c, .accidental = null } },
@@ -254,13 +261,6 @@ test "format options" {
 
     inline for (test_cases) |case| {
         try testing.expectFmt(case[1], case[0], .{note});
-    }
-}
-
-test "pitch class roundtrip consistency" {
-    for (0..constants.pitch_classes) |pitch_class| {
-        const note = Note.fromPitchClass(@intCast(pitch_class));
-        try testing.expectEqual(pitch_class, note.getPitchClass());
     }
 }
 

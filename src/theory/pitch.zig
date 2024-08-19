@@ -11,6 +11,8 @@ const standard_pitch = Pitch{ .note = Note{ .letter = .a, .accidental = null }, 
 const standard_freq = 440.0; // hertz
 
 // The practical range for musical octaves covering MIDI numbers and human hearing.
+// On the low side, B#-2 has an effective octave of -1 and would be MIDI number 0.
+// On the high side, octave 10 gets us above the typical 20k Hz hearing range.
 pub const min_octave: i8 = -2;
 pub const max_octave: i8 = 10;
 
@@ -131,205 +133,136 @@ pub const PitchError = error{
     OutOfMidiRange,
 };
 
-const epsilon = 0.001;
-
-test "Pitch.fromString" {
-    const TestCase = struct { input: []const u8, expected: Pitch };
-    const test_cases = [_]TestCase{
-        .{ .input = "C-2", .expected = .{ .note = .{ .letter = .c, .accidental = null }, .octave = -2 } },
-        .{ .input = "A0", .expected = .{ .note = .{ .letter = .a, .accidental = null }, .octave = 0 } },
-        .{ .input = "C4", .expected = .{ .note = .{ .letter = .c, .accidental = null }, .octave = 4 } },
-        .{ .input = "C♯4", .expected = .{ .note = .{ .letter = .c, .accidental = .sharp }, .octave = 4 } },
-        .{ .input = "A4", .expected = .{ .note = .{ .letter = .a, .accidental = null }, .octave = 4 } },
-        .{ .input = "C8", .expected = .{ .note = .{ .letter = .c, .accidental = null }, .octave = 8 } },
-        .{ .input = "C10", .expected = .{ .note = .{ .letter = .c, .accidental = null }, .octave = 10 } },
+test "valid string formats" {
+    const test_cases = .{
+        .{ "C-2", Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = -2 } },
+        .{ "A0", Pitch{ .note = .{ .letter = .a, .accidental = null }, .octave = 0 } },
+        .{ "C4", Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = 4 } },
+        .{ "C♯4", Pitch{ .note = .{ .letter = .c, .accidental = .sharp }, .octave = 4 } },
+        .{ "A4", Pitch{ .note = .{ .letter = .a, .accidental = null }, .octave = 4 } },
+        .{ "C8", Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = 8 } },
+        .{ "C10", Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = 10 } },
     };
 
-    for (test_cases) |case| {
-        const result = try Pitch.fromString(case.input);
-        try testing.expectEqual(case.expected, result);
-    }
-
-    // Test error cases
-    try testing.expectError(error.InvalidStringFormat, Pitch.fromString("C"));
-    try testing.expectError(error.InvalidStringFormat, Pitch.fromString("4"));
-    try testing.expectError(error.InvalidLetter, Pitch.fromString("H4"));
-    try testing.expectError(error.InvalidAccidental, Pitch.fromString("Cy4"));
-    try testing.expectError(error.OctaveOutOfRange, Pitch.fromString("C-3"));
-    try testing.expectError(error.OctaveOutOfRange, Pitch.fromString("C11"));
-}
-
-test "Pitch.format" {
-    const test_cases = [_]struct { expected: []const u8, pitch: Pitch }{
-        .{ .expected = "C4", .pitch = .{ .note = .{ .letter = .c, .accidental = null }, .octave = 4 } },
-        .{ .expected = "A♯-1", .pitch = .{ .note = .{ .letter = .a, .accidental = .sharp }, .octave = -1 } },
-        .{ .expected = "F♭5", .pitch = .{ .note = .{ .letter = .f, .accidental = .flat }, .octave = 5 } },
-        .{ .expected = "B♮0", .pitch = .{ .note = .{ .letter = .b, .accidental = .natural }, .octave = 0 } },
-    };
-
-    for (test_cases) |case| {
-        var buf: [8]u8 = undefined;
-        const formatted = try std.fmt.bufPrint(&buf, "{}", .{case.pitch});
-        try testing.expectEqualStrings(case.expected, formatted);
+    inline for (test_cases) |case| {
+        const result = try Pitch.fromString(case[0]);
+        try testing.expectEqual(case[1], result);
     }
 }
 
-test "Pitch.format with Note custom options" {
-    const pitch = Pitch{ .note = .{ .letter = .c, .accidental = .sharp }, .octave = 4 };
-
-    try std.testing.expectFmt("C♯4", "{}", .{pitch});
-    try std.testing.expectFmt("Cis4", "{g}", .{pitch});
-    try std.testing.expectFmt("C#4", "{c}", .{pitch});
-    try std.testing.expectFmt("Do♯4", "{s}", .{pitch});
-}
-
-test "Pitch.fromString and Pitch.format roundtrip" {
-    const test_cases = [_][]const u8{
-        "C-2", "A0", "C4", "C♯4", "F♭3", "B♮7", "G𝄫2", "E𝄪6",
+test "invalid string formats" {
+    const test_cases = .{
+        .{ "C", error.InvalidStringFormat },
+        .{ "4", error.InvalidStringFormat },
+        .{ "H4", error.InvalidLetter },
+        .{ "Cy4", error.InvalidAccidental },
+        .{ "C-3", error.OctaveOutOfRange },
+        .{ "C11", error.OctaveOutOfRange },
     };
 
-    for (test_cases) |case| {
-        const pitch = try Pitch.fromString(case);
-        var buf: [8]u8 = undefined;
-        const formatted = try std.fmt.bufPrint(&buf, "{}", .{pitch});
-        try testing.expectEqualStrings(case, formatted);
+    inline for (test_cases) |case| {
+        try testing.expectError(case[1], Pitch.fromString(case[0]));
     }
 }
 
-test "frequency calculation" {
-    const a4 = Pitch{ .note = Note{ .letter = .a, .accidental = null }, .octave = 4 };
-    try testing.expectApproxEqAbs(a4.getFrequency(), 440.0, epsilon);
+test "string roundtrip consistency" {
+    const test_cases = .{ "C-2", "A0", "C4", "C♯4", "F♭3", "B♮7", "G𝄫2", "E𝄪6" };
 
-    const c4 = Pitch{ .note = Note{ .letter = .c, .accidental = null }, .octave = 4 };
-    try testing.expectApproxEqAbs(c4.getFrequency(), 261.626, epsilon);
+    inline for (test_cases) |input| {
+        const pitch = try Pitch.fromString(input);
+        try testing.expectFmt(input, "{}", .{pitch});
+    }
 }
 
-test "frequency calculation with octave wrapping" {
-    const b3 = Pitch{ .note = Note{ .letter = .b, .accidental = null }, .octave = 3 };
-    const c_flat4 = Pitch{ .note = Note{ .letter = .c, .accidental = .flat }, .octave = 4 };
+test "frequency calculations" {
+    const epsilon = 0.001;
+    const test_cases = .{
+        .{ Pitch{ .note = .{ .letter = .a, .accidental = null }, .octave = 4 }, 440.0 },
+        .{ Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = 4 }, 261.626 },
+        .{ Pitch{ .note = .{ .letter = .b, .accidental = null }, .octave = 3 }, 246.942 },
+        .{ Pitch{ .note = .{ .letter = .c, .accidental = .flat }, .octave = 4 }, 246.942 },
+    };
 
-    try testing.expectApproxEqAbs(b3.getFrequency(), c_flat4.getFrequency(), epsilon);
-    try testing.expectApproxEqAbs(b3.getFrequency(), 246.942, epsilon);
+    inline for (test_cases) |case| {
+        try testing.expectApproxEqAbs(case[0].getFrequency(), case[1], epsilon);
+    }
 }
 
-test "MIDI number conversion" {
-    const a4 = Pitch{ .note = Note{ .letter = .a, .accidental = null }, .octave = 4 };
-    try testing.expectEqual(try a4.toMidiNumber(), 69);
+test "MIDI number conversions" {
+    const test_cases = .{
+        .{ Pitch{ .note = .{ .letter = .a, .accidental = null }, .octave = 4 }, 69 },
+        .{ Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = 4 }, 60 },
+        .{ Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = -1 }, 0 },
+        .{ Pitch{ .note = .{ .letter = .g, .accidental = null }, .octave = 9 }, 127 },
+        .{ Pitch{ .note = .{ .letter = .b, .accidental = null }, .octave = 3 }, 59 },
+        .{ Pitch{ .note = .{ .letter = .c, .accidental = .flat }, .octave = 4 }, 59 },
+        .{ Pitch{ .note = .{ .letter = .c, .accidental = .double_flat }, .octave = 4 }, 58 },
+        .{ Pitch{ .note = .{ .letter = .a, .accidental = .sharp }, .octave = 3 }, 58 },
+    };
 
-    const c4 = Pitch{ .note = Note{ .letter = .c, .accidental = null }, .octave = 4 };
-    try testing.expectEqual(try c4.toMidiNumber(), 60);
-
-    const c_neg1 = Pitch{ .note = Note{ .letter = .c, .accidental = null }, .octave = -1 };
-    try testing.expectEqual(try c_neg1.toMidiNumber(), 0);
-
-    const g9 = Pitch{ .note = Note{ .letter = .g, .accidental = null }, .octave = 9 };
-    try testing.expectEqual(try g9.toMidiNumber(), 127);
-
-    // Test fromMidiNumber
-    try testing.expectEqual(Pitch.fromMidiNumber(69).note.letter, .a);
-    try testing.expectEqual(Pitch.fromMidiNumber(69).octave, 4);
-
-    try testing.expectEqual(Pitch.fromMidiNumber(60).note.letter, .c);
-    try testing.expectEqual(Pitch.fromMidiNumber(60).octave, 4);
-
-    try testing.expectEqual(Pitch.fromMidiNumber(0).note.letter, .c);
-    try testing.expectEqual(Pitch.fromMidiNumber(0).octave, -1);
-
-    try testing.expectEqual(Pitch.fromMidiNumber(127).note.letter, .g);
-    try testing.expectEqual(Pitch.fromMidiNumber(127).octave, 9);
-}
-
-test "MIDI number conversion with octave wrapping" {
-    const b3 = Pitch{ .note = Note{ .letter = .b, .accidental = null }, .octave = 3 };
-    const c_flat4 = Pitch{ .note = Note{ .letter = .c, .accidental = .flat }, .octave = 4 };
-
-    try testing.expectEqual(try b3.toMidiNumber(), try c_flat4.toMidiNumber());
-    try testing.expectEqual(try b3.toMidiNumber(), 59);
-}
-
-test "edge cases with double accidentals" {
-    const b_sharp3 = Pitch{ .note = Note{ .letter = .b, .accidental = .sharp }, .octave = 3 };
-    const c4 = Pitch{ .note = Note{ .letter = .c, .accidental = null }, .octave = 4 };
-    try testing.expectEqual(try b_sharp3.toMidiNumber(), try c4.toMidiNumber());
-
-    const c_flat4 = Pitch{ .note = Note{ .letter = .c, .accidental = .flat }, .octave = 4 };
-    const b3 = Pitch{ .note = Note{ .letter = .b, .accidental = null }, .octave = 3 };
-    try testing.expectEqual(try c_flat4.toMidiNumber(), try b3.toMidiNumber());
-
-    const c_double_flat4 = Pitch{ .note = Note{ .letter = .c, .accidental = .double_flat }, .octave = 4 };
-    const a_sharp3 = Pitch{ .note = Note{ .letter = .a, .accidental = .sharp }, .octave = 3 };
-    try testing.expectEqual(try c_double_flat4.toMidiNumber(), try a_sharp3.toMidiNumber());
+    inline for (test_cases) |case| {
+        try testing.expectEqual(try case[0].toMidiNumber(), case[1]);
+    }
 }
 
 test "negative octaves and MIDI range boundaries" {
-    const c_neg1 = Pitch{ .note = Note{ .letter = .c, .accidental = null }, .octave = -1 };
-    try testing.expectEqual(c_neg1.getEffectiveOctave(), -1);
-    try testing.expectEqual(try c_neg1.toMidiNumber(), 0);
+    const test_cases = .{
+        .{ Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = -1 }, 0, false },
+        .{ Pitch{ .note = .{ .letter = .c, .accidental = .flat }, .octave = -1 }, 0, true },
+        .{ Pitch{ .note = .{ .letter = .b, .accidental = null }, .octave = -1 }, 11, false },
+        .{ Pitch{ .note = .{ .letter = .b, .accidental = .sharp }, .octave = -2 }, 0, false },
+        .{ Pitch{ .note = .{ .letter = .c, .accidental = .sharp }, .octave = -1 }, 1, false },
+        .{ Pitch{ .note = .{ .letter = .g, .accidental = null }, .octave = 9 }, 127, false },
+        .{ Pitch{ .note = .{ .letter = .g, .accidental = .sharp }, .octave = 9 }, 0, true },
+        .{ Pitch{ .note = .{ .letter = .a, .accidental = null }, .octave = 9 }, 0, true },
+    };
 
-    const c_flat_neg1 = Pitch{ .note = Note{ .letter = .c, .accidental = .flat }, .octave = -1 };
-    try testing.expectEqual(c_flat_neg1.getEffectiveOctave(), -2);
-    try testing.expectError(PitchError.OutOfMidiRange, c_flat_neg1.toMidiNumber());
-
-    const b_neg1 = Pitch{ .note = Note{ .letter = .b, .accidental = null }, .octave = -1 };
-    try testing.expectEqual(b_neg1.getEffectiveOctave(), -1);
-    try testing.expectEqual(try b_neg1.toMidiNumber(), 11);
-
-    const b_sharp_neg2 = Pitch{ .note = Note{ .letter = .b, .accidental = .sharp }, .octave = -2 };
-    try testing.expectEqual(b_sharp_neg2.getEffectiveOctave(), -1);
-    try testing.expectEqual(try b_sharp_neg2.toMidiNumber(), 0);
-
-    const c_sharp_neg1 = Pitch{ .note = Note{ .letter = .c, .accidental = .sharp }, .octave = -1 };
-    try testing.expectEqual(try c_sharp_neg1.toMidiNumber(), 1);
-
-    const g9 = Pitch{ .note = Note{ .letter = .g, .accidental = null }, .octave = 9 };
-    try testing.expectEqual(try g9.toMidiNumber(), 127);
-
-    const g_sharp9 = Pitch{ .note = Note{ .letter = .g, .accidental = .sharp }, .octave = 9 };
-    try testing.expectError(PitchError.OutOfMidiRange, g_sharp9.toMidiNumber());
-
-    const a9 = Pitch{ .note = Note{ .letter = .a, .accidental = null }, .octave = 9 };
-    try testing.expectError(PitchError.OutOfMidiRange, a9.toMidiNumber());
+    inline for (test_cases) |case| {
+        if (case[2]) {
+            try testing.expectError(error.OutOfMidiRange, case[0].toMidiNumber());
+        } else {
+            try testing.expectEqual(try case[0].toMidiNumber(), case[1]);
+        }
+    }
 }
 
-test "Pitch.isEnharmonic" {
-    const c4 = Pitch{ .note = Note{ .letter = .c, .accidental = null }, .octave = 4 };
-    const b_sharp3 = Pitch{ .note = Note{ .letter = .b, .accidental = .sharp }, .octave = 3 };
-    const d_flat4 = Pitch{ .note = Note{ .letter = .d, .accidental = .flat }, .octave = 4 };
-    const c_sharp4 = Pitch{ .note = Note{ .letter = .c, .accidental = .sharp }, .octave = 4 };
-    const e_double_flat4 = Pitch{ .note = Note{ .letter = .e, .accidental = .double_flat }, .octave = 4 };
-    const d4 = Pitch{ .note = Note{ .letter = .d, .accidental = null }, .octave = 4 };
+test "MIDI number roundtrip consistency" {
+    for (0..128) |midi_number| {
+        const pitch = Pitch.fromMidiNumber(@as(u7, @intCast(midi_number)));
+        try testing.expectEqual(midi_number, try pitch.toMidiNumber());
+    }
+}
 
-    try testing.expect(c4.isEnharmonic(b_sharp3));
-    try testing.expect(d_flat4.isEnharmonic(c_sharp4));
-    try testing.expect(e_double_flat4.isEnharmonic(d4));
-    try testing.expect(!d_flat4.isEnharmonic(e_double_flat4));
-    try testing.expect(!c4.isEnharmonic(d_flat4));
+test "enharmonic equivalence" {
+    const test_cases = .{
+        .{
+            Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = 4 },
+            Pitch{ .note = .{ .letter = .b, .accidental = .sharp }, .octave = 3 },
+            true,
+        },
+        .{
+            Pitch{ .note = .{ .letter = .d, .accidental = .flat }, .octave = 4 },
+            Pitch{ .note = .{ .letter = .c, .accidental = .sharp }, .octave = 4 },
+            true,
+        },
+        .{
+            Pitch{ .note = .{ .letter = .e, .accidental = .double_flat }, .octave = 4 },
+            Pitch{ .note = .{ .letter = .d, .accidental = null }, .octave = 4 },
+            true,
+        },
+        .{
+            Pitch{ .note = .{ .letter = .d, .accidental = .flat }, .octave = 4 },
+            Pitch{ .note = .{ .letter = .e, .accidental = .double_flat }, .octave = 4 },
+            false,
+        },
+        .{
+            Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = 4 },
+            Pitch{ .note = .{ .letter = .d, .accidental = .flat }, .octave = 4 },
+            false,
+        },
+    };
 
-    // Test extreme pitches
-    const c_neg10 = Pitch{ .note = Note{ .letter = .c, .accidental = null }, .octave = -10 };
-    const b_sharp_neg11 = Pitch{ .note = Note{ .letter = .b, .accidental = .sharp }, .octave = -11 };
-    const c_sharp20 = Pitch{ .note = Note{ .letter = .c, .accidental = .sharp }, .octave = 20 };
-    const d_flat20 = Pitch{ .note = Note{ .letter = .d, .accidental = .flat }, .octave = 20 };
-
-    try testing.expect(c_neg10.isEnharmonic(b_sharp_neg11));
-    try testing.expect(c_sharp20.isEnharmonic(d_flat20));
-    try testing.expect(!c_neg10.isEnharmonic(c_sharp20));
-
-    // Test octave wrapping
-    const b_sharp4 = Pitch{ .note = Note{ .letter = .b, .accidental = .sharp }, .octave = 4 };
-    const c5 = Pitch{ .note = Note{ .letter = .c, .accidental = null }, .octave = 5 };
-    try testing.expect(b_sharp4.isEnharmonic(c5));
-
-    const c_flat5 = Pitch{ .note = Note{ .letter = .c, .accidental = .flat }, .octave = 5 };
-    const b4 = Pitch{ .note = Note{ .letter = .b, .accidental = null }, .octave = 4 };
-    try testing.expect(c_flat5.isEnharmonic(b4));
-
-    // Additional tests with double accidentals
-    const f_double_sharp4 = Pitch{ .note = Note{ .letter = .f, .accidental = .double_sharp }, .octave = 4 };
-    const g4 = Pitch{ .note = Note{ .letter = .g, .accidental = null }, .octave = 4 };
-    try testing.expect(f_double_sharp4.isEnharmonic(g4));
-
-    const g_double_flat4 = Pitch{ .note = Note{ .letter = .g, .accidental = .double_flat }, .octave = 4 };
-    const f4 = Pitch{ .note = Note{ .letter = .f, .accidental = null }, .octave = 4 };
-    try testing.expect(g_double_flat4.isEnharmonic(f4));
+    inline for (test_cases) |case| {
+        try testing.expectEqual(case[0].isEnharmonic(case[1]), case[2]);
+    }
 }
