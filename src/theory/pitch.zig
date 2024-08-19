@@ -94,8 +94,6 @@ pub const Pitch = struct {
         return @intCast(semitones_from_c_neg1);
     }
 
-    // pub fn toString(self: Pitch) []const u8 { }
-
     pub fn isEnharmonic(self: Pitch, other: Pitch) bool {
         const self_effective_octave: i16 = @intCast(self.getEffectiveOctave());
         const other_effective_octave: i16 = @intCast(other.getEffectiveOctave());
@@ -114,6 +112,16 @@ pub const Pitch = struct {
 
         return (self_effective_octave * constants.pitch_classes + self_pitch_class) -
             (other_effective_octave * constants.pitch_classes + other_pitch_class);
+    }
+
+    pub fn format(
+        self: Pitch,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        try self.note.format(fmt, options, writer);
+        try writer.print("{d}", .{self.octave});
     }
 };
 
@@ -139,9 +147,7 @@ test "Pitch.fromString" {
 
     for (test_cases) |case| {
         const result = try Pitch.fromString(case.input);
-        try testing.expectEqual(case.expected.note.letter, result.note.letter);
-        try testing.expectEqual(case.expected.note.accidental, result.note.accidental);
-        try testing.expectEqual(case.expected.octave, result.octave);
+        try testing.expectEqual(case.expected, result);
     }
 
     // Test error cases
@@ -151,6 +157,43 @@ test "Pitch.fromString" {
     try testing.expectError(error.InvalidAccidental, Pitch.fromString("Cy4"));
     try testing.expectError(error.OctaveOutOfRange, Pitch.fromString("C-3"));
     try testing.expectError(error.OctaveOutOfRange, Pitch.fromString("C11"));
+}
+
+test "Pitch.format" {
+    const test_cases = [_]struct { expected: []const u8, pitch: Pitch }{
+        .{ .expected = "C4", .pitch = .{ .note = .{ .letter = .c, .accidental = null }, .octave = 4 } },
+        .{ .expected = "A♯-1", .pitch = .{ .note = .{ .letter = .a, .accidental = .sharp }, .octave = -1 } },
+        .{ .expected = "F♭5", .pitch = .{ .note = .{ .letter = .f, .accidental = .flat }, .octave = 5 } },
+        .{ .expected = "B♮0", .pitch = .{ .note = .{ .letter = .b, .accidental = .natural }, .octave = 0 } },
+    };
+
+    for (test_cases) |case| {
+        var buf: [8]u8 = undefined;
+        const formatted = try std.fmt.bufPrint(&buf, "{}", .{case.pitch});
+        try testing.expectEqualStrings(case.expected, formatted);
+    }
+}
+
+test "Pitch.format with Note custom options" {
+    const pitch = Pitch{ .note = .{ .letter = .c, .accidental = .sharp }, .octave = 4 };
+
+    try std.testing.expectFmt("C♯4", "{}", .{pitch});
+    try std.testing.expectFmt("Cis4", "{g}", .{pitch});
+    try std.testing.expectFmt("C#4", "{c}", .{pitch});
+    try std.testing.expectFmt("Do♯4", "{s}", .{pitch});
+}
+
+test "Pitch.fromString and Pitch.format roundtrip" {
+    const test_cases = [_][]const u8{
+        "C-2", "A0", "C4", "C♯4", "F♭3", "B♮7", "G𝄫2", "E𝄪6",
+    };
+
+    for (test_cases) |case| {
+        const pitch = try Pitch.fromString(case);
+        var buf: [8]u8 = undefined;
+        const formatted = try std.fmt.bufPrint(&buf, "{}", .{pitch});
+        try testing.expectEqualStrings(case, formatted);
+    }
 }
 
 test "frequency calculation" {
