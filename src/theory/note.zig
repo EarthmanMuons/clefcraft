@@ -100,19 +100,41 @@ pub const Note = struct {
         return @intCast(result);
     }
 
-    pub fn toString(self: Note) []const u8 {
-        return self.toCustomString(.{});
+    pub fn format(
+        self: Note,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = options;
+
+        // Default string options.
+        var naming: NamingSystem = .latin;
+        var encoding: Encoding = .unicode;
+
+        for (fmt) |c| {
+            switch (c) {
+                'c' => encoding = .ascii,
+                'u' => encoding = .unicode,
+                'g' => naming = .german,
+                'l' => naming = .latin,
+                's' => naming = .solfege,
+                else => return error.InvalidFormatSpecifier,
+            }
+        }
+
+        try writer.writeAll(self.toStringInternal(naming, encoding));
     }
 
-    pub fn toCustomString(self: Note, options: StringOptions) []const u8 {
-        const note_table = switch (options.naming) {
+    fn toStringInternal(self: Note, naming: NamingSystem, encoding: Encoding) []const u8 {
+        const note_table = switch (naming) {
             .german => &note_names.german,
-            .latin => switch (options.encoding) {
+            .latin => switch (encoding) {
                 .ascii => &note_names.latin_ascii,
                 .unicode => &note_names.latin_unicode,
             },
             // Only "fixed do" solfège is supported for now.
-            .solfege => switch (options.encoding) {
+            .solfege => switch (encoding) {
                 .ascii => &note_names.solfege_ascii,
                 .unicode => &note_names.solfege_unicode,
             },
@@ -130,24 +152,23 @@ pub const Note = struct {
 
         return note_table[base_index + adjustment];
     }
-
-    pub fn format(
-        self: Note,
-        comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
-        writer: anytype,
-    ) !void {
-        _ = fmt;
-        _ = options;
-        const str = self.toString();
-        try writer.print("Note({s})", .{str});
-    }
 };
 
 pub const NoteError = error{
     InvalidAccidental,
     InvalidLetter,
     InvalidStringFormat,
+};
+
+pub const NamingSystem = enum {
+    german,
+    latin,
+    solfege,
+};
+
+pub const Encoding = enum {
+    ascii,
+    unicode,
 };
 
 pub const Letter = enum { c, d, e, f, g, a, b };
@@ -168,22 +189,6 @@ pub const Accidental = enum {
             .double_sharp => 2,
         };
     }
-};
-
-pub const StringOptions = struct {
-    naming: NamingSystem = .latin,
-    encoding: Encoding = .unicode,
-};
-
-pub const NamingSystem = enum {
-    german,
-    latin,
-    solfege,
-};
-
-pub const Encoding = enum {
-    ascii,
-    unicode,
 };
 
 test "Note.fromString - valid inputs" {
@@ -227,40 +232,41 @@ test "Note.fromString - invalid inputs" {
     }
 }
 
-test "Note.fromString and Note.toString roundtrip" {
+test "Note.fromString and Note.format roundtrip" {
     const test_cases = [_][]const u8{
         "C", "D♯", "E♭", "F♯", "G♭", "A𝄫", "B𝄪", "C♮",
     };
 
     for (test_cases) |case| {
         const note = try Note.fromString(case);
-        const result = note.toString();
-        try testing.expectEqualStrings(case, result);
+        var result: [8]u8 = undefined;
+        const slice = try std.fmt.bufPrint(&result, "{}", .{note});
+        try testing.expectEqualStrings(case, slice);
     }
 }
 
-test "Note.toString - default options" {
+test "Note.format - default options" {
     const note1 = Note{ .letter = .a, .accidental = null };
     const note2 = Note{ .letter = .b, .accidental = .flat };
     const note3 = Note{ .letter = .c, .accidental = .sharp };
     const note4 = Note{ .letter = .d, .accidental = .natural };
 
-    try testing.expectEqualStrings("A", note1.toString());
-    try testing.expectEqualStrings("B♭", note2.toString());
-    try testing.expectEqualStrings("C♯", note3.toString());
-    try testing.expectEqualStrings("D♮", note4.toString());
+    try std.testing.expectFmt("A", "{}", .{note1});
+    try std.testing.expectFmt("B♭", "{}", .{note2});
+    try std.testing.expectFmt("C♯", "{}", .{note3});
+    try std.testing.expectFmt("D♮", "{}", .{note4});
 }
 
-test "Note.toCustomString - with custom options" {
+test "Note.format - with custom options" {
     const note1 = Note{ .letter = .a, .accidental = null };
     const note2 = Note{ .letter = .b, .accidental = .flat };
     const note3 = Note{ .letter = .c, .accidental = .sharp };
     const note4 = Note{ .letter = .d, .accidental = .natural };
 
-    try testing.expectEqualStrings("La", note1.toCustomString(.{ .naming = .solfege }));
-    try testing.expectEqualStrings("B", note2.toCustomString(.{ .naming = .german }));
-    try testing.expectEqualStrings("C#", note3.toCustomString(.{ .encoding = .ascii }));
-    try testing.expectEqualStrings("D", note4.toCustomString(.{ .encoding = .ascii }));
+    try std.testing.expectFmt("La", "{s}", .{note1});
+    try std.testing.expectFmt("B", "{g}", .{note2});
+    try std.testing.expectFmt("C#", "{c}", .{note3});
+    try std.testing.expectFmt("D", "{c}", .{note4});
 }
 
 test "Note.getPitchClass calculations" {
