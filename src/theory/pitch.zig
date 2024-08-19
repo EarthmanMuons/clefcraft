@@ -10,6 +10,10 @@ const Note = @import("note.zig").Note;
 const standard_pitch = Pitch{ .note = Note{ .letter = .a, .accidental = null }, .octave = 4 };
 const standard_freq = 440.0; // hertz
 
+// The practical range for musical octaves covering MIDI numbers and human hearing.
+pub const min_octave: i8 = -2;
+pub const max_octave: i8 = 10;
+
 // Musical pitch representation using Scientific Pitch Notation.
 pub const Pitch = struct {
     note: Note,
@@ -45,8 +49,7 @@ pub const Pitch = struct {
         const note = try Note.fromString(note_str);
         const octave = try std.fmt.parseInt(i8, octave_str, 10);
 
-        // Check if the octave is within a practical range.
-        if (octave < -2 or 10 < octave) {
+        if (octave < min_octave or max_octave < octave) {
             return error.OctaveOutOfRange;
         }
 
