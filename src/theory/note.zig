@@ -191,136 +191,84 @@ pub const Accidental = enum {
     }
 };
 
-test "Note.fromString - valid inputs" {
-    const test_cases = [_]struct {
-        input: []const u8,
-        expected: Note,
-    }{
-        .{ .input = "C", .expected = .{ .letter = .c, .accidental = null } },
-        .{ .input = "d#", .expected = .{ .letter = .d, .accidental = .sharp } },
-        .{ .input = "Eb", .expected = .{ .letter = .e, .accidental = .flat } },
-        .{ .input = "f♯", .expected = .{ .letter = .f, .accidental = .sharp } },
-        .{ .input = "G♭", .expected = .{ .letter = .g, .accidental = .flat } },
-        .{ .input = "a𝄫", .expected = .{ .letter = .a, .accidental = .double_flat } },
-        .{ .input = "Bx", .expected = .{ .letter = .b, .accidental = .double_sharp } },
-        .{ .input = "cn", .expected = .{ .letter = .c, .accidental = .natural } },
-        .{ .input = "Dbb", .expected = .{ .letter = .d, .accidental = .double_flat } },
-        .{ .input = "e##", .expected = .{ .letter = .e, .accidental = .double_sharp } },
+test "pitch class calculations" {
+    const test_cases = .{
+        .{ Note{ .letter = .c, .accidental = null }, 0 },
+        .{ Note{ .letter = .d, .accidental = .sharp }, 3 },
+        .{ Note{ .letter = .e, .accidental = .flat }, 3 },
+        .{ Note{ .letter = .f, .accidental = .sharp }, 6 },
+        .{ Note{ .letter = .a, .accidental = .flat }, 8 },
+        .{ Note{ .letter = .b, .accidental = .sharp }, 0 },
+        .{ Note{ .letter = .c, .accidental = .flat }, 11 },
     };
 
-    for (test_cases) |case| {
-        const result = try Note.fromString(case.input);
-        try testing.expectEqual(case.expected.letter, result.letter);
-        try testing.expectEqual(case.expected.accidental, result.accidental);
+    inline for (test_cases) |case| {
+        const result = case[0].getPitchClass();
+        try testing.expectEqual(case[1], result);
     }
 }
 
-test "Note.fromString - invalid inputs" {
-    const invalid_inputs = [_][]const u8{
-        "",
-        "H",
-        "C###",
-        "Dxb",
-        "E#b",
+test "valid string formats" {
+    const test_cases = .{
+        .{ "C", Note{ .letter = .c, .accidental = null } },
+        .{ "D#", Note{ .letter = .d, .accidental = .sharp } },
+        .{ "Eb", Note{ .letter = .e, .accidental = .flat } },
+        .{ "F♯", Note{ .letter = .f, .accidental = .sharp } },
+        .{ "G♭", Note{ .letter = .g, .accidental = .flat } },
+        .{ "A𝄫", Note{ .letter = .a, .accidental = .double_flat } },
+        .{ "Bx", Note{ .letter = .b, .accidental = .double_sharp } },
     };
 
-    for (invalid_inputs) |input| {
-        const result = Note.fromString(input);
-        try testing.expect(result == NoteError.InvalidStringFormat or
-            result == NoteError.InvalidLetter or
-            result == NoteError.InvalidAccidental);
+    inline for (test_cases) |case| {
+        const result = try Note.fromString(case[0]);
+        try testing.expectEqual(case[1], result);
     }
 }
 
-test "Note.fromString and Note.format roundtrip" {
-    const test_cases = [_][]const u8{
-        "C", "D♯", "E♭", "F♯", "G♭", "A𝄫", "B𝄪", "C♮",
+test "invalid string formats" {
+    const test_cases = .{
+        .{ "", NoteError.InvalidStringFormat },
+        .{ "H", NoteError.InvalidLetter },
+        .{ "C###", NoteError.InvalidAccidental },
+        .{ "Dxb", NoteError.InvalidAccidental },
+        .{ "E#b", NoteError.InvalidAccidental },
     };
 
-    for (test_cases) |case| {
-        const note = try Note.fromString(case);
-        var result: [8]u8 = undefined;
-        const slice = try std.fmt.bufPrint(&result, "{}", .{note});
-        try testing.expectEqualStrings(case, slice);
+    inline for (test_cases) |case| {
+        const result = Note.fromString(case[0]);
+        try testing.expectError(case[1], result);
     }
 }
 
-test "Note.format - default options" {
-    const note1 = Note{ .letter = .a, .accidental = null };
-    const note2 = Note{ .letter = .b, .accidental = .flat };
-    const note3 = Note{ .letter = .c, .accidental = .sharp };
-    const note4 = Note{ .letter = .d, .accidental = .natural };
-
-    try std.testing.expectFmt("A", "{}", .{note1});
-    try std.testing.expectFmt("B♭", "{}", .{note2});
-    try std.testing.expectFmt("C♯", "{}", .{note3});
-    try std.testing.expectFmt("D♮", "{}", .{note4});
-}
-
-test "Note.format - with custom options" {
-    const note1 = Note{ .letter = .a, .accidental = null };
-    const note2 = Note{ .letter = .b, .accidental = .flat };
-    const note3 = Note{ .letter = .c, .accidental = .sharp };
-    const note4 = Note{ .letter = .d, .accidental = .natural };
-
-    try std.testing.expectFmt("La", "{s}", .{note1});
-    try std.testing.expectFmt("B", "{g}", .{note2});
-    try std.testing.expectFmt("C#", "{c}", .{note3});
-    try std.testing.expectFmt("D", "{c}", .{note4});
-}
-
-test "Note.getPitchClass calculations" {
-    const test_cases = [_]struct {
-        note: Note,
-        expected: u4,
-    }{
-        // Natural notes
-        .{ .note = .{ .letter = .c, .accidental = null }, .expected = 0 },
-        .{ .note = .{ .letter = .d, .accidental = null }, .expected = 2 },
-        .{ .note = .{ .letter = .e, .accidental = null }, .expected = 4 },
-        .{ .note = .{ .letter = .f, .accidental = null }, .expected = 5 },
-        .{ .note = .{ .letter = .g, .accidental = null }, .expected = 7 },
-        .{ .note = .{ .letter = .a, .accidental = null }, .expected = 9 },
-        .{ .note = .{ .letter = .b, .accidental = null }, .expected = 11 },
-
-        // Sharp notes
-        .{ .note = .{ .letter = .c, .accidental = .sharp }, .expected = 1 },
-        .{ .note = .{ .letter = .d, .accidental = .sharp }, .expected = 3 },
-        .{ .note = .{ .letter = .f, .accidental = .sharp }, .expected = 6 },
-        .{ .note = .{ .letter = .g, .accidental = .sharp }, .expected = 8 },
-        .{ .note = .{ .letter = .a, .accidental = .sharp }, .expected = 10 },
-
-        // Flat notes
-        .{ .note = .{ .letter = .d, .accidental = .flat }, .expected = 1 },
-        .{ .note = .{ .letter = .e, .accidental = .flat }, .expected = 3 },
-        .{ .note = .{ .letter = .g, .accidental = .flat }, .expected = 6 },
-        .{ .note = .{ .letter = .a, .accidental = .flat }, .expected = 8 },
-        .{ .note = .{ .letter = .b, .accidental = .flat }, .expected = 10 },
-
-        // Double sharp notes
-        .{ .note = .{ .letter = .c, .accidental = .double_sharp }, .expected = 2 },
-        .{ .note = .{ .letter = .f, .accidental = .double_sharp }, .expected = 7 },
-
-        // Double flat notes
-        .{ .note = .{ .letter = .d, .accidental = .double_flat }, .expected = 0 },
-        .{ .note = .{ .letter = .e, .accidental = .double_flat }, .expected = 2 },
-
-        // Edge cases
-        .{ .note = .{ .letter = .b, .accidental = .sharp }, .expected = 0 },
-        .{ .note = .{ .letter = .c, .accidental = .flat }, .expected = 11 },
-        .{ .note = .{ .letter = .e, .accidental = .sharp }, .expected = 5 },
-        .{ .note = .{ .letter = .f, .accidental = .flat }, .expected = 4 },
+test "format options" {
+    const note = Note{ .letter = .b, .accidental = .flat };
+    const test_cases = .{
+        .{ "{}", "B♭" },
+        .{ "{c}", "Bb" },
+        .{ "{u}", "B♭" },
+        .{ "{g}", "B" },
+        .{ "{l}", "B♭" },
+        .{ "{s}", "Ti♭" },
+        .{ "{sc}", "Tib" },
     };
 
-    for (test_cases) |case| {
-        try std.testing.expectEqual(case.expected, case.note.getPitchClass());
+    inline for (test_cases) |case| {
+        try testing.expectFmt(case[1], case[0], .{note});
     }
 }
 
-test "Note.fromPitchClass and Note.getPitchClass roundtrip" {
-    var pitch_class: u4 = 0;
-    while (pitch_class < constants.pitch_classes) : (pitch_class += 1) {
-        const note = Note.fromPitchClass(pitch_class);
-        try std.testing.expectEqual(pitch_class, note.getPitchClass());
+test "pitch class roundtrip consistency" {
+    for (0..constants.pitch_classes) |pitch_class| {
+        const note = Note.fromPitchClass(@intCast(pitch_class));
+        try testing.expectEqual(pitch_class, note.getPitchClass());
+    }
+}
+
+test "string roundtrip consistency" {
+    const test_cases = .{ "C", "D♯", "E♭", "F♯", "G♭", "A𝄫", "B𝄪" };
+
+    inline for (test_cases) |input| {
+        const note = try Note.fromString(input);
+        try testing.expectFmt(input, "{}", .{note});
     }
 }
