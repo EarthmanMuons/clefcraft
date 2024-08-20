@@ -97,13 +97,10 @@ pub const Pitch = struct {
     }
 
     pub fn isEnharmonic(self: Pitch, other: Pitch) bool {
-        const self_effective_octave: i16 = @intCast(self.getEffectiveOctave());
-        const other_effective_octave: i16 = @intCast(other.getEffectiveOctave());
-        const self_pitch_class: i16 = @intCast(self.note.getPitchClass());
-        const other_pitch_class: i16 = @intCast(other.note.getPitchClass());
+        const same_octave = self.getEffectiveOctave() == other.getEffectiveOctave();
+        const same_pitch_class = self.note.getPitchClass() == other.note.getPitchClass();
 
-        return (self_effective_octave == other_effective_octave) and
-            (self_pitch_class == other_pitch_class);
+        return same_octave and same_pitch_class;
     }
 
     pub fn semitonesFrom(self: Pitch, other: Pitch) i16 {
