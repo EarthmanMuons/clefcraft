@@ -13,6 +13,7 @@ test {
     // _ = @import("theory.old/note.zig");
     // _ = @import("theory.old/pitch.zig");
     // _ = @import("theory.old/scale.zig");
+    _ = @import("theory/interval.zig");
     _ = @import("theory/note.zig");
     _ = @import("theory/pitch.zig");
 }

@@ -180,6 +180,17 @@ pub const Accidental = enum {
     sharp,
     double_sharp,
 
+    pub fn fromPitchAdjustment(adjustment: i8) !?Accidental {
+        return switch (adjustment) {
+            -2 => .double_flat,
+            -1 => .flat,
+            0 => null,
+            1 => .sharp,
+            2 => .double_sharp,
+            else => return error.InvalidAdjustment,
+        };
+    }
+
     pub fn getPitchAdjustment(self: Accidental) i8 {
         return switch (self) {
             .double_flat => -2,
