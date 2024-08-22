@@ -86,10 +86,10 @@ pub const Interval = struct {
         return .{ .quality = quality, .number = number };
     }
 
-    pub fn getSemitones(self: Interval) u8 {
+    pub fn getSemitones(self: Interval) i8 {
         const base_semitones = baseSemitones(self.number);
 
-        const quality_offset = switch (self.quality) {
+        const quality_offset: i8 = switch (self.quality) {
             .perfect, .major => 0,
             .minor => -1,
             .augmented => 1,
@@ -99,7 +99,7 @@ pub const Interval = struct {
         return base_semitones + quality_offset;
     }
 
-    fn baseSemitones(number: Number) i32 {
+    fn baseSemitones(number: Number) i8 {
         return switch (number) {
             .unison => 0,
             .second => 2,
@@ -130,7 +130,7 @@ pub const Interval = struct {
         return .{ .quality = quality, .number = number };
     }
 
-    fn calcQuality(semitones: i32, number: Number) !Quality {
+    fn calcQuality(semitones: i8, number: Number) !Quality {
         const base_semitones = baseSemitones(number);
         const quality_offset = semitones - base_semitones;
 
@@ -209,25 +209,32 @@ pub const Interval = struct {
     }
 };
 
+test "invalid intervals" {
+    try testing.expectError(error.NumberOutOfRange, Interval.per(0));
+    try testing.expectError(error.NumberOutOfRange, Interval.maj(16));
+    try testing.expectError(error.InvalidInterval, Interval.per(6));
+    try testing.expectError(error.InvalidInterval, Interval.maj(4));
+}
+
 // test "applying intervals" {
 //     const test_cases = .{
 //         .{
-//             Interval{ .quality = .perfect, .number = .fifth },
+//             Interval.per(5),
 //             Pitch{ .note = Note.c, .octave = 4 },
 //             Pitch{ .note = Note.g, .octave = 4 },
 //         },
 //         .{
-//             Interval{ .quality = .major, .number = .third },
+//             Interval.maj(3),
 //             Pitch{ .note = Note.c, .octave = 4 },
 //             Pitch{ .note = Note.e, .octave = 4 },
 //         },
 //         .{
-//             Interval{ .quality = .minor, .number = .seventh },
+//             Interval.min(7),
 //             Pitch{ .note = Note.c, .octave = 4 },
 //             Pitch{ .note = Note.b.flat(), .octave = 4 },
 //         },
 //         .{
-//             Interval{ .quality = .perfect, .number = .octave },
+//             Interval.per(8),
 //             Pitch{ .note = Note.c, .octave = 4 },
 //             Pitch{ .note = Note.c, .octave = 5 },
 //         },
