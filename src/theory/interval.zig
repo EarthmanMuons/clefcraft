@@ -36,13 +36,55 @@ pub const Interval = struct {
         fourteenth,
         double_octave,
 
-        fn isPerfect(self: Number) bool {
+        pub fn fromInt(int: u8) !Number {
+            const minimum = 1;
+            const maximum = @typeInfo(Number).Enum.fields.len;
+
+            if (int < minimum or maximum < int) {
+                return error.NumberOutOfRange;
+            }
+
+            return @enumFromInt(int);
+        }
+
+        pub fn isPerfect(self: Number) bool {
             return switch (self) {
                 .unison, .fourth, .fifth, .octave, .eleventh, .twelfth, .double_octave => true,
                 else => false,
             };
         }
     };
+
+    // Convenience constructors.
+    pub fn per(number: u8) !Interval {
+        return try create(.perfect, number);
+    }
+
+    pub fn maj(number: u8) !Interval {
+        return try create(.major, number);
+    }
+
+    pub fn min(number: u8) !Interval {
+        return try create(.minor, number);
+    }
+
+    pub fn aug(number: u8) !Interval {
+        return try create(.augmented, number);
+    }
+
+    pub fn dim(number: u8) !Interval {
+        return try create(.diminished, number);
+    }
+
+    fn create(quality: Quality, diatonic_steps: u8) !Interval {
+        const number = try Number.fromInt(diatonic_steps);
+
+        if (!isValid(quality, number)) {
+            return error.InvalidInterval;
+        }
+
+        return .{ .quality = quality, .number = number };
+    }
 
     pub fn getSemitones(self: Interval) u8 {
         const base_semitones = baseSemitones(self.number);
@@ -80,13 +122,8 @@ pub const Interval = struct {
     pub fn betweenPitches(from: Pitch, to: Pitch) !Interval {
         const diatonic_steps = from.diatonicStepsTo(to);
         const semitones = from.semitonesTo(to);
-        const max_interval = @typeInfo(Number).Enum.fields.len;
 
-        const number: Number = if (1 <= diatonic_steps and diatonic_steps <= max_interval)
-            @enumFromInt(diatonic_steps)
-        else
-            return error.IntervalOutOfRange;
-
+        const number = try Number.fromInt(diatonic_steps);
         const quality = try calcQuality(semitones, number);
 
         assert(isValid(quality, number));
@@ -152,9 +189,6 @@ pub const Interval = struct {
             };
         }
     }
-
-    // Helper functions for named intervals.
-    pub const P1 = Interval{ .quality = .perfect, .number = .unison };
 
     pub fn format(
         self: Interval,
