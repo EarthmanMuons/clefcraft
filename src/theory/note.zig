@@ -66,7 +66,7 @@ pub const Note = struct {
         return .{ .letter = letter, .accidental = accidental };
     }
 
-    pub fn fromString(str: []const u8) NoteError!Note {
+    pub fn fromString(str: []const u8) !Note {
         if (str.len < 1) return error.InvalidStringFormat;
 
         const first_char = std.ascii.toUpper(str[0]);
@@ -185,12 +185,6 @@ pub const Note = struct {
     }
 };
 
-pub const NoteError = error{
-    InvalidAccidental,
-    InvalidLetter,
-    InvalidStringFormat,
-};
-
 pub const NamingSystem = enum {
     german,
     latin,
@@ -245,11 +239,11 @@ test "valid string formats" {
 
 test "invalid string formats" {
     const test_cases = .{
-        .{ "", NoteError.InvalidStringFormat },
-        .{ "H", NoteError.InvalidLetter },
-        .{ "C###", NoteError.InvalidAccidental },
-        .{ "Dxb", NoteError.InvalidAccidental },
-        .{ "E#b", NoteError.InvalidAccidental },
+        .{ "", error.InvalidStringFormat },
+        .{ "H", error.InvalidLetter },
+        .{ "C###", error.InvalidAccidental },
+        .{ "Dxb", error.InvalidAccidental },
+        .{ "E#b", error.InvalidAccidental },
     };
 
     inline for (test_cases) |case| {

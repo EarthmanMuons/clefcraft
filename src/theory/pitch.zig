@@ -84,7 +84,7 @@ pub const Pitch = struct {
         return self.octave + octave_offset;
     }
 
-    pub fn toMidiNumber(self: Pitch) PitchError!u7 {
+    pub fn toMidiNumber(self: Pitch) !u7 {
         const midi_zero_pitch = Pitch{
             .note = Note{ .letter = .c, .accidental = null },
             .octave = -1,
@@ -137,12 +137,6 @@ pub const Pitch = struct {
         try self.note.format(fmt, options, writer);
         try writer.print("{d}", .{self.octave});
     }
-};
-
-pub const PitchError = error{
-    InvalidStringFormat,
-    OctaveOutOfRange,
-    OutOfMidiRange,
 };
 
 test "valid string formats" {
