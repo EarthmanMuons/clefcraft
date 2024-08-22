@@ -41,6 +41,35 @@ pub const Note = struct {
         }
     };
 
+    // Helpers for creating notes and modifying accidentals.
+    pub const c = Note{ .letter = .c, .accidental = null };
+    pub const d = Note{ .letter = .d, .accidental = null };
+    pub const e = Note{ .letter = .e, .accidental = null };
+    pub const f = Note{ .letter = .f, .accidental = null };
+    pub const g = Note{ .letter = .g, .accidental = null };
+    pub const a = Note{ .letter = .a, .accidental = null };
+    pub const b = Note{ .letter = .b, .accidental = null };
+
+    pub fn doubleFlat(self: Note) Note {
+        return .{ .letter = self.letter, .accidental = .double_flat };
+    }
+
+    pub fn flat(self: Note) Note {
+        return .{ .letter = self.letter, .accidental = .flat };
+    }
+
+    pub fn natural(self: Note) Note {
+        return .{ .letter = self.letter, .accidental = .natural };
+    }
+
+    pub fn sharp(self: Note) Note {
+        return .{ .letter = self.letter, .accidental = .sharp };
+    }
+
+    pub fn doubleSharp(self: Note) Note {
+        return .{ .letter = self.letter, .accidental = .double_sharp };
+    }
+
     /// Returns a `Note` based on the given pitch class, using the default mapping.
     ///
     /// 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
@@ -143,8 +172,8 @@ pub const Note = struct {
         var naming: NamingSystem = .latin;
         var encoding: Encoding = .unicode;
 
-        for (fmt) |c| {
-            switch (c) {
+        for (fmt) |char| {
+            switch (char) {
                 'c' => encoding = .ascii,
                 'u' => encoding = .unicode,
                 'g' => naming = .german,
@@ -198,13 +227,13 @@ pub const Encoding = enum {
 
 test "pitch class calculations" {
     const test_cases = .{
-        .{ Note{ .letter = .c, .accidental = null }, 0 },
-        .{ Note{ .letter = .d, .accidental = .sharp }, 3 },
-        .{ Note{ .letter = .e, .accidental = .flat }, 3 },
-        .{ Note{ .letter = .f, .accidental = .sharp }, 6 },
-        .{ Note{ .letter = .a, .accidental = .flat }, 8 },
-        .{ Note{ .letter = .b, .accidental = .sharp }, 0 },
-        .{ Note{ .letter = .c, .accidental = .flat }, 11 },
+        .{ Note.c, 0 },
+        .{ Note.d.sharp(), 3 },
+        .{ Note.e.flat(), 3 },
+        .{ Note.f.sharp(), 6 },
+        .{ Note.a.flat(), 8 },
+        .{ Note.b.sharp(), 0 },
+        .{ Note.c.flat(), 11 },
     };
 
     inline for (test_cases) |case| {
@@ -222,13 +251,13 @@ test "pitch class roundtrip consistency" {
 
 test "valid string formats" {
     const test_cases = .{
-        .{ "C", Note{ .letter = .c, .accidental = null } },
-        .{ "D#", Note{ .letter = .d, .accidental = .sharp } },
-        .{ "Eb", Note{ .letter = .e, .accidental = .flat } },
-        .{ "F♯", Note{ .letter = .f, .accidental = .sharp } },
-        .{ "G♭", Note{ .letter = .g, .accidental = .flat } },
-        .{ "A𝄫", Note{ .letter = .a, .accidental = .double_flat } },
-        .{ "Bx", Note{ .letter = .b, .accidental = .double_sharp } },
+        .{ "C", Note.c },
+        .{ "D#", Note.d.sharp() },
+        .{ "Eb", Note.e.flat() },
+        .{ "F♯", Note.f.sharp() },
+        .{ "G♭", Note.g.flat() },
+        .{ "A𝄫", Note.a.doubleFlat() },
+        .{ "Bx", Note.b.doubleSharp() },
     };
 
     inline for (test_cases) |case| {
@@ -253,7 +282,7 @@ test "invalid string formats" {
 }
 
 test "format options" {
-    const note = Note{ .letter = .b, .accidental = .flat };
+    const note = Note.b.flat();
     const test_cases = .{
         .{ "{}", "B♭" },
         .{ "{c}", "Bb" },

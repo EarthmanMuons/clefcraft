@@ -7,7 +7,7 @@ const constants = @import("constants.zig");
 const Note = @import("note.zig").Note;
 
 // The international standard pitch, A440.
-const standard_pitch = Pitch{ .note = Note{ .letter = .a, .accidental = null }, .octave = 4 };
+const standard_pitch = Pitch{ .note = Note.a, .octave = 4 };
 const standard_freq = 440.0; // hertz
 
 // The practical range for musical octaves covering MIDI numbers and human hearing.
@@ -85,10 +85,7 @@ pub const Pitch = struct {
     }
 
     pub fn toMidiNumber(self: Pitch) !u7 {
-        const midi_zero_pitch = Pitch{
-            .note = Note{ .letter = .c, .accidental = null },
-            .octave = -1,
-        };
+        const midi_zero_pitch = Pitch{ .note = Note.c, .octave = -1 };
         const semitones_above_midi_zero = midi_zero_pitch.semitonesTo(self);
 
         if (semitones_above_midi_zero < 0 or 127 < semitones_above_midi_zero) {

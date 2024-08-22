@@ -115,7 +115,28 @@ pub const Interval = struct {
         }
     }
 
-    // pub fn applyToPitch(self: Interval, pitch: Pitch) Pitch {}
+    // pub fn applyToPitch(self: Interval, pitch: Pitch) !Pitch {
+    //     const start_letter = @intFromEnum(pitch.note.letter);
+    //     const end_letter = @mod(start_letter + @intFromEnum(self.number) - 1, constants.diatonic_degrees);
+
+    //     var new_note = Note{
+    //         .letter = @enumFromInt(end_letter),
+    //         .accidental = null,
+    //     };
+
+    //     const octave_change = @divFloor(start_letter + @intFromEnum(self.number) - 1, constants.diatonic_degrees);
+
+    //     const expected_semitones = self.getSemitones();
+    //     const actual_semitones = pitch.semitonesTo(Pitch{ .note = new_note, .octave = pitch.octave + octave_change });
+    //     const semitone_diff = expected_semitones - actual_semitones;
+
+    //     new_note.accidental = try Note.Accidental.fromSemitoneOffset(@intCast(semitone_diff));
+
+    //     return Pitch{
+    //         .note = new_note,
+    //         .octave = pitch.octave + octave_change,
+    //     };
+    // }
 
     // Checks if the given combination of quality and number would make a valid interval.
     pub fn isValid(quality: Quality, number: Number) bool {
@@ -154,45 +175,34 @@ pub const Interval = struct {
     }
 };
 
-// pub fn applyToPitch(self: Interval, pitch: Pitch) Pitch {
-//     var result = pitch;
-//     result.octave += @divFloor(self.degree() - 1, constants.diatonic_degrees );
-//     const target_letter_index = (@intFromEnum(pitch.note.letter) + self.degree() - 1) % constants.diatonic_degrees ;
-//     result.note.letter = @enumFromInt(target_letter_index);
+// test "applying intervals" {
+//     const test_cases = .{
+//         .{
+//             Interval{ .quality = .perfect, .number = .fifth },
+//             Pitch{ .note = Note.c, .octave = 4 },
+//             Pitch{ .note = Note.g, .octave = 4 },
+//         },
+//         .{
+//             Interval{ .quality = .major, .number = .third },
+//             Pitch{ .note = Note.c, .octave = 4 },
+//             Pitch{ .note = Note.e, .octave = 4 },
+//         },
+//         .{
+//             Interval{ .quality = .minor, .number = .seventh },
+//             Pitch{ .note = Note.c, .octave = 4 },
+//             Pitch{ .note = Note.b.flat(), .octave = 4 },
+//         },
+//         .{
+//             Interval{ .quality = .perfect, .number = .octave },
+//             Pitch{ .note = Note.c, .octave = 4 },
+//             Pitch{ .note = Note.c, .octave = 5 },
+//         },
+//     };
 
-//     const target_semitones = pitch.semitonesFrom(result) + self.semitones();
-//     const octave_adjustment = @divFloor(target_semitones, constants.pitch_classes);
-//     result.octave += @intCast(i8, octave_adjustment);
-
-//     const remaining_semitones = @mod(target_semitones, constants.pitch_classes);
-//     const natural_note = Note{ .letter = result.note.letter, .accidental = null };
-//     const natural_semitones = natural_note.getPitchClass();
-//     const accidental_adjustment = @intCast(i8, remaining_semitones) - @intCast(i8, natural_semitones);
-
-//     result.note.accidental = Accidental.fromPitchAdjustment(accidental_adjustment);
-
-//     return result;
-// }
-
-// pub fn applyToPitch(self: Interval, pitch: Pitch) Pitch {
-//     var result = pitch;
-//     const degree_change = self.number.toU8() - 1;
-//     result.octave += @divFloor(degree_change, constants.diatonic_degrees );
-//     const target_letter_index = (@intFromEnum(pitch.note.letter) + degree_change) % constants.diatonic_degrees ;
-//     result.note.letter = @enumFromInt(target_letter_index);
-
-//     const semitone_change = self.semitones();
-//     const octave_adjustment = @divFloor(semitone_change, constants.pitch_classes);
-//     result.octave += @intCast(i8, octave_adjustment);
-
-//     const remaining_semitones = @mod(semitone_change, constants.pitch_classes);
-//     const natural_note = Note{ .letter = result.note.letter, .accidental = null };
-//     const natural_semitones = natural_note.getPitchClass();
-//     const accidental_adjustment = @intCast(i8, remaining_semitones) - @intCast(i8, natural_semitones);
-
-//     result.note.accidental = Accidental.fromPitchAdjustment(accidental_adjustment);
-
-//     return result;
+//     inline for (test_cases) |case| {
+//         const result = try case[0].applyToPitch(case[1]);
+//         try testing.expectEqual(case[2], result);
+//     }
 // }
 
 // pub fn longDescription(self: Interval) []const u8 {
