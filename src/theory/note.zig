@@ -154,7 +154,7 @@ pub const Note = struct {
             .a => 9,
             .b => 11,
         };
-        const semitone_offset: i8 = if (self.accidental) |acc| acc.getSemitoneOffset() else 0;
+        const semitone_offset = if (self.accidental) |acc| acc.getSemitoneOffset() else 0;
 
         const result = @mod(base_class + semitone_offset, constants.pitch_classes);
         return @intCast(result);

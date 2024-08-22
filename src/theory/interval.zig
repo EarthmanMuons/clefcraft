@@ -56,7 +56,7 @@ pub const Interval = struct {
     };
 
     // Convenience constructors.
-    pub fn per(number: i8) !Interval {
+    pub fn perf(number: i8) !Interval {
         return try create(.perfect, number);
     }
 
@@ -208,16 +208,16 @@ pub const Interval = struct {
 };
 
 test "invalid intervals" {
-    try testing.expectError(error.NumberOutOfRange, Interval.per(0));
+    try testing.expectError(error.NumberOutOfRange, Interval.perf(0));
     try testing.expectError(error.NumberOutOfRange, Interval.maj(16));
-    try testing.expectError(error.InvalidInterval, Interval.per(6));
+    try testing.expectError(error.InvalidInterval, Interval.perf(6));
     try testing.expectError(error.InvalidInterval, Interval.maj(4));
 }
 
 test "applying intervals" {
     const test_cases = .{
         .{
-            Interval.per(5) catch unreachable,
+            Interval.perf(5) catch unreachable,
             Pitch{ .note = Note.c, .octave = 4 },
             Pitch{ .note = Note.g, .octave = 4 },
         },
@@ -232,7 +232,7 @@ test "applying intervals" {
             Pitch{ .note = Note.b.flat(), .octave = 4 },
         },
         .{
-            Interval.per(8) catch unreachable,
+            Interval.perf(8) catch unreachable,
             Pitch{ .note = Note.c, .octave = 4 },
             Pitch{ .note = Note.c, .octave = 5 },
         },
