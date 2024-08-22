@@ -108,10 +108,9 @@ pub const Pitch = struct {
     pub fn diatonicStepsTo(self: Pitch, other: Pitch) i16 {
         const self_letter = @as(i16, @intFromEnum(self.note.letter));
         const other_letter = @as(i16, @intFromEnum(other.note.letter));
-        const octave_difference = other.octave - self.octave;
+        const octave_diff = other.octave - self.octave;
 
-        return (other_letter - self_letter) +
-            (octave_difference * constants.diatonic_scale_degrees) + 1;
+        return (other_letter - self_letter) + (octave_diff * constants.diatonic_degrees) + 1;
     }
 
     pub fn octavesTo(self: Pitch, other: Pitch) i16 {
@@ -119,13 +118,13 @@ pub const Pitch = struct {
     }
 
     pub fn semitonesTo(self: Pitch, other: Pitch) i16 {
-        const self_effective_octave: i16 = @intCast(self.getEffectiveOctave());
-        const other_effective_octave: i16 = @intCast(other.getEffectiveOctave());
+        const self_octave: i16 = @intCast(self.getEffectiveOctave());
+        const other_octave: i16 = @intCast(other.getEffectiveOctave());
         const self_pitch_class: i16 = @intCast(self.note.getPitchClass());
         const other_pitch_class: i16 = @intCast(other.note.getPitchClass());
 
-        return (other_effective_octave * constants.pitch_classes + other_pitch_class) -
-            (self_effective_octave * constants.pitch_classes + self_pitch_class);
+        return (other_octave * constants.pitch_classes + other_pitch_class) -
+            (self_octave * constants.pitch_classes + self_pitch_class);
     }
 
     pub fn format(

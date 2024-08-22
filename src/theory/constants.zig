@@ -2,4 +2,4 @@
 pub const pitch_classes = 12;
 
 // The number of note letters per octave.
-pub const diatonic_scale_degrees = 7;
+pub const diatonic_degrees = 7;

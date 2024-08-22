@@ -80,8 +80,9 @@ pub const Interval = struct {
     pub fn betweenPitches(from: Pitch, to: Pitch) !Interval {
         const diatonic_steps = from.diatonicStepsTo(to);
         const semitones = from.semitonesTo(to);
+        const max_interval = @typeInfo(Number).Enum.fields.len;
 
-        const number: Number = if (1 <= diatonic_steps and diatonic_steps <= 15)
+        const number: Number = if (1 <= diatonic_steps and diatonic_steps <= max_interval)
             @enumFromInt(diatonic_steps)
         else
             return error.IntervalOutOfRange;
@@ -153,22 +154,10 @@ pub const Interval = struct {
     }
 };
 
-test "intervals between pitches" {
-    const d = Pitch{ .note = Note{ .letter = .d, .accidental = null }, .octave = 4 };
-    const f_sharp = Pitch{ .note = Note{ .letter = .f, .accidental = .sharp }, .octave = 4 };
-    const g_flat = Pitch{ .note = Note{ .letter = .g, .accidental = .flat }, .octave = 4 };
-
-    const r1 = try Interval.betweenPitches(d, f_sharp);
-    const r2 = try Interval.betweenPitches(d, g_flat);
-
-    std.debug.print("Interval between {} and {} (expect M3): {?}\n", .{ d, f_sharp, r1 });
-    std.debug.print("Interval between {} and {} (expect d4): {?}\n", .{ d, g_flat, r2 });
-}
-
 // pub fn applyToPitch(self: Interval, pitch: Pitch) Pitch {
 //     var result = pitch;
-//     result.octave += @divFloor(self.degree() - 1, constants.diatonic_scale_degrees);
-//     const target_letter_index = (@intFromEnum(pitch.note.letter) + self.degree() - 1) % constants.diatonic_scale_degrees;
+//     result.octave += @divFloor(self.degree() - 1, constants.diatonic_degrees );
+//     const target_letter_index = (@intFromEnum(pitch.note.letter) + self.degree() - 1) % constants.diatonic_degrees ;
 //     result.note.letter = @enumFromInt(target_letter_index);
 
 //     const target_semitones = pitch.semitonesFrom(result) + self.semitones();
@@ -188,8 +177,8 @@ test "intervals between pitches" {
 // pub fn applyToPitch(self: Interval, pitch: Pitch) Pitch {
 //     var result = pitch;
 //     const degree_change = self.number.toU8() - 1;
-//     result.octave += @divFloor(degree_change, constants.diatonic_scale_degrees);
-//     const target_letter_index = (@intFromEnum(pitch.note.letter) + degree_change) % constants.diatonic_scale_degrees;
+//     result.octave += @divFloor(degree_change, constants.diatonic_degrees );
+//     const target_letter_index = (@intFromEnum(pitch.note.letter) + degree_change) % constants.diatonic_degrees ;
 //     result.note.letter = @enumFromInt(target_letter_index);
 
 //     const semitone_change = self.semitones();
@@ -260,49 +249,4 @@ test "intervals between pitches" {
 //         .d14 => "Diminished Fourteenth",
 //         .d15 => "Diminished Double Octave",
 //     };
-// }
-
-// test "interval properties" {
-//     try std.testing.expectEqual(Interval.M3.semitones(), 4);
-//     try std.testing.expectEqual(Interval.P5.degree(), 5);
-//     try std.testing.expectEqual(Interval.d2.semitones(), 0);
-// }
-
-// test "interval formatting" {
-//     var buf: [10]u8 = undefined;
-//     _ = try std.fmt.bufPrint(&buf, "{}", .{Interval.M3});
-//     try std.testing.expectEqualStrings("M3", buf[0..2]);
-// }
-
-// test "interval long description" {
-//     try std.testing.expectEqualStrings("Major Third", Interval.M3.longDescription());
-//     try std.testing.expectEqualStrings("Diminished Second", Interval.d2.longDescription());
-// }
-
-// test "between pitches" {
-//     const C4 = Pitch{ .note = Note{ .letter = .c, .accidental = null }, .octave = 4 };
-//     const E4 = Pitch{ .note = Note{ .letter = .e, .accidental = null }, .octave = 4 };
-//     const G4 = Pitch{ .note = Note{ .letter = .g, .accidental = null }, .octave = 4 };
-//     const C5 = Pitch{ .note = Note{ .letter = .c, .accidental = null }, .octave = 5 };
-//     const Db4 = Pitch{ .note = Note{ .letter = .d, .accidental = .flat }, .octave = 4 };
-//     const Fs4 = Pitch{ .note = Note{ .letter = .f, .accidental = .sharp }, .octave = 4 };
-
-//     try std.testing.expectEqual(Interval.M3, Interval.betweenPitches(C4, E4));
-//     try std.testing.expectEqual(Interval.P5, Interval.betweenPitches(C4, G4));
-//     try std.testing.expectEqual(Interval.P8, Interval.betweenPitches(C4, C5));
-//     try std.testing.expectEqual(Interval.m2, Interval.betweenPitches(C4, Db4));
-//     try std.testing.expectEqual(Interval.A4, Interval.betweenPitches(C4, Fs4));
-// }
-
-// test "apply interval to pitch" {
-//     const C4 = Pitch{ .note = Note{ .letter = .c, .accidental = null }, .octave = 4 };
-//     const E4 = Pitch{ .note = Note{ .letter = .e, .accidental = null }, .octave = 4 };
-//     const G4 = Pitch{ .note = Note{ .letter = .g, .accidental = null }, .octave = 4 };
-//     const C5 = Pitch{ .note = Note{ .letter = .c, .accidental = null }, .octave = 5 };
-//     const Fs4 = Pitch{ .note = Note{ .letter = .f, .accidental = .sharp }, .octave = 4 };
-
-//     try std.testing.expectEqual(E4, Interval.M3.applyToPitch(C4));
-//     try std.testing.expectEqual(G4, Interval.P5.applyToPitch(C4));
-//     try std.testing.expectEqual(C5, Interval.P8.applyToPitch(C4));
-//     try std.testing.expectEqual(Fs4, Interval.A4.applyToPitch(C4));
 // }
