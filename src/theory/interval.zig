@@ -78,53 +78,18 @@ pub const Interval = struct {
     }
 
     pub fn betweenPitches(from: Pitch, to: Pitch) !Interval {
-        const letter_span = letterSpan(from, to);
-        const octaves = to.getEffectiveOctave() - from.getEffectiveOctave();
-        const semitones = to.semitonesFrom(from);
-        const is_compound = semitones > constants.pitch_classes;
+        const diatonic_steps = from.diatonicStepsTo(to);
+        const semitones = from.semitonesTo(to);
 
-        // std.debug.print("letter_span: {}\n", .{letter_span});
-        // std.debug.print("octaves: {}\n", .{octaves});
-        // std.debug.print("semitones: {}\n", .{semitones});
-        // std.debug.print("is_compound: {}\n", .{is_compound});
-
-        const base_number: Number = switch (letter_span) {
-            1 => .unison,
-            2 => .second,
-            3 => .third,
-            4 => .fourth,
-            5 => .fifth,
-            6 => .sixth,
-            7 => .seventh,
-            else => unreachable,
-        };
-
-        const number: Number = switch (base_number) {
-            .unison => switch (octaves) {
-                1 => .octave,
-                2 => .double_octave,
-                else => base_number,
-            },
-            .second => if (is_compound) .ninth else base_number,
-            .third => if (is_compound) .tenth else base_number,
-            .fourth => if (is_compound) .eleventh else base_number,
-            .fifth => if (is_compound) .twelfth else base_number,
-            .sixth => if (is_compound) .thirteenth else base_number,
-            .seventh => if (is_compound) .fourteenth else base_number,
-            else => unreachable,
-        };
+        const number: Number = if (1 <= diatonic_steps and diatonic_steps <= 15)
+            @enumFromInt(diatonic_steps)
+        else
+            return error.IntervalOutOfRange;
 
         const quality = try calcQuality(semitones, number);
 
         assert(isValid(quality, number));
         return .{ .quality = quality, .number = number };
-    }
-
-    fn letterSpan(from: Pitch, to: Pitch) u8 {
-        const from_letter = @as(i8, @intFromEnum(from.note.letter));
-        const to_letter = @as(i8, @intFromEnum(to.note.letter));
-        const result = @mod((to_letter - from_letter), constants.diatonic_scale_degrees) + 1;
-        return @intCast(result);
     }
 
     fn calcQuality(semitones: i32, number: Number) !Quality {

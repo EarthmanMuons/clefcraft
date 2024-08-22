@@ -65,9 +65,9 @@ pub const Pitch = struct {
     }
 
     pub fn getFrequencyWithReference(self: Pitch, ref_pitch: Pitch, ref_freq: f64) f64 {
-        const semitones_from_ref: f64 = @floatFromInt(self.semitonesFrom(ref_pitch));
-        const ratio = semitones_from_ref / constants.pitch_classes;
-        return ref_freq * @exp2(ratio);
+        const semitones_from_ref: f64 = @floatFromInt(ref_pitch.semitonesTo(self));
+        const octave_ratio = semitones_from_ref / constants.pitch_classes;
+        return ref_freq * @exp2(octave_ratio);
     }
 
     pub fn getEffectiveOctave(self: Pitch) i8 {
@@ -85,15 +85,17 @@ pub const Pitch = struct {
     }
 
     pub fn toMidiNumber(self: Pitch) PitchError!u7 {
-        // C-1 is the lowest MIDI number (0).
-        const c_neg1_pitch = Pitch{ .note = Note{ .letter = .c, .accidental = null }, .octave = -1 };
-        const semitones_from_c_neg1 = self.semitonesFrom(c_neg1_pitch);
+        const midi_zero_pitch = Pitch{
+            .note = Note{ .letter = .c, .accidental = null },
+            .octave = -1,
+        };
+        const semitones_above_midi_zero = midi_zero_pitch.semitonesTo(self);
 
-        if (semitones_from_c_neg1 < 0 or 127 < semitones_from_c_neg1) {
+        if (semitones_above_midi_zero < 0 or 127 < semitones_above_midi_zero) {
             return error.OutOfMidiRange;
         }
 
-        return @intCast(semitones_from_c_neg1);
+        return @intCast(semitones_above_midi_zero);
     }
 
     pub fn isEnharmonic(self: Pitch, other: Pitch) bool {
@@ -103,14 +105,27 @@ pub const Pitch = struct {
         return same_octave and same_pitch_class;
     }
 
-    pub fn semitonesFrom(self: Pitch, other: Pitch) i16 {
+    pub fn diatonicStepsTo(self: Pitch, other: Pitch) i16 {
+        const self_letter = @as(i16, @intFromEnum(self.note.letter));
+        const other_letter = @as(i16, @intFromEnum(other.note.letter));
+        const octave_difference = other.octave - self.octave;
+
+        return (other_letter - self_letter) +
+            (octave_difference * constants.diatonic_scale_degrees) + 1;
+    }
+
+    pub fn octavesTo(self: Pitch, other: Pitch) i16 {
+        return other.getEffectiveOctave() - self.getEffectiveOctave();
+    }
+
+    pub fn semitonesTo(self: Pitch, other: Pitch) i16 {
         const self_effective_octave: i16 = @intCast(self.getEffectiveOctave());
         const other_effective_octave: i16 = @intCast(other.getEffectiveOctave());
         const self_pitch_class: i16 = @intCast(self.note.getPitchClass());
         const other_pitch_class: i16 = @intCast(other.note.getPitchClass());
 
-        return (self_effective_octave * constants.pitch_classes + self_pitch_class) -
-            (other_effective_octave * constants.pitch_classes + other_pitch_class);
+        return (other_effective_octave * constants.pitch_classes + other_pitch_class) -
+            (self_effective_octave * constants.pitch_classes + self_pitch_class);
     }
 
     pub fn format(
