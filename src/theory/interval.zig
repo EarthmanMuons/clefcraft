@@ -19,7 +19,7 @@ pub const Interval = struct {
         diminished,
     };
 
-    pub const Number = enum(u8) {
+    pub const Number = enum(i8) {
         unison = 1,
         second,
         third,
@@ -36,7 +36,7 @@ pub const Interval = struct {
         fourteenth,
         double_octave,
 
-        pub fn fromInt(int: u8) !Number {
+        pub fn fromInt(int: i8) !Number {
             const minimum = 1;
             const maximum = @typeInfo(Number).Enum.fields.len;
 
@@ -56,27 +56,27 @@ pub const Interval = struct {
     };
 
     // Convenience constructors.
-    pub fn per(number: u8) !Interval {
+    pub fn per(number: i8) !Interval {
         return try create(.perfect, number);
     }
 
-    pub fn maj(number: u8) !Interval {
+    pub fn maj(number: i8) !Interval {
         return try create(.major, number);
     }
 
-    pub fn min(number: u8) !Interval {
+    pub fn min(number: i8) !Interval {
         return try create(.minor, number);
     }
 
-    pub fn aug(number: u8) !Interval {
+    pub fn aug(number: i8) !Interval {
         return try create(.augmented, number);
     }
 
-    pub fn dim(number: u8) !Interval {
+    pub fn dim(number: i8) !Interval {
         return try create(.diminished, number);
     }
 
-    fn create(quality: Quality, diatonic_steps: u8) !Interval {
+    fn create(quality: Quality, diatonic_steps: i8) !Interval {
         const number = try Number.fromInt(diatonic_steps);
 
         if (!isValid(quality, number)) {
@@ -152,28 +152,26 @@ pub const Interval = struct {
         }
     }
 
-    // pub fn applyToPitch(self: Interval, pitch: Pitch) !Pitch {
-    //     const start_letter = @intFromEnum(pitch.note.letter);
-    //     const end_letter = @mod(start_letter + @intFromEnum(self.number) - 1, constants.diatonic_degrees);
+    pub fn applyToPitch(self: Interval, pitch: Pitch) !Pitch {
+        const start_letter = @intFromEnum(pitch.note.letter);
+        const steps = @intFromEnum(self.number) - 1;
+        const end_letter = @mod(start_letter + steps, constants.diatonic_degrees);
+        const octave_change = @divFloor(start_letter + steps, constants.diatonic_degrees);
 
-    //     var new_note = Note{
-    //         .letter = @enumFromInt(end_letter),
-    //         .accidental = null,
-    //     };
+        var new_note = Note{ .letter = @enumFromInt(end_letter), .accidental = null };
+        const new_pitch = Pitch{
+            .note = new_note,
+            .octave = pitch.octave + octave_change,
+        };
 
-    //     const octave_change = @divFloor(start_letter + @intFromEnum(self.number) - 1, constants.diatonic_degrees);
+        const expected_semitones = self.getSemitones();
+        const actual_semitones = pitch.semitonesTo(new_pitch);
+        const semitone_diff = expected_semitones - actual_semitones;
 
-    //     const expected_semitones = self.getSemitones();
-    //     const actual_semitones = pitch.semitonesTo(Pitch{ .note = new_note, .octave = pitch.octave + octave_change });
-    //     const semitone_diff = expected_semitones - actual_semitones;
+        new_note.accidental = try Note.Accidental.fromSemitoneOffset(@intCast(semitone_diff));
 
-    //     new_note.accidental = try Note.Accidental.fromSemitoneOffset(@intCast(semitone_diff));
-
-    //     return Pitch{
-    //         .note = new_note,
-    //         .octave = pitch.octave + octave_change,
-    //     };
-    // }
+        return .{ .note = new_note, .octave = new_pitch.octave };
+    }
 
     // Checks if the given combination of quality and number would make a valid interval.
     pub fn isValid(quality: Quality, number: Number) bool {
@@ -216,35 +214,45 @@ test "invalid intervals" {
     try testing.expectError(error.InvalidInterval, Interval.maj(4));
 }
 
-// test "applying intervals" {
-//     const test_cases = .{
-//         .{
-//             Interval.per(5),
-//             Pitch{ .note = Note.c, .octave = 4 },
-//             Pitch{ .note = Note.g, .octave = 4 },
-//         },
-//         .{
-//             Interval.maj(3),
-//             Pitch{ .note = Note.c, .octave = 4 },
-//             Pitch{ .note = Note.e, .octave = 4 },
-//         },
-//         .{
-//             Interval.min(7),
-//             Pitch{ .note = Note.c, .octave = 4 },
-//             Pitch{ .note = Note.b.flat(), .octave = 4 },
-//         },
-//         .{
-//             Interval.per(8),
-//             Pitch{ .note = Note.c, .octave = 4 },
-//             Pitch{ .note = Note.c, .octave = 5 },
-//         },
-//     };
+test "applying intervals" {
+    const test_cases = .{
+        .{
+            Interval.per(5) catch unreachable,
+            Pitch{ .note = Note.c, .octave = 4 },
+            Pitch{ .note = Note.g, .octave = 4 },
+        },
+        .{
+            Interval.maj(3) catch unreachable,
+            Pitch{ .note = Note.c, .octave = 4 },
+            Pitch{ .note = Note.e, .octave = 4 },
+        },
+        .{
+            Interval.min(7) catch unreachable,
+            Pitch{ .note = Note.c, .octave = 4 },
+            Pitch{ .note = Note.b.flat(), .octave = 4 },
+        },
+        .{
+            Interval.per(8) catch unreachable,
+            Pitch{ .note = Note.c, .octave = 4 },
+            Pitch{ .note = Note.c, .octave = 5 },
+        },
+        .{
+            Interval.maj(3) catch unreachable,
+            Pitch{ .note = Note.d, .octave = 4 },
+            Pitch{ .note = Note.f.sharp(), .octave = 4 },
+        },
+        .{
+            Interval.dim(4) catch unreachable,
+            Pitch{ .note = Note.d, .octave = 4 },
+            Pitch{ .note = Note.g.flat(), .octave = 4 },
+        },
+    };
 
-//     inline for (test_cases) |case| {
-//         const result = try case[0].applyToPitch(case[1]);
-//         try testing.expectEqual(case[2], result);
-//     }
-// }
+    inline for (test_cases) |case| {
+        const result = try case[0].applyToPitch(case[1]);
+        try testing.expectEqual(case[2], result);
+    }
+}
 
 // pub fn longDescription(self: Interval) []const u8 {
 //     return switch (self) {
