@@ -27,7 +27,7 @@ pub const Pitch = struct {
         const pitch_class = @mod(semitones_from_c0, constants.pitch_classes);
 
         const note = Note.fromPitchClass(@intCast(pitch_class));
-        return Pitch{ .note = note, .octave = @intCast(octave) };
+        return .{ .note = note, .octave = @intCast(octave) };
     }
 
     pub fn fromString(str: []const u8) !Pitch {
@@ -55,7 +55,7 @@ pub const Pitch = struct {
             return error.OctaveOutOfRange;
         }
 
-        return Pitch{ .note = note, .octave = octave };
+        return .{ .note = note, .octave = octave };
     }
 
     // pub fn transpose(self: Pitch, semitones: i8) Pitch {}
@@ -71,17 +71,17 @@ pub const Pitch = struct {
     }
 
     pub fn getEffectiveOctave(self: Pitch) i8 {
-        var adjustment: i8 = 0;
+        var octave_offset: i8 = 0;
 
         if (self.note.accidental) |acc| {
-            adjustment += switch (acc) {
+            octave_offset += switch (acc) {
                 .flat, .double_flat => if (self.note.letter == .c) -1 else 0,
                 .sharp, .double_sharp => if (self.note.letter == .b) 1 else 0,
                 .natural => 0,
             };
         }
 
-        return self.octave + adjustment;
+        return self.octave + octave_offset;
     }
 
     pub fn toMidiNumber(self: Pitch) PitchError!u7 {

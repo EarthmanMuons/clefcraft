@@ -6,229 +6,168 @@ const testing = std.testing;
 const constants = @import("constants.zig");
 const Pitch = @import("pitch.zig").Pitch;
 const Note = @import("note.zig").Note;
-const Letter = @import("note.zig").Letter;
-const Accidental = @import("note.zig").Accidental;
 
-pub const Interval = enum {
-    // zig fmt: off
-    P1, P4, P5, P8, P11, P12, P15, // Perfect
-    M2, M3, M6, M7, M9, M10, M13, M14, // Major
-    m2, m3, m6, m7, m9, m10, m13, m14, // Minor
-    A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, // Augmented
-    d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15, // Diminished
-    // zig fmt: on
+pub const Interval = struct {
+    quality: Quality,
+    number: Number,
 
-    pub fn semitones(self: Interval) u8 {
-        return switch (self) {
-            .P1, .d2 => 0,
-            .m2, .A1 => 1,
-            .M2, .d3 => 2,
-            .m3, .A2 => 3,
-            .M3, .d4 => 4,
-            .P4, .A3 => 5,
-            .A4, .d5 => 6,
-            .P5, .d6 => 7,
-            .m6, .A5 => 8,
-            .M6, .d7 => 9,
-            .m7, .A6 => 10,
-            .M7, .d8 => 11,
-            .P8, .A7, .d9 => 12,
-            .m9, .A8 => 13,
-            .M9, .d10 => 14,
-            .m10, .A9 => 15,
-            .M10, .d11 => 16,
-            .P11, .A10 => 17,
-            .A11, .d12 => 18,
-            .P12, .d13 => 19,
-            .m13, .A12 => 20,
-            .M13, .d14 => 21,
-            .m14, .A13 => 22,
-            .M14, .d15 => 23,
-            .P15, .A14 => 24,
+    pub const Quality = enum {
+        perfect,
+        major,
+        minor,
+        augmented,
+        diminished,
+    };
+
+    pub const Number = enum(u8) {
+        unison = 1,
+        second,
+        third,
+        fourth,
+        fifth,
+        sixth,
+        seventh,
+        octave,
+        ninth,
+        tenth,
+        eleventh,
+        twelfth,
+        thirteenth,
+        fourteenth,
+        double_octave,
+
+        fn isPerfect(self: Number) bool {
+            return switch (self) {
+                .unison, .fourth, .fifth, .octave, .eleventh, .twelfth, .double_octave => true,
+                else => false,
+            };
+        }
+    };
+
+    pub fn getSemitones(self: Interval) u8 {
+        const base_semitones = baseSemitones(self.number);
+
+        const quality_offset = switch (self.quality) {
+            .perfect, .major => 0,
+            .minor => -1,
+            .augmented => 1,
+            .diminished => if (self.number.isPerfect()) -1 else -2,
+        };
+
+        return base_semitones + quality_offset;
+    }
+
+    fn baseSemitones(number: Number) i32 {
+        return switch (number) {
+            .unison => 0,
+            .second => 2,
+            .third => 4,
+            .fourth => 5,
+            .fifth => 7,
+            .sixth => 9,
+            .seventh => 11,
+            .octave => 12,
+            .ninth => 14,
+            .tenth => 16,
+            .eleventh => 17,
+            .twelfth => 19,
+            .thirteenth => 21,
+            .fourteenth => 22,
+            .double_octave => 24,
         };
     }
 
-    // pub fn quality(self: Interval) {}
+    pub fn betweenPitches(from: Pitch, to: Pitch) !Interval {
+        const letter_span = letterSpan(from, to);
+        const octaves = to.getEffectiveOctave() - from.getEffectiveOctave();
+        const semitones = to.semitonesFrom(from);
+        const is_compound = semitones > constants.pitch_classes;
 
-    // Number of letters the interval spans.
-    pub fn degree(self: Interval) u8 {
-        return switch (self) {
-            .P1, .A1 => 1,
-            .m2, .M2, .A2, .d2 => 2,
-            .m3, .M3, .A3, .d3 => 3,
-            .P4, .A4, .d4 => 4,
-            .P5, .A5, .d5 => 5,
-            .m6, .M6, .A6, .d6 => 6,
-            .m7, .M7, .A7, .d7 => 7,
-            .P8, .A8, .d8 => 8,
-            .m9, .M9, .A9, .d9 => 9,
-            .m10, .M10, .A10, .d10 => 10,
-            .P11, .A11, .d11 => 11,
-            .P12, .A12, .d12 => 12,
-            .m13, .M13, .A13, .d13 => 13,
-            .m14, .M14, .A14, .d14 => 14,
-            .P15, .d15 => 15,
+        // std.debug.print("letter_span: {}\n", .{letter_span});
+        // std.debug.print("octaves: {}\n", .{octaves});
+        // std.debug.print("semitones: {}\n", .{semitones});
+        // std.debug.print("is_compound: {}\n", .{is_compound});
+
+        const base_number: Number = switch (letter_span) {
+            1 => .unison,
+            2 => .second,
+            3 => .third,
+            4 => .fourth,
+            5 => .fifth,
+            6 => .sixth,
+            7 => .seventh,
+            else => unreachable,
         };
+
+        const number: Number = switch (base_number) {
+            .unison => switch (octaves) {
+                1 => .octave,
+                2 => .double_octave,
+                else => base_number,
+            },
+            .second => if (is_compound) .ninth else base_number,
+            .third => if (is_compound) .tenth else base_number,
+            .fourth => if (is_compound) .eleventh else base_number,
+            .fifth => if (is_compound) .twelfth else base_number,
+            .sixth => if (is_compound) .thirteenth else base_number,
+            .seventh => if (is_compound) .fourteenth else base_number,
+            else => unreachable,
+        };
+
+        const quality = try calcQuality(semitones, number);
+
+        assert(isValid(quality, number));
+        return .{ .quality = quality, .number = number };
     }
 
-    // fn baseSemitones(number: Number) i32 {
-    //     return switch (number) {
-    //         .unison => 0,
-    //         .second => 2,
-    //         .third => 4,
-    //         .fourth => 5,
-    //         .fifth => 7,
-    //         .sixth => 9,
-    //         .seventh => 11,
-    //         .octave => 12,
-    //         .ninth => 14,
-    //         .tenth => 16,
-    //         .eleventh => 17,
-    //         .twelfth => 19,
-    //         .thirteenth => 21,
-    //         .fourteenth => 22,
-    //         .double_octave => 24,
-    //     };
-    // }
-
-    // pub fn betweenPitches(from: Pitch, to: Pitch) Interval {
-    //     const semitone_distance = @intCast(u8, @mod(to.semitonesFrom(from), constants.pitch_classes));
-    //     const degrees = diatonicSpan(from, to);
-
-    //     const base_interval = switch (degrees) {
-    //         1 => Interval.P1,
-    //         2 => Interval.M2,
-    //         3 => Interval.M3,
-    //         4 => Interval.P4,
-    //         5 => Interval.P5,
-    //         6 => Interval.M6,
-    //         7 => Interval.M7,
-    //         else => unreachable,
-    //     };
-
-    //     const base_semitones = base_interval.semitones();
-    //     const diff = @intCast(i8, semitones_distance) - @intCast(i8, base_semitones);
-
-    //     return switch (diff) {
-    //         -2 => switch (base_interval) {
-    //             .M2 => .d2,
-    //             .M3 => .m3,
-    //             .P4 => .d4,
-    //             .P5 => .d5,
-    //             .M6 => .m6,
-    //             .M7 => .m7,
-    //             else => unreachable,
-    //         },
-    //         -1 => switch (base_interval) {
-    //             .M2 => .m2,
-    //             .M3 => .m3,
-    //             .M6 => .m6,
-    //             .M7 => .m7,
-    //             else => unreachable,
-    //         },
-    //         0 => base_interval,
-    //         1 => switch (base_interval) {
-    //             .P1 => .A1,
-    //             .M2 => .A2,
-    //             .M3 => .A3,
-    //             .P4 => .A4,
-    //             .P5 => .A5,
-    //             .M6 => .A6,
-    //             .M7 => .A7,
-    //             else => unreachable,
-    //         },
-    //         2 => switch (base_interval) {
-    //             .P4 => .A4,
-    //             .P5 => .A5,
-    //             else => unreachable,
-    //         },
-    //         else => unreachable, // Handle larger augmentations/diminutions if needed
-    //     };
-    // }
-
-    // Counts the sequence of note letters spanning two pitches (inclusive).
-    pub fn diatonicSpan(from: Pitch, to: Pitch) u8 {
+    fn letterSpan(from: Pitch, to: Pitch) u8 {
         const from_letter = @as(i8, @intFromEnum(from.note.letter));
         const to_letter = @as(i8, @intFromEnum(to.note.letter));
         const result = @mod((to_letter - from_letter), constants.diatonic_scale_degrees) + 1;
         return @intCast(result);
     }
 
-    // pub fn applyToPitch(self: Interval, pitch: Pitch) Pitch {
-    //     var result = pitch;
-    //     result.octave += @divFloor(self.degree() - 1, constants.diatonic_scale_degrees);
-    //     const target_letter_index = (@intFromEnum(pitch.note.letter) + self.degree() - 1) % constants.diatonic_scale_degrees;
-    //     result.note.letter = @enumFromInt(target_letter_index);
+    fn calcQuality(semitones: i32, number: Number) !Quality {
+        const base_semitones = baseSemitones(number);
+        const quality_offset = semitones - base_semitones;
 
-    //     const target_semitones = pitch.semitonesFrom(result) + self.semitones();
-    //     const octave_adjustment = @divFloor(target_semitones, constants.pitch_classes);
-    //     result.octave += @intCast(i8, octave_adjustment);
-
-    //     const remaining_semitones = @mod(target_semitones, constants.pitch_classes);
-    //     const natural_note = Note{ .letter = result.note.letter, .accidental = null };
-    //     const natural_semitones = natural_note.getPitchClass();
-    //     const accidental_adjustment = @intCast(i8, remaining_semitones) - @intCast(i8, natural_semitones);
-
-    //     result.note.accidental = Accidental.fromPitchAdjustment(accidental_adjustment);
-
-    //     return result;
-    // }
-
-    pub fn longDescription(self: Interval) []const u8 {
-        return switch (self) {
-            .P1 => "Perfect Unison",
-            .P4 => "Perfect Fourth",
-            .P5 => "Perfect Fifth",
-            .P8 => "Octave",
-            .P11 => "Eleventh",
-            .P12 => "Twelfth",
-            .P15 => "Double Octave",
-            .M2 => "Major Second",
-            .M3 => "Major Third",
-            .M6 => "Major Sixth",
-            .M7 => "Major Seventh",
-            .M9 => "Major Ninth",
-            .M10 => "Major Tenth",
-            .M13 => "Major Thirteenth",
-            .M14 => "Major Fourteenth",
-            .m2 => "Minor Second",
-            .m3 => "Minor Third",
-            .m6 => "Minor Sixth",
-            .m7 => "Minor Seventh",
-            .m9 => "Minor Ninth",
-            .m10 => "Minor Tenth",
-            .m13 => "Minor Thirteenth",
-            .m14 => "Minor Fourteenth",
-            .A1 => "Augmented Unison",
-            .A2 => "Augmented Second",
-            .A3 => "Augmented Third",
-            .A4 => "Augmented Fourth (Tritone)",
-            .A5 => "Augmented Fifth",
-            .A6 => "Augmented Sixth",
-            .A7 => "Augmented Seventh",
-            .A8 => "Augmented Octave",
-            .A9 => "Augmented Ninth",
-            .A10 => "Augmented Tenth",
-            .A11 => "Augmented Eleventh",
-            .A12 => "Augmented Twelfth",
-            .A13 => "Augmented Thirteenth",
-            .A14 => "Augmented Fourteenth",
-            .d2 => "Diminished Second",
-            .d3 => "Diminished Third",
-            .d4 => "Diminished Fourth",
-            .d5 => "Diminished Fifth (Tritone)",
-            .d6 => "Diminished Sixth",
-            .d7 => "Diminished Seventh",
-            .d8 => "Diminished Octave",
-            .d9 => "Diminished Ninth",
-            .d10 => "Diminished Tenth",
-            .d11 => "Diminished Eleventh",
-            .d12 => "Diminished Twelfth",
-            .d13 => "Diminished Thirteenth",
-            .d14 => "Diminished Fourteenth",
-            .d15 => "Diminished Double Octave",
-        };
+        if (number.isPerfect()) {
+            return switch (quality_offset) {
+                0 => .perfect,
+                1 => .augmented,
+                -1 => .diminished,
+                else => error.InvalidQualityOffset,
+            };
+        } else {
+            return switch (quality_offset) {
+                0 => .major,
+                -1 => .minor,
+                1 => .augmented,
+                -2 => .diminished,
+                else => error.InvalidQualityOffset,
+            };
+        }
     }
+
+    // pub fn applyToPitch(self: Interval, pitch: Pitch) Pitch {}
+
+    // Checks if the given combination of quality and number would make a valid interval.
+    pub fn isValid(quality: Quality, number: Number) bool {
+        if (number.isPerfect()) {
+            return switch (quality) {
+                .perfect, .augmented, .diminished => true,
+                .major, .minor => false,
+            };
+        } else {
+            return switch (quality) {
+                .perfect => false,
+                .major, .minor, .augmented, .diminished => true,
+            };
+        }
+    }
+
+    // Helper functions for named intervals.
+    pub const P1 = Interval{ .quality = .perfect, .number = .unison };
 
     pub fn format(
         self: Interval,
@@ -238,24 +177,124 @@ pub const Interval = enum {
     ) !void {
         _ = fmt;
         _ = options;
-        try writer.print("{s}", .{@tagName(self)});
+        const quality_str = switch (self.quality) {
+            .perfect => "P",
+            .major => "M",
+            .minor => "m",
+            .augmented => "A",
+            .diminished => "d",
+        };
+        try writer.print("{s}{d}", .{ quality_str, @intFromEnum(self.number) });
     }
 };
 
-// Compile-time check for exhaustiveness.
-comptime {
-    for (std.enums.values(Interval)) |interval| {
-        _ = interval.semitones();
-        _ = interval.degree();
-        _ = interval.longDescription();
-    }
+test "intervals between pitches" {
+    const d = Pitch{ .note = Note{ .letter = .d, .accidental = null }, .octave = 4 };
+    const f_sharp = Pitch{ .note = Note{ .letter = .f, .accidental = .sharp }, .octave = 4 };
+    const g_flat = Pitch{ .note = Note{ .letter = .g, .accidental = .flat }, .octave = 4 };
+
+    const r1 = try Interval.betweenPitches(d, f_sharp);
+    const r2 = try Interval.betweenPitches(d, g_flat);
+
+    std.debug.print("Interval between {} and {} (expect M3): {?}\n", .{ d, f_sharp, r1 });
+    std.debug.print("Interval between {} and {} (expect d4): {?}\n", .{ d, g_flat, r2 });
 }
 
-// test {
-//     const p1 = try Pitch.fromString("B4");
-//     const p2 = try Pitch.fromString("D5");
-//     const result = Interval.diatonicSpan(p1, p2);
-//     std.debug.print("diatonicSpan({}, {}): {d}\n", .{ p1, p2, result });
+// pub fn applyToPitch(self: Interval, pitch: Pitch) Pitch {
+//     var result = pitch;
+//     result.octave += @divFloor(self.degree() - 1, constants.diatonic_scale_degrees);
+//     const target_letter_index = (@intFromEnum(pitch.note.letter) + self.degree() - 1) % constants.diatonic_scale_degrees;
+//     result.note.letter = @enumFromInt(target_letter_index);
+
+//     const target_semitones = pitch.semitonesFrom(result) + self.semitones();
+//     const octave_adjustment = @divFloor(target_semitones, constants.pitch_classes);
+//     result.octave += @intCast(i8, octave_adjustment);
+
+//     const remaining_semitones = @mod(target_semitones, constants.pitch_classes);
+//     const natural_note = Note{ .letter = result.note.letter, .accidental = null };
+//     const natural_semitones = natural_note.getPitchClass();
+//     const accidental_adjustment = @intCast(i8, remaining_semitones) - @intCast(i8, natural_semitones);
+
+//     result.note.accidental = Accidental.fromPitchAdjustment(accidental_adjustment);
+
+//     return result;
+// }
+
+// pub fn applyToPitch(self: Interval, pitch: Pitch) Pitch {
+//     var result = pitch;
+//     const degree_change = self.number.toU8() - 1;
+//     result.octave += @divFloor(degree_change, constants.diatonic_scale_degrees);
+//     const target_letter_index = (@intFromEnum(pitch.note.letter) + degree_change) % constants.diatonic_scale_degrees;
+//     result.note.letter = @enumFromInt(target_letter_index);
+
+//     const semitone_change = self.semitones();
+//     const octave_adjustment = @divFloor(semitone_change, constants.pitch_classes);
+//     result.octave += @intCast(i8, octave_adjustment);
+
+//     const remaining_semitones = @mod(semitone_change, constants.pitch_classes);
+//     const natural_note = Note{ .letter = result.note.letter, .accidental = null };
+//     const natural_semitones = natural_note.getPitchClass();
+//     const accidental_adjustment = @intCast(i8, remaining_semitones) - @intCast(i8, natural_semitones);
+
+//     result.note.accidental = Accidental.fromPitchAdjustment(accidental_adjustment);
+
+//     return result;
+// }
+
+// pub fn longDescription(self: Interval) []const u8 {
+//     return switch (self) {
+//         .P1 => "Perfect Unison",
+//         .P4 => "Perfect Fourth",
+//         .P5 => "Perfect Fifth",
+//         .P8 => "Octave",
+//         .P11 => "Eleventh",
+//         .P12 => "Twelfth",
+//         .P15 => "Double Octave",
+//         .M2 => "Major Second",
+//         .M3 => "Major Third",
+//         .M6 => "Major Sixth",
+//         .M7 => "Major Seventh",
+//         .M9 => "Major Ninth",
+//         .M10 => "Major Tenth",
+//         .M13 => "Major Thirteenth",
+//         .M14 => "Major Fourteenth",
+//         .m2 => "Minor Second",
+//         .m3 => "Minor Third",
+//         .m6 => "Minor Sixth",
+//         .m7 => "Minor Seventh",
+//         .m9 => "Minor Ninth",
+//         .m10 => "Minor Tenth",
+//         .m13 => "Minor Thirteenth",
+//         .m14 => "Minor Fourteenth",
+//         .A1 => "Augmented Unison",
+//         .A2 => "Augmented Second",
+//         .A3 => "Augmented Third",
+//         .A4 => "Augmented Fourth (Tritone)",
+//         .A5 => "Augmented Fifth",
+//         .A6 => "Augmented Sixth",
+//         .A7 => "Augmented Seventh",
+//         .A8 => "Augmented Octave",
+//         .A9 => "Augmented Ninth",
+//         .A10 => "Augmented Tenth",
+//         .A11 => "Augmented Eleventh",
+//         .A12 => "Augmented Twelfth",
+//         .A13 => "Augmented Thirteenth",
+//         .A14 => "Augmented Fourteenth",
+//         .d2 => "Diminished Second",
+//         .d3 => "Diminished Third",
+//         .d4 => "Diminished Fourth",
+//         .d5 => "Diminished Fifth (Tritone)",
+//         .d6 => "Diminished Sixth",
+//         .d7 => "Diminished Seventh",
+//         .d8 => "Diminished Octave",
+//         .d9 => "Diminished Ninth",
+//         .d10 => "Diminished Tenth",
+//         .d11 => "Diminished Eleventh",
+//         .d12 => "Diminished Twelfth",
+//         .d13 => "Diminished Thirteenth",
+//         .d14 => "Diminished Fourteenth",
+//         .d15 => "Diminished Double Octave",
+//     };
 // }
 
 // test "interval properties" {

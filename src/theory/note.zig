@@ -10,6 +10,37 @@ pub const Note = struct {
     letter: Letter,
     accidental: ?Accidental,
 
+    pub const Letter = enum { c, d, e, f, g, a, b };
+
+    pub const Accidental = enum {
+        double_flat,
+        flat,
+        natural,
+        sharp,
+        double_sharp,
+
+        pub fn fromSemitoneOffset(semitones: i8) !?Accidental {
+            return switch (semitones) {
+                -2 => .double_flat,
+                -1 => .flat,
+                0 => null,
+                1 => .sharp,
+                2 => .double_sharp,
+                else => return error.InvalidSemitoneOffset,
+            };
+        }
+
+        pub fn getSemitoneOffset(self: Accidental) i8 {
+            return switch (self) {
+                .double_flat => -2,
+                .flat => -1,
+                .natural => 0,
+                .sharp => 1,
+                .double_sharp => 2,
+            };
+        }
+    };
+
     /// Returns a `Note` based on the given pitch class, using the default mapping.
     ///
     /// 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
@@ -32,7 +63,7 @@ pub const Note = struct {
             else => null,
         };
 
-        return Note{ .letter = letter, .accidental = accidental };
+        return .{ .letter = letter, .accidental = accidental };
     }
 
     pub fn fromString(str: []const u8) NoteError!Note {
@@ -52,7 +83,7 @@ pub const Note = struct {
 
         const accidental = if (str.len > 1) try parseAccidental(str[1..]) else null;
 
-        return Note{ .letter = letter, .accidental = accidental };
+        return .{ .letter = letter, .accidental = accidental };
     }
 
     fn parseAccidental(str: []const u8) !Accidental {
@@ -94,9 +125,9 @@ pub const Note = struct {
             .a => 9,
             .b => 11,
         };
-        const adjustment: i8 = if (self.accidental) |acc| acc.getPitchAdjustment() else 0;
+        const semitone_offset: i8 = if (self.accidental) |acc| acc.getSemitoneOffset() else 0;
 
-        const result = @mod(base_class + adjustment, constants.pitch_classes);
+        const result = @mod(base_class + semitone_offset, constants.pitch_classes);
         return @intCast(result);
     }
 
@@ -140,9 +171,9 @@ pub const Note = struct {
             },
         };
 
-        const base_index = @as(usize, @intFromEnum(self.letter));
+        const letter_index = @as(usize, @intFromEnum(self.letter));
 
-        const adjustment: usize = if (self.accidental) |acc| switch (acc) {
+        const row_offset: usize = if (self.accidental) |acc| switch (acc) {
             .double_flat => 7,
             .flat => 14,
             .natural => 21,
@@ -150,7 +181,7 @@ pub const Note = struct {
             .double_sharp => 35,
         } else 0; // no accidental
 
-        return note_table[base_index + adjustment];
+        return note_table[letter_index + row_offset];
     }
 };
 
@@ -169,37 +200,6 @@ pub const NamingSystem = enum {
 pub const Encoding = enum {
     ascii,
     unicode,
-};
-
-pub const Letter = enum { c, d, e, f, g, a, b };
-
-pub const Accidental = enum {
-    double_flat,
-    flat,
-    natural,
-    sharp,
-    double_sharp,
-
-    pub fn fromPitchAdjustment(adjustment: i8) !?Accidental {
-        return switch (adjustment) {
-            -2 => .double_flat,
-            -1 => .flat,
-            0 => null,
-            1 => .sharp,
-            2 => .double_sharp,
-            else => return error.InvalidAdjustment,
-        };
-    }
-
-    pub fn getPitchAdjustment(self: Accidental) i8 {
-        return switch (self) {
-            .double_flat => -2,
-            .flat => -1,
-            .natural => 0,
-            .sharp => 1,
-            .double_sharp => 2,
-        };
-    }
 };
 
 test "pitch class calculations" {
