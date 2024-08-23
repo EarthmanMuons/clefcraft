@@ -86,6 +86,35 @@ pub const Interval = struct {
         return .{ .quality = quality, .number = number };
     }
 
+    pub fn fromString(str: []const u8) !Interval {
+        if (str.len < 2) return error.InvalidStringFormat;
+
+        const quality = try parseQuality(str[0]);
+        const number = try parseNumber(str[1..]);
+
+        if (!isValid(quality, number)) {
+            return error.InvalidInterval;
+        }
+
+        return .{ .quality = quality, .number = number };
+    }
+
+    fn parseQuality(char: u8) !Quality {
+        return switch (char) {
+            'P' => .perfect,
+            'M' => .major,
+            'm' => .minor,
+            'A' => .augmented,
+            'd' => .diminished,
+            else => error.InvalidQuality,
+        };
+    }
+
+    fn parseNumber(str: []const u8) !Number {
+        const num = try std.fmt.parseInt(i8, str, 10);
+        return Number.fromInt(num);
+    }
+
     pub fn getSemitones(self: Interval) i8 {
         const base_semitones = baseSemitones(self.number);
 
@@ -289,6 +318,37 @@ test "invalid intervals" {
     try testing.expectError(error.NumberOutOfRange, Interval.maj(16));
     try testing.expectError(error.InvalidInterval, Interval.perf(6));
     try testing.expectError(error.InvalidInterval, Interval.maj(4));
+}
+
+test "valid string formats" {
+    const test_cases = .{
+        .{ "P1", Interval.perf(1) catch unreachable },
+        .{ "M3", Interval.maj(3) catch unreachable },
+        .{ "m6", Interval.min(6) catch unreachable },
+        .{ "A4", Interval.aug(4) catch unreachable },
+        .{ "d5", Interval.dim(5) catch unreachable },
+        .{ "P8", Interval.perf(8) catch unreachable },
+    };
+
+    inline for (test_cases) |case| {
+        const result = try Interval.fromString(case[0]);
+        try testing.expectEqual(case[1], result);
+    }
+}
+
+test "invalid string formats" {
+    const test_cases = .{
+        .{ "P", error.InvalidStringFormat },
+        .{ "X3", error.InvalidQuality },
+        .{ "M0", error.NumberOutOfRange },
+        .{ "P3", error.InvalidInterval },
+        .{ "m1", error.InvalidInterval },
+        .{ "A16", error.NumberOutOfRange },
+    };
+
+    inline for (test_cases) |case| {
+        try testing.expectError(case[1], Interval.fromString(case[0]));
+    }
 }
 
 test "applying intervals" {
