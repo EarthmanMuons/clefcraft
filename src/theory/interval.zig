@@ -196,6 +196,7 @@ pub const Interval = struct {
     ) !void {
         _ = fmt;
         _ = options;
+
         const quality_str = switch (self.quality) {
             .perfect => "P",
             .major => "M",
@@ -203,7 +204,83 @@ pub const Interval = struct {
             .augmented => "A",
             .diminished => "d",
         };
+
         try writer.print("{s}{d}", .{ quality_str, @intFromEnum(self.number) });
+    }
+
+    // shorthand
+    pub fn fmtShort(self: Interval) std.fmt.Formatter(formatShort) {
+        return .{ .data = self };
+    }
+
+    fn formatShort(
+        self: Interval,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = fmt;
+        _ = options;
+
+        const quality_str = switch (self.quality) {
+            .perfect => "perf",
+            .major => "maj",
+            .minor => "min",
+            .augmented => "aug",
+            .diminished => "dim",
+        };
+
+        try writer.print("{s}{d}", .{ quality_str, @intFromEnum(self.number) });
+    }
+
+    // description
+    pub fn fmtDesc(self: Interval) std.fmt.Formatter(formatDesc) {
+        return .{ .data = self };
+    }
+
+    fn formatDesc(
+        self: Interval,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = fmt;
+        _ = options;
+
+        const quality_str = switch (self.quality) {
+            .perfect => switch (self.number) {
+                .unison, .fourth, .fifth => "Perfect",
+                else => "",
+            },
+            .major => "Major",
+            .minor => "Minor",
+            .augmented => "Augmented",
+            .diminished => "Diminished",
+        };
+
+        const number_str = switch (self.number) {
+            .unison => "Unison",
+            .second => "Second",
+            .third => "Third",
+            .fourth => "Fourth",
+            .fifth => "Fifth",
+            .sixth => "Sixth",
+            .seventh => "Seventh",
+            .octave => "Octave",
+            .ninth => "Ninth",
+            .tenth => "Tenth",
+            .eleventh => "Eleventh",
+            .twelfth => "Twelfth",
+            .thirteenth => "Thirteenth",
+            .fourteenth => "Fourteenth",
+            .double_octave => "Double Octave",
+        };
+
+        if (quality_str.len > 0) {
+            try writer.print("{s} {s}", .{ quality_str, number_str });
+        } else {
+            try writer.print("{s}", .{number_str});
+        }
     }
 };
 
@@ -254,58 +331,41 @@ test "applying intervals" {
     }
 }
 
-// pub fn longDescription(self: Interval) []const u8 {
-//     return switch (self) {
-//         .P1 => "Perfect Unison",
-//         .P4 => "Perfect Fourth",
-//         .P5 => "Perfect Fifth",
-//         .P8 => "Octave",
-//         .P11 => "Eleventh",
-//         .P12 => "Twelfth",
-//         .P15 => "Double Octave",
-//         .M2 => "Major Second",
-//         .M3 => "Major Third",
-//         .M6 => "Major Sixth",
-//         .M7 => "Major Seventh",
-//         .M9 => "Major Ninth",
-//         .M10 => "Major Tenth",
-//         .M13 => "Major Thirteenth",
-//         .M14 => "Major Fourteenth",
-//         .m2 => "Minor Second",
-//         .m3 => "Minor Third",
-//         .m6 => "Minor Sixth",
-//         .m7 => "Minor Seventh",
-//         .m9 => "Minor Ninth",
-//         .m10 => "Minor Tenth",
-//         .m13 => "Minor Thirteenth",
-//         .m14 => "Minor Fourteenth",
-//         .A1 => "Augmented Unison",
-//         .A2 => "Augmented Second",
-//         .A3 => "Augmented Third",
-//         .A4 => "Augmented Fourth (Tritone)",
-//         .A5 => "Augmented Fifth",
-//         .A6 => "Augmented Sixth",
-//         .A7 => "Augmented Seventh",
-//         .A8 => "Augmented Octave",
-//         .A9 => "Augmented Ninth",
-//         .A10 => "Augmented Tenth",
-//         .A11 => "Augmented Eleventh",
-//         .A12 => "Augmented Twelfth",
-//         .A13 => "Augmented Thirteenth",
-//         .A14 => "Augmented Fourteenth",
-//         .d2 => "Diminished Second",
-//         .d3 => "Diminished Third",
-//         .d4 => "Diminished Fourth",
-//         .d5 => "Diminished Fifth (Tritone)",
-//         .d6 => "Diminished Sixth",
-//         .d7 => "Diminished Seventh",
-//         .d8 => "Diminished Octave",
-//         .d9 => "Diminished Ninth",
-//         .d10 => "Diminished Tenth",
-//         .d11 => "Diminished Eleventh",
-//         .d12 => "Diminished Twelfth",
-//         .d13 => "Diminished Thirteenth",
-//         .d14 => "Diminished Fourteenth",
-//         .d15 => "Diminished Double Octave",
-//     };
-// }
+test "interval formatting" {
+    const intervals = [_]Interval{
+        Interval.perf(1) catch unreachable,
+        Interval.maj(3) catch unreachable,
+        Interval.min(6) catch unreachable,
+        Interval.aug(4) catch unreachable,
+        Interval.dim(5) catch unreachable,
+        Interval.perf(8) catch unreachable,
+        Interval.perf(11) catch unreachable,
+    };
+
+    const exp_default = [_][]const u8{ "P1", "M3", "m6", "A4", "d5", "P8", "P11" };
+
+    const exp_short = [_][]const u8{ "perf1", "maj3", "min6", "aug4", "dim5", "perf8", "perf11" };
+
+    const exp_desc = [_][]const u8{
+        "Perfect Unison",
+        "Major Third",
+        "Minor Sixth",
+        "Augmented Fourth",
+        "Diminished Fifth",
+        "Octave",
+        "Eleventh",
+    };
+
+    for (intervals, exp_default, exp_short, exp_desc) |interval, e_def, e_short, e_desc| {
+        var buf: [32]u8 = undefined;
+
+        const def = try std.fmt.bufPrint(&buf, "{}", .{interval});
+        try std.testing.expectEqualStrings(e_def, def);
+
+        const short = try std.fmt.bufPrint(&buf, "{}", .{interval.fmtShort()});
+        try std.testing.expectEqualStrings(e_short, short);
+
+        const desc = try std.fmt.bufPrint(&buf, "{}", .{interval.fmtDesc()});
+        try std.testing.expectEqualStrings(e_desc, desc);
+    }
+}
