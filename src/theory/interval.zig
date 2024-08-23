@@ -202,7 +202,7 @@ pub const Interval = struct {
         return .{ .note = new_note, .octave = new_pitch.octave };
     }
 
-    pub fn invert(self: Interval) !Interval {
+    pub fn invert(self: Interval) Interval {
         const new_quality: Quality = switch (self.quality) {
             .perfect => .perfect,
             .major => .minor,
@@ -211,17 +211,22 @@ pub const Interval = struct {
             .diminished => .augmented,
         };
 
-        // Calculate the simple interval number equivalent:
-        // 1. Subtract 1 to convert from 1-based to 0-based indexing
-        // 2. Use modulo 7 to wrap around within an octave
-        // 3. Add 1 to convert back to 1-based indexing
-        const simple_number = @mod(@intFromEnum(self.number) - 1, constants.diatonic_degrees) + 1;
+        const interval_number = @intFromEnum(self.number);
+        const simple_number = @mod(interval_number - 1, constants.diatonic_degrees) + 1;
+
+        // Handle unison and octave-based intervals
+        if (simple_number == 1) {
+            if (interval_number == 1) {
+                // Unison inverts to octave
+                return .{ .quality = .perfect, .number = .octave };
+            } else {
+                // Octave, double octave, etc. invert to unison
+                return .{ .quality = .perfect, .number = .unison };
+            }
+        }
 
         // The interval number and the number of its inversion always add up to nine.
-        const new_number: Number = if (self.number == .octave)
-            .unison
-        else
-            @enumFromInt(9 - simple_number);
+        const new_number: Number = @enumFromInt(9 - simple_number);
 
         return .{ .quality = new_quality, .number = new_number };
     }
@@ -442,6 +447,7 @@ test "interval inversion" {
         .{ Interval.perf(11), Interval.perf(5) },
         .{ Interval.maj(9), Interval.min(7) },
         .{ Interval.aug(12), Interval.dim(4) },
+        .{ Interval.perf(15), Interval.perf(1) },
     };
 
     inline for (test_cases) |case| {
@@ -449,12 +455,12 @@ test "interval inversion" {
         const interval = case[0] catch unreachable;
         const expected = case[1] catch unreachable;
 
-        const inverted = try interval.invert();
+        const inverted = interval.invert();
         try testing.expectEqual(expected, inverted);
 
         // For simple intervals, we expect double inversion to return to the original.
         if (interval.isSimple()) {
-            const original = try inverted.invert();
+            const original = inverted.invert();
             try testing.expectEqual(interval, original);
         }
     }

@@ -16,4 +16,5 @@ test {
     _ = @import("theory/interval.zig");
     _ = @import("theory/note.zig");
     _ = @import("theory/pitch.zig");
+    _ = @import("theory/scale.zig");
 }
