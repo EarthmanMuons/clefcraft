@@ -354,17 +354,18 @@ test "invalid intervals" {
 
 test "valid string formats" {
     const test_cases = .{
-        .{ "P1", Interval.perf(1) catch unreachable },
-        .{ "M3", Interval.maj(3) catch unreachable },
-        .{ "m6", Interval.min(6) catch unreachable },
-        .{ "A4", Interval.aug(4) catch unreachable },
-        .{ "d5", Interval.dim(5) catch unreachable },
-        .{ "P8", Interval.perf(8) catch unreachable },
+        .{ "P1", Interval.perf(1) },
+        .{ "M3", Interval.maj(3) },
+        .{ "m6", Interval.min(6) },
+        .{ "A4", Interval.aug(4) },
+        .{ "d5", Interval.dim(5) },
+        .{ "P8", Interval.perf(8) },
     };
 
     inline for (test_cases) |case| {
+        const expected = case[1] catch unreachable; // force unwrap
         const result = try Interval.fromString(case[0]);
-        try testing.expectEqual(case[1], result);
+        try testing.expectEqual(expected, result);
     }
 }
 
@@ -386,39 +387,40 @@ test "invalid string formats" {
 test "applying intervals" {
     const test_cases = .{
         .{
-            Interval.perf(5) catch unreachable,
+            Interval.perf(5),
             Pitch{ .note = Note.c, .octave = 4 },
             Pitch{ .note = Note.g, .octave = 4 },
         },
         .{
-            Interval.maj(3) catch unreachable,
+            Interval.maj(3),
             Pitch{ .note = Note.c, .octave = 4 },
             Pitch{ .note = Note.e, .octave = 4 },
         },
         .{
-            Interval.min(7) catch unreachable,
+            Interval.min(7),
             Pitch{ .note = Note.c, .octave = 4 },
             Pitch{ .note = Note.b.flat(), .octave = 4 },
         },
         .{
-            Interval.perf(8) catch unreachable,
+            Interval.perf(8),
             Pitch{ .note = Note.c, .octave = 4 },
             Pitch{ .note = Note.c, .octave = 5 },
         },
         .{
-            Interval.maj(3) catch unreachable,
+            Interval.maj(3),
             Pitch{ .note = Note.d, .octave = 4 },
             Pitch{ .note = Note.f.sharp(), .octave = 4 },
         },
         .{
-            Interval.dim(4) catch unreachable,
+            Interval.dim(4),
             Pitch{ .note = Note.d, .octave = 4 },
             Pitch{ .note = Note.g.flat(), .octave = 4 },
         },
     };
 
     inline for (test_cases) |case| {
-        const result = try case[0].applyToPitch(case[1]);
+        const interval = case[0] catch unreachable; // force unwrap
+        const result = try interval.applyToPitch(case[1]);
         try testing.expectEqual(case[2], result);
     }
 }
@@ -443,7 +445,7 @@ test "interval inversion" {
     };
 
     inline for (test_cases) |case| {
-        // Force unwrap; these interval creations should never fail.
+        // force unwrap
         const interval = case[0] catch unreachable;
         const expected = case[1] catch unreachable;
 
@@ -459,40 +461,31 @@ test "interval inversion" {
 }
 
 test "interval formatting" {
-    const intervals = [_]Interval{
-        Interval.perf(1) catch unreachable,
-        Interval.maj(3) catch unreachable,
-        Interval.min(6) catch unreachable,
-        Interval.aug(4) catch unreachable,
-        Interval.dim(5) catch unreachable,
-        Interval.perf(8) catch unreachable,
-        Interval.perf(11) catch unreachable,
+    const test_cases = .{
+        .{ Interval.perf(1), "P1", "perf1", "Perfect Unison" },
+        .{ Interval.maj(3), "M3", "maj3", "Major Third" },
+        .{ Interval.min(6), "m6", "min6", "Minor Sixth" },
+        .{ Interval.aug(4), "A4", "aug4", "Augmented Fourth" },
+        .{ Interval.dim(5), "d5", "dim5", "Diminished Fifth" },
+        .{ Interval.perf(8), "P8", "perf8", "Octave" },
+        .{ Interval.perf(11), "P11", "perf11", "Eleventh" },
     };
 
-    const exp_default = [_][]const u8{ "P1", "M3", "m6", "A4", "d5", "P8", "P11" };
+    inline for (test_cases) |case| {
+        const interval = case[0] catch unreachable; // force unwrap
+        const exp_default = case[1];
+        const exp_short = case[2];
+        const exp_desc = case[3];
 
-    const exp_short = [_][]const u8{ "perf1", "maj3", "min6", "aug4", "dim5", "perf8", "perf11" };
-
-    const exp_desc = [_][]const u8{
-        "Perfect Unison",
-        "Major Third",
-        "Minor Sixth",
-        "Augmented Fourth",
-        "Diminished Fifth",
-        "Octave",
-        "Eleventh",
-    };
-
-    for (intervals, exp_default, exp_short, exp_desc) |interval, e_def, e_short, e_desc| {
         var buf: [32]u8 = undefined;
 
         const def = try std.fmt.bufPrint(&buf, "{}", .{interval});
-        try std.testing.expectEqualStrings(e_def, def);
+        try std.testing.expectEqualStrings(exp_default, def);
 
         const short = try std.fmt.bufPrint(&buf, "{}", .{interval.fmtShort()});
-        try std.testing.expectEqualStrings(e_short, short);
+        try std.testing.expectEqualStrings(exp_short, short);
 
         const desc = try std.fmt.bufPrint(&buf, "{}", .{interval.fmtDesc()});
-        try std.testing.expectEqualStrings(e_desc, desc);
+        try std.testing.expectEqualStrings(exp_desc, desc);
     }
 }
