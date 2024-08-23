@@ -137,13 +137,13 @@ pub const Pitch = struct {
 
 test "valid string formats" {
     const test_cases = .{
-        .{ "C-2", Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = -2 } },
-        .{ "A0", Pitch{ .note = .{ .letter = .a, .accidental = null }, .octave = 0 } },
-        .{ "C4", Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = 4 } },
-        .{ "C♯4", Pitch{ .note = .{ .letter = .c, .accidental = .sharp }, .octave = 4 } },
-        .{ "A4", Pitch{ .note = .{ .letter = .a, .accidental = null }, .octave = 4 } },
-        .{ "C8", Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = 8 } },
-        .{ "C10", Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = 10 } },
+        .{ "C-2", Pitch{ .note = Note.c, .octave = -2 } },
+        .{ "A0", Pitch{ .note = Note.a, .octave = 0 } },
+        .{ "C4", Pitch{ .note = Note.c, .octave = 4 } },
+        .{ "C♯4", Pitch{ .note = Note.c.sharp(), .octave = 4 } },
+        .{ "A4", Pitch{ .note = Note.a, .octave = 4 } },
+        .{ "C8", Pitch{ .note = Note.c, .octave = 8 } },
+        .{ "C10", Pitch{ .note = Note.c, .octave = 10 } },
     };
 
     inline for (test_cases) |case| {
@@ -179,10 +179,10 @@ test "string roundtrip consistency" {
 test "frequency calculations" {
     const epsilon = 0.001;
     const test_cases = .{
-        .{ Pitch{ .note = .{ .letter = .a, .accidental = null }, .octave = 4 }, 440.0 },
-        .{ Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = 4 }, 261.626 },
-        .{ Pitch{ .note = .{ .letter = .b, .accidental = null }, .octave = 3 }, 246.942 },
-        .{ Pitch{ .note = .{ .letter = .c, .accidental = .flat }, .octave = 4 }, 246.942 },
+        .{ Pitch{ .note = Note.a, .octave = 4 }, 440.0 },
+        .{ Pitch{ .note = Note.c, .octave = 4 }, 261.626 },
+        .{ Pitch{ .note = Note.b, .octave = 3 }, 246.942 },
+        .{ Pitch{ .note = Note.c.flat(), .octave = 4 }, 246.942 },
     };
 
     inline for (test_cases) |case| {
@@ -192,14 +192,14 @@ test "frequency calculations" {
 
 test "MIDI number conversions" {
     const test_cases = .{
-        .{ Pitch{ .note = .{ .letter = .a, .accidental = null }, .octave = 4 }, 69 },
-        .{ Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = 4 }, 60 },
-        .{ Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = -1 }, 0 },
-        .{ Pitch{ .note = .{ .letter = .g, .accidental = null }, .octave = 9 }, 127 },
-        .{ Pitch{ .note = .{ .letter = .b, .accidental = null }, .octave = 3 }, 59 },
-        .{ Pitch{ .note = .{ .letter = .c, .accidental = .flat }, .octave = 4 }, 59 },
-        .{ Pitch{ .note = .{ .letter = .c, .accidental = .double_flat }, .octave = 4 }, 58 },
-        .{ Pitch{ .note = .{ .letter = .a, .accidental = .sharp }, .octave = 3 }, 58 },
+        .{ Pitch{ .note = Note.a, .octave = 4 }, 69 },
+        .{ Pitch{ .note = Note.c, .octave = 4 }, 60 },
+        .{ Pitch{ .note = Note.c, .octave = -1 }, 0 },
+        .{ Pitch{ .note = Note.g, .octave = 9 }, 127 },
+        .{ Pitch{ .note = Note.b, .octave = 3 }, 59 },
+        .{ Pitch{ .note = Note.c.flat(), .octave = 4 }, 59 },
+        .{ Pitch{ .note = Note.c.doubleFlat(), .octave = 4 }, 58 },
+        .{ Pitch{ .note = Note.a.sharp(), .octave = 3 }, 58 },
     };
 
     inline for (test_cases) |case| {
@@ -209,14 +209,14 @@ test "MIDI number conversions" {
 
 test "negative octaves and MIDI range boundaries" {
     const test_cases = .{
-        .{ Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = -1 }, 0, false },
-        .{ Pitch{ .note = .{ .letter = .c, .accidental = .flat }, .octave = -1 }, 0, true },
-        .{ Pitch{ .note = .{ .letter = .b, .accidental = null }, .octave = -1 }, 11, false },
-        .{ Pitch{ .note = .{ .letter = .b, .accidental = .sharp }, .octave = -2 }, 0, false },
-        .{ Pitch{ .note = .{ .letter = .c, .accidental = .sharp }, .octave = -1 }, 1, false },
-        .{ Pitch{ .note = .{ .letter = .g, .accidental = null }, .octave = 9 }, 127, false },
-        .{ Pitch{ .note = .{ .letter = .g, .accidental = .sharp }, .octave = 9 }, 0, true },
-        .{ Pitch{ .note = .{ .letter = .a, .accidental = null }, .octave = 9 }, 0, true },
+        .{ Pitch{ .note = Note.c, .octave = -1 }, 0, false },
+        .{ Pitch{ .note = Note.c.flat(), .octave = -1 }, 0, true },
+        .{ Pitch{ .note = Note.b, .octave = -1 }, 11, false },
+        .{ Pitch{ .note = Note.b.sharp(), .octave = -2 }, 0, false },
+        .{ Pitch{ .note = Note.c.sharp(), .octave = -1 }, 1, false },
+        .{ Pitch{ .note = Note.g, .octave = 9 }, 127, false },
+        .{ Pitch{ .note = Note.g.sharp(), .octave = 9 }, 0, true },
+        .{ Pitch{ .note = Note.a, .octave = 9 }, 0, true },
     };
 
     inline for (test_cases) |case| {
@@ -238,28 +238,28 @@ test "MIDI number roundtrip consistency" {
 test "enharmonic equivalence" {
     const test_cases = .{
         .{
-            Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = 4 },
-            Pitch{ .note = .{ .letter = .b, .accidental = .sharp }, .octave = 3 },
+            Pitch{ .note = Note.c, .octave = 4 },
+            Pitch{ .note = Note.b.sharp(), .octave = 3 },
             true,
         },
         .{
-            Pitch{ .note = .{ .letter = .d, .accidental = .flat }, .octave = 4 },
-            Pitch{ .note = .{ .letter = .c, .accidental = .sharp }, .octave = 4 },
+            Pitch{ .note = Note.d.flat(), .octave = 4 },
+            Pitch{ .note = Note.c.sharp(), .octave = 4 },
             true,
         },
         .{
-            Pitch{ .note = .{ .letter = .e, .accidental = .double_flat }, .octave = 4 },
-            Pitch{ .note = .{ .letter = .d, .accidental = null }, .octave = 4 },
+            Pitch{ .note = Note.e.doubleFlat(), .octave = 4 },
+            Pitch{ .note = Note.d, .octave = 4 },
             true,
         },
         .{
-            Pitch{ .note = .{ .letter = .d, .accidental = .flat }, .octave = 4 },
-            Pitch{ .note = .{ .letter = .e, .accidental = .double_flat }, .octave = 4 },
+            Pitch{ .note = Note.d.flat(), .octave = 4 },
+            Pitch{ .note = Note.e.doubleFlat(), .octave = 4 },
             false,
         },
         .{
-            Pitch{ .note = .{ .letter = .c, .accidental = null }, .octave = 4 },
-            Pitch{ .note = .{ .letter = .d, .accidental = .flat }, .octave = 4 },
+            Pitch{ .note = Note.c, .octave = 4 },
+            Pitch{ .note = Note.d.flat(), .octave = 4 },
             false,
         },
     };
