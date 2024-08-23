@@ -202,6 +202,38 @@ pub const Interval = struct {
         return .{ .note = new_note, .octave = new_pitch.octave };
     }
 
+    pub fn invert(self: Interval) !Interval {
+        const new_quality: Quality = switch (self.quality) {
+            .perfect => .perfect,
+            .major => .minor,
+            .minor => .major,
+            .augmented => .diminished,
+            .diminished => .augmented,
+        };
+
+        // Calculate the simple interval number equivalent:
+        // 1. Subtract 1 to convert from 1-based to 0-based indexing
+        // 2. Use modulo 7 to wrap around within an octave
+        // 3. Add 1 to convert back to 1-based indexing
+        const simple_number = @mod(@intFromEnum(self.number) - 1, constants.diatonic_degrees) + 1;
+
+        // The interval number and the number of its inversion always add up to nine.
+        const new_number: Number = if (self.number == .octave)
+            .unison
+        else
+            @enumFromInt(9 - simple_number);
+
+        return .{ .quality = new_quality, .number = new_number };
+    }
+
+    pub fn isCompound(self: Interval) bool {
+        return @intFromEnum(self.number) > constants.diatonic_degrees;
+    }
+
+    pub fn isSimple(self: Interval) bool {
+        return !self.isCompound();
+    }
+
     // Checks if the given combination of quality and number would make a valid interval.
     pub fn isValid(quality: Quality, number: Number) bool {
         if (number.isPerfect()) {
@@ -388,6 +420,41 @@ test "applying intervals" {
     inline for (test_cases) |case| {
         const result = try case[0].applyToPitch(case[1]);
         try testing.expectEqual(case[2], result);
+    }
+}
+
+test "interval inversion" {
+    const test_cases = .{
+        // Simple intervals
+        .{ Interval.perf(1), Interval.perf(8) },
+        .{ Interval.maj(6), Interval.min(3) },
+        .{ Interval.maj(2), Interval.min(7) },
+        .{ Interval.min(3), Interval.maj(6) },
+        .{ Interval.perf(4), Interval.perf(5) },
+        .{ Interval.aug(4), Interval.dim(5) },
+        .{ Interval.dim(7), Interval.aug(2) },
+        .{ Interval.perf(8), Interval.perf(1) },
+        // Compound intervals
+        .{ Interval.maj(13), Interval.min(3) },
+        .{ Interval.maj(10), Interval.min(6) },
+        .{ Interval.perf(11), Interval.perf(5) },
+        .{ Interval.maj(9), Interval.min(7) },
+        .{ Interval.aug(12), Interval.dim(4) },
+    };
+
+    inline for (test_cases) |case| {
+        // Force unwrap; these interval creations should never fail.
+        const interval = case[0] catch unreachable;
+        const expected = case[1] catch unreachable;
+
+        const inverted = try interval.invert();
+        try testing.expectEqual(expected, inverted);
+
+        // For simple intervals, we expect double inversion to return to the original.
+        if (interval.isSimple()) {
+            const original = try inverted.invert();
+            try testing.expectEqual(interval, original);
+        }
     }
 }
 
