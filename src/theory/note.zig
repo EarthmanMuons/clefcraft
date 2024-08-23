@@ -167,26 +167,12 @@ pub const Note = struct {
         writer: anytype,
     ) !void {
         _ = options;
-
-        // Default string options.
-        var naming: NamingSystem = .latin;
-        var encoding: Encoding = .unicode;
-
-        for (fmt) |char| {
-            switch (char) {
-                'c' => encoding = .ascii,
-                'u' => encoding = .unicode,
-                'g' => naming = .german,
-                'l' => naming = .latin,
-                's' => naming = .solfege,
-                else => return error.InvalidFormatSpecifier,
-            }
-        }
-
-        try writer.writeAll(self.toStringInternal(naming, encoding));
+        const use_ascii = std.mem.indexOfScalar(u8, fmt, 'c') != null;
+        const encoding: Encoding = if (use_ascii) .ascii else .unicode;
+        try writer.writeAll(self.formatImpl(.latin, encoding));
     }
 
-    fn toStringInternal(self: Note, naming: NamingSystem, encoding: Encoding) []const u8 {
+    fn formatImpl(self: Note, naming: NamingSystem, encoding: Encoding) []const u8 {
         const note_table = switch (naming) {
             .german => &note_names.german,
             .latin => switch (encoding) {
@@ -211,6 +197,38 @@ pub const Note = struct {
         } else 0; // no accidental
 
         return note_table[letter_index + row_offset];
+    }
+
+    pub fn fmtGerman(self: Note) std.fmt.Formatter(formatGerman) {
+        return .{ .data = self };
+    }
+
+    fn formatGerman(
+        self: Note,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = options;
+        const use_ascii = std.mem.indexOfScalar(u8, fmt, 'c') != null;
+        const encoding: Encoding = if (use_ascii) .ascii else .unicode;
+        try writer.writeAll(self.formatImpl(.german, encoding));
+    }
+
+    fn formatSolfege(
+        self: Note,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = options;
+        const use_ascii = std.mem.indexOfScalar(u8, fmt, 'c') != null;
+        const encoding: Encoding = if (use_ascii) .ascii else .unicode;
+        try writer.writeAll(self.formatImpl(.solfege, encoding));
+    }
+
+    pub fn fmtSolfege(self: Note) std.fmt.Formatter(formatSolfege) {
+        return .{ .data = self };
     }
 };
 
@@ -283,19 +301,15 @@ test "invalid string formats" {
 
 test "format options" {
     const note = Note.b.flat();
-    const test_cases = .{
-        .{ "{}", "B♭" },
-        .{ "{c}", "Bb" },
-        .{ "{u}", "B♭" },
-        .{ "{g}", "B" },
-        .{ "{l}", "B♭" },
-        .{ "{s}", "Ti♭" },
-        .{ "{sc}", "Tib" },
-    };
 
-    inline for (test_cases) |case| {
-        try testing.expectFmt(case[1], case[0], .{note});
-    }
+    try testing.expectFmt("B♭", "{}", .{note});
+    try testing.expectFmt("Bb", "{c}", .{note});
+
+    try testing.expectFmt("B", "{}", .{note.fmtGerman()});
+    try testing.expectFmt("B", "{c}", .{note.fmtGerman()});
+
+    try testing.expectFmt("Ti♭", "{}", .{note.fmtSolfege()});
+    try testing.expectFmt("Tib", "{c}", .{note.fmtSolfege()});
 }
 
 test "string roundtrip consistency" {
