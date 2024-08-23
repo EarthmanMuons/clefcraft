@@ -274,12 +274,11 @@ pub const Interval = struct {
         try writer.print("{s}{d}", .{ quality_str, @intFromEnum(self.number) });
     }
 
-    // shorthand
-    pub fn fmtShort(self: Interval) std.fmt.Formatter(formatShort) {
+    pub fn fmtShorthand(self: Interval) std.fmt.Formatter(formatShorthand) {
         return .{ .data = self };
     }
 
-    fn formatShort(
+    fn formatShorthand(
         self: Interval,
         comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
@@ -299,12 +298,11 @@ pub const Interval = struct {
         try writer.print("{s}{d}", .{ quality_str, @intFromEnum(self.number) });
     }
 
-    // description
-    pub fn fmtDesc(self: Interval) std.fmt.Formatter(formatDesc) {
+    pub fn fmtName(self: Interval) std.fmt.Formatter(formatName) {
         return .{ .data = self };
     }
 
-    fn formatDesc(
+    fn formatName(
         self: Interval,
         comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
@@ -488,10 +486,10 @@ test "interval formatting" {
         const def = try std.fmt.bufPrint(&buf, "{}", .{interval});
         try std.testing.expectEqualStrings(exp_default, def);
 
-        const short = try std.fmt.bufPrint(&buf, "{}", .{interval.fmtShort()});
+        const short = try std.fmt.bufPrint(&buf, "{}", .{interval.fmtShorthand()});
         try std.testing.expectEqualStrings(exp_short, short);
 
-        const desc = try std.fmt.bufPrint(&buf, "{}", .{interval.fmtDesc()});
+        const desc = try std.fmt.bufPrint(&buf, "{}", .{interval.fmtName()});
         try std.testing.expectEqualStrings(exp_desc, desc);
     }
 }
