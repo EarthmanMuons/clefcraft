@@ -33,17 +33,17 @@ pub const Scale = struct {
 
     fn generateIntervals(self: *Scale) void {
         self.intervals = self.pattern.getIntervals();
-        self.count = countNonNullIntervals(self.intervals);
+        self.count = countIntervals(self.intervals);
         log.debug("Generated intervals: {any}", .{self.intervals[0..self.count]});
     }
 
-    fn countNonNullIntervals(intervals: [12]?Interval) u4 {
+    fn countIntervals(intervals: [12]?Interval) u4 {
         var count: u4 = 0;
         for (intervals) |maybe_interval| {
             if (maybe_interval != null) {
                 count += 1;
             } else {
-                break; // Assuming all non-null intervals are at the beginning
+                break; // all non-null intervals are at the beginning
             }
         }
         return count;
@@ -99,16 +99,36 @@ pub const Scale = struct {
         return semitones;
     }
 
-    pub fn contains(self: *Scale, note: Note) !bool {
+    pub fn getScaleSpelling(self: *Scale, note: Note) ?Note {
+        if (self.degreeOf(note)) |d| {
+            return self.nthDegree(d);
+        }
+        return null;
+    }
+
+    pub fn contains(self: *Scale, note: Note) bool {
+        return self.degreeOf(note) != null;
+    }
+
+    pub fn degreeOf(self: *Scale, note: Note) ?u8 {
         const scale_notes = self.getNotes();
         const note_pitch_class = note.getPitchClass();
 
-        for (scale_notes) |scale_note| {
+        for (scale_notes, 0..) |scale_note, i| {
             if (note_pitch_class == scale_note.getPitchClass()) {
-                return true;
+                return @intCast(i + 1); // scale degrees are 1-indexed
             }
         }
-        return false;
+        return null;
+    }
+
+    pub fn nthDegree(self: *Scale, n: u8) ?Note {
+        if (n == 0 or n > self.count) {
+            return null;
+        }
+
+        const scale_notes = self.getNotes();
+        return scale_notes[n - 1]; // scale degrees are 1-indexed
     }
 };
 
@@ -129,17 +149,17 @@ test "scale creation and note retrieval" {
 test "scale contains note" {
     var c_major = Scale.init(Note.c, .major);
 
-    try testing.expect(try c_major.contains(Note.c));
-    try testing.expect(try c_major.contains(Note.d));
-    try testing.expect(try c_major.contains(Note.e));
-    try testing.expect(try c_major.contains(Note.f));
-    try testing.expect(try c_major.contains(Note.g));
-    try testing.expect(try c_major.contains(Note.a));
-    try testing.expect(try c_major.contains(Note.b));
+    try testing.expect(c_major.contains(Note.c));
+    try testing.expect(c_major.contains(Note.d));
+    try testing.expect(c_major.contains(Note.e));
+    try testing.expect(c_major.contains(Note.f));
+    try testing.expect(c_major.contains(Note.g));
+    try testing.expect(c_major.contains(Note.a));
+    try testing.expect(c_major.contains(Note.b));
 
-    try testing.expect(!try c_major.contains(Note.c.sharp()));
-    try testing.expect(!try c_major.contains(Note.f.sharp()));
+    try testing.expect(!c_major.contains(Note.c.sharp()));
+    try testing.expect(!c_major.contains(Note.f.sharp()));
 
-    try testing.expect(try c_major.contains(Note.b.sharp())); // enharmonic to C
-    try testing.expect(try c_major.contains(Note.e.sharp())); // enharmonic to F
+    try testing.expect(c_major.contains(Note.b.sharp())); // enharmonic to C
+    try testing.expect(c_major.contains(Note.e.sharp())); // enharmonic to F
 }
