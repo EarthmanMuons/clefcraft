@@ -183,9 +183,9 @@ test "semitones calculation" {
 test "scale degrees" {
     var c_major = Scale.init(Note.c, .major);
 
-    try testing.expectEqual(@as(?u8, 1), c_major.degreeOf(Note.c));
-    try testing.expectEqual(@as(?u8, 4), c_major.degreeOf(Note.f));
-    try testing.expectEqual(@as(?u8, null), c_major.degreeOf(Note.f.sharp()));
+    try testing.expectEqual(1, c_major.degreeOf(Note.c));
+    try testing.expectEqual(4, c_major.degreeOf(Note.f));
+    try testing.expectEqual(null, c_major.degreeOf(Note.f.sharp()));
 
     try testing.expectEqual(Note.c, c_major.nthDegree(1).?);
     try testing.expectEqual(Note.g, c_major.nthDegree(5).?);
@@ -197,7 +197,7 @@ test "scale spellings" {
 
     try testing.expectEqual(Note.e, c_major.getScaleSpelling(Note.f.flat()).?);
     try testing.expectEqual(Note.b, c_major.getScaleSpelling(Note.c.flat()).?);
-    try testing.expectEqual(@as(?Note, null), c_major.getScaleSpelling(Note.f.sharp()));
+    try testing.expectEqual(null, c_major.getScaleSpelling(Note.f.sharp()));
 }
 
 test "scale contains note" {
