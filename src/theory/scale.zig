@@ -5,7 +5,6 @@ const testing = std.testing;
 
 const Interval = @import("interval.zig").Interval;
 const Note = @import("note.zig").Note;
-const Pattern = @import("scale_library.zig").Pattern;
 const Pitch = @import("pitch.zig").Pitch;
 
 pub const Scale = struct {
@@ -15,6 +14,22 @@ pub const Scale = struct {
     count: u4,
     notes: ?[12]Note,
     semitones: ?[12]i8,
+
+    pub const Pattern = enum {
+        major,
+        natural_minor,
+        harmonic_minor,
+        melodic_minor,
+        pentatonic_major,
+        pentatonic_minor,
+        chromatic,
+        dorian,
+        phrygian,
+        lydian,
+        mixolydian,
+        locrian,
+        whole_tone,
+    };
 
     pub fn init(tonic: Note, pattern: Pattern) Scale {
         var scale = Scale{
@@ -26,6 +41,7 @@ pub const Scale = struct {
             .semitones = null,
         };
         scale.generateIntervals();
+        scale.countIntervals();
         log.debug(
             "Scale initialized with tonic: {}, pattern: {}, count: {}",
             .{ tonic, pattern, scale.count },
@@ -34,21 +50,58 @@ pub const Scale = struct {
     }
 
     fn generateIntervals(self: *Scale) void {
-        self.intervals = self.pattern.getIntervals();
-        self.count = countIntervals(self.intervals);
-        log.debug("Generated intervals: {any}", .{self.intervals[0..self.count]});
+        const interval_strings = switch (self.pattern) {
+            .major => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "M7", "P8" },
+            .natural_minor => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "m7", "P8" },
+            .harmonic_minor => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "M7", "P8" },
+            .melodic_minor => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "M6", "M7", "P8" },
+            .pentatonic_major => &[_][]const u8{ "P1", "M2", "M3", "P5", "M6", "P8" },
+            .pentatonic_minor => &[_][]const u8{ "P1", "m3", "P4", "P5", "m7", "P8" },
+            .chromatic => &self.generateChromaticIntervals(),
+            .dorian => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "M6", "m7", "P8" },
+            .phrygian => &[_][]const u8{ "P1", "m2", "m3", "P4", "P5", "m6", "m7", "P8" },
+            .lydian => &[_][]const u8{ "P1", "M2", "M3", "A4", "P5", "M6", "M7", "P8" },
+            .mixolydian => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "m7", "P8" },
+            .locrian => &[_][]const u8{ "P1", "m2", "m3", "P4", "d5", "m6", "m7", "P8" },
+            .whole_tone => &self.generateWholeToneIntervals(),
+        };
+
+        for (interval_strings, 0..) |interval_str, i| {
+            self.intervals[i] = Interval.fromString(interval_str) catch unreachable; // force unwrap
+        }
+
+        // Fill the rest of the array with null
+        for (self.intervals[interval_strings.len..]) |*interval| {
+            interval.* = null;
+        }
+
+        log.debug("Generated intervals: {any}", .{self.intervals});
     }
 
-    fn countIntervals(intervals: [12]?Interval) u4 {
-        var count: u4 = 0;
-        for (intervals) |maybe_interval| {
+    // TODO: these patterns change based on the tonic
+    fn generateChromaticIntervals(self: Scale) [13][]const u8 {
+        _ = self.tonic; // Unused for now
+        // Placeholder: returns a single hard-coded list
+        return .{ "P1", "m2", "M2", "m3", "M3", "P4", "A4", "P5", "m6", "M6", "m7", "M7", "P8" };
+    }
+
+    // TODO: these patterns change based on the tonic
+    fn generateWholeToneIntervals(self: Scale) [7][]const u8 {
+        _ = self.tonic; // Unused for now
+        // Placeholder: returns a single hard-coded list
+        return .{ "P1", "M2", "M3", "A4", "A5", "A6", "P8" };
+    }
+
+    fn countIntervals(self: *Scale) void {
+        self.count = 0;
+        for (self.intervals) |maybe_interval| {
             if (maybe_interval != null) {
-                count += 1;
+                self.count += 1;
             } else {
                 break; // all non-null intervals are at the beginning
             }
         }
-        return count;
+        log.debug("Counted intervals: {}", .{self.count});
     }
 
     pub fn getIntervals(self: Scale) []const Interval {
@@ -57,7 +110,21 @@ pub const Scale = struct {
 
     // Returns the name of the scale pattern.
     pub fn getName(self: Scale) []const u8 {
-        return self.pattern.getName();
+        return switch (self.pattern) {
+            .major => "Major",
+            .natural_minor => "Natural Minor",
+            .harmonic_minor => "Harmonic Minor",
+            .melodic_minor => "Melodic Minor",
+            .pentatonic_major => "Pentatonic Major",
+            .pentatonic_minor => "Pentatonic Minor",
+            .chromatic => "Chromatic",
+            .dorian => "Dorian",
+            .phrygian => "Phrygian",
+            .lydian => "Lydian",
+            .mixolydian => "Mixolydian",
+            .locrian => "Locrian",
+            .whole_tone => "Whole Tone",
+        };
     }
 
     pub fn getNotes(self: *Scale) []const Note {
@@ -119,7 +186,7 @@ pub const Scale = struct {
         log.debug("Generated semitones: {any}", .{self.semitones.?[0 .. self.count - 1]});
     }
 
-    //  Finds the scale spelling for a given note.
+    // Finds the scale spelling for a given note.
     pub fn getScaleSpelling(self: *Scale, note: Note) ?Note {
         if (self.degreeOf(note)) |d| {
             return self.nthDegree(d);
@@ -156,6 +223,22 @@ pub const Scale = struct {
     }
 };
 
+// test "scale creation and interval retrieval" {
+//     std.testing.log_level = .debug;
+//     var c_major = Scale.init(Note.c, .major);
+//     const intervals = c_major.getIntervals();
+
+//     try testing.expectEqual(try Interval.perf(1), intervals[0]);
+//     try testing.expectEqual(try Interval.maj(2), intervals[1]);
+//     try testing.expectEqual(try Interval.maj(3), intervals[2]);
+//     try testing.expectEqual(try Interval.perf(4), intervals[3]);
+//     try testing.expectEqual(try Interval.perf(5), intervals[4]);
+//     try testing.expectEqual(try Interval.maj(6), intervals[5]);
+//     try testing.expectEqual(try Interval.maj(7), intervals[6]);
+//     try testing.expectEqual(try Interval.perf(8), intervals[7]);
+//     try testing.expectEqual(@as(usize, 8), intervals.len);
+// }
+
 test "scale creation and note retrieval" {
     var c_major = Scale.init(Note.c, .major);
     const notes = c_major.getNotes();
@@ -168,6 +251,7 @@ test "scale creation and note retrieval" {
     try testing.expectEqual(Note.a, notes[5]);
     try testing.expectEqual(Note.b, notes[6]);
     try testing.expectEqual(Note.c, notes[7]);
+    try testing.expectEqual(8, notes.len);
 }
 
 test "semitones calculation" {
