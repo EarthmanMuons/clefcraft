@@ -11,70 +11,96 @@ const Pitch = @import("pitch.zig").Pitch;
 pub const Scale = struct {
     tonic: Note,
     pattern: Pattern,
-    allocator: std.mem.Allocator,
-    intervals_cache: ?[]const Interval,
-    notes_cache: ?[]Note,
+    intervals: [12]?Interval,
+    count: u4,
+    notes: ?[12]Note,
 
-    pub fn init(
-        allocator: std.mem.Allocator,
-        tonic: Note,
-        pattern: Pattern,
-    ) Scale {
-        return .{
+    pub fn init(tonic: Note, pattern: Pattern) Scale {
+        var scale = Scale{
             .tonic = tonic,
             .pattern = pattern,
-            .allocator = allocator,
-            .intervals_cache = null,
-            .notes_cache = null,
+            .intervals = undefined,
+            .count = 0,
+            .notes = null,
         };
+        scale.generateIntervals();
+        log.debug(
+            "Scale initialized with tonic: {}, pattern: {}, count: {}",
+            .{ tonic, pattern, scale.count },
+        );
+        return scale;
     }
 
-    pub fn deinit(self: *Scale) void {
-        if (self.intervals_cache) |intervals| {
-            self.allocator.free(intervals);
-        }
-        if (self.notes_cache) |notes| {
-            self.allocator.free(notes);
-        }
+    fn generateIntervals(self: *Scale) void {
+        self.intervals = self.pattern.getIntervals();
+        self.count = countNonNullIntervals(self.intervals);
+        log.debug("Generated intervals: {any}", .{self.intervals[0..self.count]});
     }
 
-    pub fn getIntervals(self: *Scale) ![]const Interval {
-        if (self.intervals_cache) |cached_intervals| {
-            return cached_intervals;
+    fn countNonNullIntervals(intervals: [12]?Interval) u4 {
+        var count: u4 = 0;
+        for (intervals) |maybe_interval| {
+            if (maybe_interval != null) {
+                count += 1;
+            } else {
+                break; // Assuming all non-null intervals are at the beginning
+            }
         }
+        return count;
+    }
 
-        const intervals = try self.pattern.getIntervals(self.allocator);
-        self.intervals_cache = intervals;
-        return intervals;
+    pub fn getIntervals(self: Scale) []const Interval {
+        return std.mem.sliceTo(&self.intervals, null);
     }
 
     pub fn getName(self: Scale) []const u8 {
         return self.pattern.getName();
     }
 
-    pub fn getNotes(self: *Scale) ![]const Note {
-        if (self.notes_cache) |cached_notes| {
-            return cached_notes;
+    pub fn getNotes(self: *Scale) []const Note {
+        if (self.notes == null) {
+            self.generateNotes();
         }
+        return self.notes.?[0..self.count];
+    }
 
-        const intervals = try self.getIntervals();
-        var notes = try self.allocator.alloc(Note, intervals.len);
-        errdefer self.allocator.free(notes);
-
-        // Use a Pitch for internal calculations, but only keep the Note.
+    fn generateNotes(self: *Scale) void {
+        var notes: [12]Note = undefined;
         const reference_pitch = Pitch{ .note = self.tonic, .octave = 4 };
 
-        for (intervals, 0..) |interval, i| {
-            const pitch = try interval.applyToPitch(reference_pitch);
-            notes[i] = pitch.note;
+        log.debug("Generating notes with reference pitch: {}", .{reference_pitch});
+
+        for (self.intervals[0..self.count], 0..) |maybe_interval, i| {
+            if (maybe_interval) |interval| {
+                const new_pitch = interval.applyToPitch(reference_pitch) catch unreachable;
+                notes[i] = new_pitch.note;
+                log.debug("Applied interval: {}, new note: {}", .{ interval, notes[i] });
+            } else {
+                log.warn("Null interval at index {}", .{i});
+                break;
+            }
         }
 
-        self.notes_cache = notes;
-        return notes;
+        self.notes = notes;
+        log.debug("Generated notes: {any}", .{self.notes.?[0..self.count]});
+    }
+
+    pub fn getSemitones(self: Scale) [12]?u4 {
+        var semitones: [12]?u4 = [_]?u4{null} ** 12;
+        var current_semitones: u4 = 0;
+
+        for (self.intervals[0..self.count], 0..) |maybe_interval, i| {
+            semitones[i] = current_semitones;
+            if (maybe_interval) |interval| {
+                current_semitones += @intCast(interval.getSemitones());
+            }
+        }
+
+        return semitones;
     }
 
     pub fn contains(self: *Scale, note: Note) !bool {
-        const scale_notes = try self.getNotes();
+        const scale_notes = self.getNotes();
         const note_pitch_class = note.getPitchClass();
 
         for (scale_notes) |scale_note| {
@@ -87,13 +113,8 @@ pub const Scale = struct {
 };
 
 test "scale creation and note retrieval" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    var c_major = Scale.init(allocator, Note.c, .major);
-    defer c_major.deinit();
-    const notes = try c_major.getNotes();
+    var c_major = Scale.init(Note.c, .major);
+    const notes = c_major.getNotes();
 
     try testing.expectEqual(Note.c, notes[0]);
     try testing.expectEqual(Note.d, notes[1]);
@@ -105,34 +126,8 @@ test "scale creation and note retrieval" {
     try testing.expectEqual(Note.c, notes[7]);
 }
 
-test "interval and note caching" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    var c_major = Scale.init(allocator, Note.c, .major);
-    defer c_major.deinit();
-
-    // First call should compute and cache the results.
-    const intervals1 = try c_major.getIntervals();
-    try testing.expect(c_major.intervals_cache != null);
-    const notes1 = try c_major.getNotes();
-    try testing.expect(c_major.notes_cache != null);
-
-    // Second call should return cached intervals and notes.
-    const intervals2 = try c_major.getIntervals();
-    const notes2 = try c_major.getNotes();
-    try testing.expectEqual(intervals1.ptr, intervals2.ptr);
-    try testing.expectEqual(notes1.ptr, notes2.ptr);
-}
-
 test "scale contains note" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    var c_major = Scale.init(allocator, Note.c, .major);
-    defer c_major.deinit();
+    var c_major = Scale.init(Note.c, .major);
 
     try testing.expect(try c_major.contains(Note.c));
     try testing.expect(try c_major.contains(Note.d));

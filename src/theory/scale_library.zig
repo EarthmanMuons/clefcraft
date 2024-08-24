@@ -16,8 +16,8 @@ pub const Pattern = enum {
     locrian,
     whole_tone,
 
-    pub fn getIntervals(self: Pattern, allocator: std.mem.Allocator) ![]const Interval {
-        const strings = switch (self) {
+    pub fn getIntervals(self: Pattern) [12]?Interval {
+        const interval_strings = switch (self) {
             .major => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "M7", "P8" },
             .natural_minor => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "m7", "P8" },
             .harmonic_minor => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "M7", "P8" },
@@ -33,15 +33,13 @@ pub const Pattern = enum {
             .whole_tone => &[_][]const u8{ "P1", "M2", "M3", "A4", "A5", "A6", "P8" },
         };
 
-        var interval_list = try std.ArrayList(Interval).initCapacity(allocator, strings.len);
-        errdefer interval_list.deinit();
+        var intervals: [12]?Interval = [_]?Interval{null} ** 12;
 
-        for (strings) |str| {
-            const interval = try Interval.fromString(str);
-            try interval_list.append(interval);
+        for (interval_strings, 0..) |interval_str, i| {
+            intervals[i] = Interval.fromString(interval_str) catch unreachable; // force unwrap
         }
 
-        return interval_list.toOwnedSlice();
+        return intervals;
     }
 
     pub fn getName(self: Pattern) []const u8 {
