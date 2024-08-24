@@ -14,6 +14,7 @@ pub const Scale = struct {
     intervals: [12]?Interval,
     count: u4,
     notes: ?[12]Note,
+    semitones: ?[12]i8,
 
     pub fn init(tonic: Note, pattern: Pattern) Scale {
         var scale = Scale{
@@ -22,6 +23,7 @@ pub const Scale = struct {
             .intervals = undefined,
             .count = 0,
             .notes = null,
+            .semitones = null,
         };
         scale.generateIntervals();
         log.debug(
@@ -53,6 +55,7 @@ pub const Scale = struct {
         return std.mem.sliceTo(&self.intervals, null);
     }
 
+    // Returns the name of the scale pattern.
     pub fn getName(self: Scale) []const u8 {
         return self.pattern.getName();
     }
@@ -85,20 +88,38 @@ pub const Scale = struct {
         log.debug("Generated notes: {any}", .{self.notes.?[0..self.count]});
     }
 
-    pub fn getSemitones(self: Scale) [12]?u4 {
-        var semitones: [12]?u4 = [_]?u4{null} ** 12;
-        var current_semitones: u4 = 0;
+    // Calculates semitone distances within the scale.
+    pub fn getSemitones(self: *Scale) []const i8 {
+        if (self.semitones == null) {
+            self.generateSemitones();
+        }
+        return self.semitones.?[0 .. self.count - 1]; // exclude the last interval (P8)
+    }
 
-        for (self.intervals[0..self.count], 0..) |maybe_interval, i| {
-            semitones[i] = current_semitones;
+    fn generateSemitones(self: *Scale) void {
+        var semitones: [12]i8 = undefined;
+        var previous_semitones: i8 = 0;
+
+        log.debug("Generating semitones for scale with tonic: {}", .{self.tonic});
+
+        // Skip the first interval (P1)
+        for (self.intervals[1..self.count], 0..) |maybe_interval, i| {
             if (maybe_interval) |interval| {
-                current_semitones += @intCast(interval.getSemitones());
+                const current_semitones = interval.getSemitones();
+                semitones[i] = current_semitones - previous_semitones;
+                previous_semitones = current_semitones;
+
+                log.debug("Interval {}: {} semitones from previous note", .{ i + 2, semitones[i] });
+            } else {
+                break;
             }
         }
 
-        return semitones;
+        self.semitones = semitones;
+        log.debug("Generated semitones: {any}", .{self.semitones.?[0 .. self.count - 1]});
     }
 
+    //  Finds the scale spelling for a given note.
     pub fn getScaleSpelling(self: *Scale, note: Note) ?Note {
         if (self.degreeOf(note)) |d| {
             return self.nthDegree(d);
@@ -106,10 +127,12 @@ pub const Scale = struct {
         return null;
     }
 
+    // Checks if a note is in the scale.
     pub fn contains(self: *Scale, note: Note) bool {
         return self.degreeOf(note) != null;
     }
 
+    // Finds the scale degree of a given note.
     pub fn degreeOf(self: *Scale, note: Note) ?u8 {
         const scale_notes = self.getNotes();
         const note_pitch_class = note.getPitchClass();
@@ -122,6 +145,7 @@ pub const Scale = struct {
         return null;
     }
 
+    // Retrieves the note at a given scale degree.
     pub fn nthDegree(self: *Scale, n: u8) ?Note {
         if (n == 0 or n > self.count) {
             return null;
@@ -144,6 +168,32 @@ test "scale creation and note retrieval" {
     try testing.expectEqual(Note.a, notes[5]);
     try testing.expectEqual(Note.b, notes[6]);
     try testing.expectEqual(Note.c, notes[7]);
+}
+
+test "semitones calculation" {
+    var c_major = Scale.init(Note.c, .major);
+    const semitones = c_major.getSemitones();
+
+    log.debug("C Major scale semitones: {any}", .{semitones});
+
+    const expected = [_]i8{ 2, 2, 1, 2, 2, 2, 1 };
+    try std.testing.expectEqualSlices(i8, &expected, semitones);
+}
+
+test "scale degrees and spellings" {
+    std.testing.log_level = .debug;
+    var c_major = Scale.init(Note.c, .major);
+
+    try testing.expectEqual(@as(?u8, 1), c_major.degreeOf(Note.c));
+    try testing.expectEqual(@as(?u8, 4), c_major.degreeOf(Note.f));
+    try testing.expectEqual(@as(?u8, null), c_major.degreeOf(Note.f.sharp()));
+
+    try testing.expectEqual(Note.c, c_major.nthDegree(1).?);
+    try testing.expectEqual(Note.g, c_major.nthDegree(5).?);
+    try testing.expectEqual(@as(?Note, null), c_major.nthDegree(8));
+
+    try testing.expectEqual(Note.f, c_major.getScaleSpelling(Note.f.sharp()).?);
+    try testing.expectEqual(@as(?Note, null), c_major.getScaleSpelling(Note.c.flat()));
 }
 
 test "scale contains note" {
