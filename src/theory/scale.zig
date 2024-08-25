@@ -10,8 +10,8 @@ const Pitch = @import("pitch.zig").Pitch;
 pub const Scale = struct {
     tonic: Note,
     pattern: Pattern,
+    count: usize = undefined,
     intervals: ?[12]Interval = null,
-    count: ?u4 = null,
     notes: ?[12]Note = null,
     semitones: ?[12]i8 = null,
 
@@ -32,17 +32,12 @@ pub const Scale = struct {
     };
 
     pub fn init(tonic: Note, pattern: Pattern) Scale {
-        return Scale{
+        var scale = Scale{
             .tonic = tonic,
             .pattern = pattern,
         };
-    }
-
-    pub fn getIntervals(self: *Scale) []const Interval {
-        if (self.intervals == null) {
-            self.generateIntervals();
-        }
-        return self.intervals.?[0..self.getCount()];
+        scale.generateIntervals();
+        return scale;
     }
 
     fn generateIntervals(self: *Scale) void {
@@ -68,9 +63,9 @@ pub const Scale = struct {
         }
 
         self.intervals = intervals;
-        self.count = @intCast(interval_strings.len);
+        self.count = interval_strings.len;
 
-        log.debug("Generated intervals: {any}", .{self.intervals.?[0..self.count.?]});
+        log.debug("Generated intervals: {any}", .{self.intervals.?[0..self.count]});
     }
 
     // TODO: these patterns change based on the tonic
@@ -87,11 +82,11 @@ pub const Scale = struct {
         return .{ "P1", "M2", "M3", "A4", "A5", "A6", "P8" };
     }
 
-    fn getCount(self: *Scale) u4 {
-        if (self.count == null) {
-            _ = self.getIntervals();
+    pub fn getIntervals(self: *Scale) []const Interval {
+        if (self.intervals == null) {
+            self.generateIntervals();
         }
-        return self.count.?;
+        return self.intervals.?[0..self.count];
     }
 
     // Returns the name of the scale pattern.
@@ -117,7 +112,7 @@ pub const Scale = struct {
         if (self.notes == null) {
             self.generateNotes();
         }
-        return self.notes.?[0..self.getCount()];
+        return self.notes.?[0..self.count];
     }
 
     fn generateNotes(self: *Scale) void {
@@ -134,7 +129,7 @@ pub const Scale = struct {
         }
 
         self.notes = notes;
-        log.debug("Generated notes: {any}", .{self.notes.?[0..self.getCount()]});
+        log.debug("Generated notes: {any}", .{self.notes.?[0..self.count]});
     }
 
     // Calculates semitone distances within the scale.
@@ -142,7 +137,7 @@ pub const Scale = struct {
         if (self.semitones == null) {
             self.generateSemitones();
         }
-        return self.semitones.?[0 .. self.getCount() - 1]; // exclude the last interval (P8)
+        return self.semitones.?[0 .. self.count - 1]; // exclude the last interval (P8)
     }
 
     fn generateSemitones(self: *Scale) void {
@@ -162,15 +157,7 @@ pub const Scale = struct {
         }
 
         self.semitones = semitones;
-        log.debug("Generated semitones: {any}", .{self.semitones.?[0 .. self.getCount() - 1]});
-    }
-
-    // Finds the scale spelling for a given note.
-    pub fn getScaleSpelling(self: *Scale, note: Note) ?Note {
-        if (self.degreeOf(note)) |d| {
-            return self.nthDegree(d);
-        }
-        return null;
+        log.debug("Generated semitones: {any}", .{self.semitones.?[0 .. self.count - 1]});
     }
 
     // Checks if a note is in the scale.
@@ -193,12 +180,20 @@ pub const Scale = struct {
 
     // Retrieves the note at a given scale degree.
     pub fn nthDegree(self: *Scale, n: u8) ?Note {
-        if (n == 0 or n > self.getCount()) {
+        if (n == 0 or n > self.count) {
             return null;
         }
 
         const scale_notes = self.getNotes();
         return scale_notes[n - 1]; // scale degrees are 1-indexed
+    }
+
+    // Finds the scale spelling for a given note.
+    pub fn getScaleSpelling(self: *Scale, note: Note) ?Note {
+        if (self.degreeOf(note)) |d| {
+            return self.nthDegree(d);
+        }
+        return null;
     }
 };
 
