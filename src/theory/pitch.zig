@@ -13,13 +13,34 @@ const standard_freq = 440.0; // hertz
 // The practical range for musical octaves covering MIDI numbers and human hearing.
 // On the low side, B#-2 has an effective octave of -1 and would be MIDI number 0.
 // On the high side, octave 10 gets us above the typical 20k Hz hearing range.
-pub const min_octave: i8 = -2;
-pub const max_octave: i8 = 10;
+pub const min_octave: i16 = -2;
+pub const max_octave: i16 = 10;
 
 // Musical pitch representation using Scientific Pitch Notation.
 pub const Pitch = struct {
     note: Note,
-    octave: i8,
+    octave: i16,
+
+    pub fn fromFrequency(freq: f64) Pitch {
+        return fromFrequencyWithReference(freq, standard_pitch, standard_freq);
+    }
+
+    pub fn fromFrequencyWithReference(freq: f64, ref_pitch: Pitch, ref_freq: f64) Pitch {
+        assert(freq > 0);
+
+        const octave_ratio = @log2(freq / ref_freq);
+        const semitones_from_ref = @round(octave_ratio * constants.pitch_classes);
+
+        const ref_semitones = (ref_pitch.octave * constants.pitch_classes) + ref_pitch.note.getPitchClass();
+        const total_semitones = ref_semitones + @as(i16, @intFromFloat(semitones_from_ref));
+
+        const new_octave = @divFloor(total_semitones, constants.pitch_classes);
+        const new_pitch_class = @mod(total_semitones, constants.pitch_classes);
+
+        const new_note = Note.fromPitchClass(@intCast(new_pitch_class));
+
+        return .{ .note = new_note, .octave = new_octave };
+    }
 
     pub fn fromMidiNumber(midi_number: u7) Pitch {
         const semitones_from_c0 = @as(i16, midi_number) - constants.pitch_classes;
@@ -49,7 +70,7 @@ pub const Pitch = struct {
         const octave_str = str[octave_start..];
 
         const note = try Note.fromString(note_str);
-        const octave = try std.fmt.parseInt(i8, octave_str, 10);
+        const octave = try std.fmt.parseInt(i16, octave_str, 10);
 
         if (octave < min_octave or max_octave < octave) {
             return error.OctaveOutOfRange;
@@ -70,18 +91,16 @@ pub const Pitch = struct {
         return ref_freq * @exp2(octave_ratio);
     }
 
-    pub fn getEffectiveOctave(self: Pitch) i8 {
-        var octave_offset: i8 = 0;
-
+    pub fn getEffectiveOctave(self: Pitch) i16 {
+        var offset: i16 = 0;
         if (self.note.accidental) |acc| {
-            octave_offset += switch (acc) {
+            offset += switch (acc) {
                 .flat, .double_flat => if (self.note.letter == .c) -1 else 0,
                 .sharp, .double_sharp => if (self.note.letter == .b) 1 else 0,
                 .natural => 0,
             };
         }
-
-        return self.octave + octave_offset;
+        return self.octave + offset;
     }
 
     pub fn toMidiNumber(self: Pitch) !u7 {
@@ -103,8 +122,8 @@ pub const Pitch = struct {
     }
 
     pub fn diatonicStepsTo(self: Pitch, other: Pitch) i16 {
-        const self_letter = @as(i16, @intFromEnum(self.note.letter));
-        const other_letter = @as(i16, @intFromEnum(other.note.letter));
+        const self_letter = @intFromEnum(self.note.letter);
+        const other_letter = @intFromEnum(other.note.letter);
         const octave_diff = other.octave - self.octave;
 
         return (other_letter - self_letter) + (octave_diff * constants.diatonic_degrees) + 1;
@@ -115,10 +134,10 @@ pub const Pitch = struct {
     }
 
     pub fn semitonesTo(self: Pitch, other: Pitch) i16 {
-        const self_octave: i16 = @intCast(self.getEffectiveOctave());
-        const other_octave: i16 = @intCast(other.getEffectiveOctave());
-        const self_pitch_class: i16 = @intCast(self.note.getPitchClass());
-        const other_pitch_class: i16 = @intCast(other.note.getPitchClass());
+        const self_octave = self.getEffectiveOctave();
+        const other_octave = other.getEffectiveOctave();
+        const self_pitch_class = self.note.getPitchClass();
+        const other_pitch_class = other.note.getPitchClass();
 
         return (other_octave * constants.pitch_classes + other_pitch_class) -
             (self_octave * constants.pitch_classes + self_pitch_class);
@@ -134,6 +153,28 @@ pub const Pitch = struct {
         try writer.print("{d}", .{self.octave});
     }
 };
+
+test "creation from frequencies" {
+    const epsilon = 0.01;
+    const test_cases = .{
+        .{ 440.0, Pitch{ .note = Note.a, .octave = 4 } },
+        .{ 261.63, Pitch{ .note = Note.c, .octave = 4 } },
+        .{ 329.63, Pitch{ .note = Note.e, .octave = 4 } },
+        .{ 880.0, Pitch{ .note = Note.a, .octave = 5 } },
+        .{ 220.0, Pitch{ .note = Note.a, .octave = 3 } },
+        .{ 27.5, Pitch{ .note = Note.a, .octave = 0 } }, // A0, lowest piano key
+        .{ 4186.01, Pitch{ .note = Note.c, .octave = 8 } }, // C8, highest piano key
+        .{ 8.18, Pitch{ .note = Note.c, .octave = -1 } }, // C-1, below MIDI range
+        .{ 31608.53, Pitch{ .note = Note.b, .octave = 10 } }, // B10, above MIDI range
+    };
+
+    inline for (test_cases) |case| {
+        const result = Pitch.fromFrequency(case[0]);
+        try testing.expectEqual(case[1].note, result.note);
+        try testing.expectEqual(case[1].octave, result.octave);
+        try testing.expectApproxEqAbs(case[0], result.getFrequency(), epsilon);
+    }
+}
 
 test "valid string formats" {
     const test_cases = .{
