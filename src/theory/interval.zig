@@ -366,7 +366,7 @@ test "valid string formats" {
     };
 
     inline for (test_cases) |case| {
-        const expected = case[1] catch unreachable; // force unwrap
+        const expected = case[1] catch unreachable;
         const result = try Interval.fromString(case[0]);
         try testing.expectEqual(expected, result);
     }
@@ -422,7 +422,7 @@ test "applying intervals" {
     };
 
     inline for (test_cases) |case| {
-        const interval = case[0] catch unreachable; // force unwrap
+        const interval = case[0] catch unreachable;
         const result = try interval.applyToPitch(case[1]);
         try testing.expectEqual(case[2], result);
     }
@@ -449,7 +449,6 @@ test "interval inversion" {
     };
 
     inline for (test_cases) |case| {
-        // force unwrap
         const interval = case[0] catch unreachable;
         const expected = case[1] catch unreachable;
 
@@ -476,7 +475,7 @@ test "interval formatting" {
     };
 
     inline for (test_cases) |case| {
-        const interval = case[0] catch unreachable; // force unwrap
+        const interval = case[0] catch unreachable;
         const exp_default = case[1];
         const exp_short = case[2];
         const exp_desc = case[3];
