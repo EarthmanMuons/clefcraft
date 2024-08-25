@@ -11,9 +11,9 @@ pub const Scale = struct {
     tonic: Note,
     pattern: Pattern,
     count: usize = undefined,
-    intervals: ?[12]Interval = null,
-    notes: ?[12]Note = null,
-    semitones: ?[12]i8 = null,
+    intervals: ?[13]Interval = null,
+    notes: ?[13]Note = null,
+    semitones: ?[13]i8 = null,
 
     pub const Pattern = enum {
         major,
@@ -41,7 +41,7 @@ pub const Scale = struct {
     }
 
     fn generateIntervals(self: *Scale) void {
-        var intervals: [12]Interval = undefined;
+        var intervals: [13]Interval = undefined;
         const interval_strings = switch (self.pattern) {
             .major => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "M7", "P8" },
             .natural_minor => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "m7", "P8" },
@@ -64,8 +64,6 @@ pub const Scale = struct {
 
         self.intervals = intervals;
         self.count = interval_strings.len;
-
-        log.debug("Generated intervals: {any}", .{self.intervals.?[0..self.count]});
     }
 
     // TODO: these patterns change based on the tonic
@@ -116,7 +114,7 @@ pub const Scale = struct {
     }
 
     fn generateNotes(self: *Scale) void {
-        var notes: [12]Note = undefined;
+        var notes: [13]Note = undefined;
         const reference_pitch = Pitch{ .note = self.tonic, .octave = 4 };
         const intervals = self.getIntervals();
 
@@ -141,7 +139,7 @@ pub const Scale = struct {
     }
 
     fn generateSemitones(self: *Scale) void {
-        var semitones: [12]i8 = undefined;
+        var semitones: [13]i8 = undefined;
         var previous_semitones: i8 = 0;
         const intervals = self.getIntervals();
 
@@ -195,10 +193,32 @@ pub const Scale = struct {
         }
         return null;
     }
+
+    pub fn format(
+        self: Scale,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("{} {s}", .{ self.tonic, self.getName() });
+    }
 };
 
+// Compile-time safety check for exhaustiveness of scale pattern definitions
+comptime {
+    const pattern_fields = @typeInfo(Scale.Pattern).Enum.fields;
+    for (pattern_fields) |field| {
+        const pattern = @as(Scale.Pattern, @enumFromInt(field.value));
+        var scale = Scale{ .tonic = Note.c, .pattern = pattern };
+
+        _ = scale.getName();
+        scale.generateIntervals();
+    }
+}
+
 test "scale creation and interval retrieval" {
-    // std.testing.log_level = .debug;
     var c_major = Scale.init(Note.c, .major);
     const intervals = c_major.getIntervals();
 
