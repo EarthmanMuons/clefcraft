@@ -13,18 +13,20 @@ const standard_freq = 440.0; // hertz
 // The practical range for musical octaves covering MIDI numbers and human hearing.
 // On the low side, B#-2 has an effective octave of -1 and would be MIDI number 0.
 // On the high side, octave 10 gets us above the typical 20k Hz hearing range.
-pub const min_octave: i16 = -2;
-pub const max_octave: i16 = 10;
+const min_octave: i16 = -2;
+const max_octave: i16 = 10;
 
-// Musical pitch representation using Scientific Pitch Notation.
+/// Musical pitch representation using Scientific Pitch Notation.
 pub const Pitch = struct {
     note: Note,
     octave: i16,
 
+    /// Creates a Pitch from the given frequency in Hz.
     pub fn fromFrequency(freq: f64) Pitch {
         return fromFrequencyWithReference(freq, standard_pitch, standard_freq);
     }
 
+    /// Creates a Pitch from the given frequency, using a custom reference pitch and frequency.
     pub fn fromFrequencyWithReference(freq: f64, ref_pitch: Pitch, ref_freq: f64) Pitch {
         assert(freq > 0);
 
@@ -42,6 +44,7 @@ pub const Pitch = struct {
         return .{ .note = new_note, .octave = new_octave };
     }
 
+    /// Creates a Pitch from the given MIDI note number.
     pub fn fromMidiNumber(midi_number: u7) Pitch {
         const semitones_from_c0 = @as(i16, midi_number) - constants.pitch_classes;
         const octave = @divFloor(semitones_from_c0, constants.pitch_classes);
@@ -51,6 +54,7 @@ pub const Pitch = struct {
         return .{ .note = note, .octave = @intCast(octave) };
     }
 
+    /// Parses a string representation of a pitch and returns the corresponding Pitch.
     pub fn fromString(str: []const u8) !Pitch {
         if (str.len < 2) return error.InvalidStringFormat;
 
@@ -79,18 +83,19 @@ pub const Pitch = struct {
         return .{ .note = note, .octave = octave };
     }
 
-    // pub fn transpose(self: Pitch, semitones: i8) Pitch {}
-
+    /// Returns the frequency of the pitch in Hz.
     pub fn getFrequency(self: Pitch) f64 {
         return self.getFrequencyWithReference(standard_pitch, standard_freq);
     }
 
+    /// Returns the frequency of the pitch in Hz, using a custom reference pitch and frequency.
     pub fn getFrequencyWithReference(self: Pitch, ref_pitch: Pitch, ref_freq: f64) f64 {
         const semitones_from_ref: f64 = @floatFromInt(ref_pitch.semitonesTo(self));
         const octave_ratio = semitones_from_ref / constants.pitch_classes;
         return ref_freq * @exp2(octave_ratio);
     }
 
+    /// Returns the effective octave of the pitch, accounting for accidentals.
     pub fn getEffectiveOctave(self: Pitch) i16 {
         var offset: i16 = 0;
         if (self.note.accidental) |acc| {
@@ -103,6 +108,7 @@ pub const Pitch = struct {
         return self.octave + offset;
     }
 
+    /// Converts the pitch to its corresponding MIDI note number.
     pub fn toMidiNumber(self: Pitch) !u7 {
         const midi_zero_pitch = Pitch{ .note = Note.c, .octave = -1 };
         const semitones_above_midi_zero = midi_zero_pitch.semitonesTo(self);
@@ -114,6 +120,7 @@ pub const Pitch = struct {
         return @intCast(semitones_above_midi_zero);
     }
 
+    /// Checks if this pitch is enharmonic with another pitch.
     pub fn isEnharmonic(self: Pitch, other: Pitch) bool {
         const same_octave = self.getEffectiveOctave() == other.getEffectiveOctave();
         const same_pitch_class = self.note.getPitchClass() == other.note.getPitchClass();
@@ -121,6 +128,7 @@ pub const Pitch = struct {
         return same_octave and same_pitch_class;
     }
 
+    /// Calculates the number of diatonic steps between this pitch and another pitch.
     pub fn diatonicStepsTo(self: Pitch, other: Pitch) i16 {
         const self_letter = @intFromEnum(self.note.letter);
         const other_letter = @intFromEnum(other.note.letter);
@@ -129,10 +137,12 @@ pub const Pitch = struct {
         return (other_letter - self_letter) + (octave_diff * constants.diatonic_degrees) + 1;
     }
 
+    /// Calculates the number of octaves between this pitch and another pitch.
     pub fn octavesTo(self: Pitch, other: Pitch) i16 {
         return other.getEffectiveOctave() - self.getEffectiveOctave();
     }
 
+    /// Calculates the number of semitones between this pitch and another pitch.
     pub fn semitonesTo(self: Pitch, other: Pitch) i16 {
         const self_octave = self.getEffectiveOctave();
         const other_octave = other.getEffectiveOctave();
@@ -143,6 +153,9 @@ pub const Pitch = struct {
             (self_octave * constants.pitch_classes + self_pitch_class);
     }
 
+    /// Formats the Pitch for output.
+    ///
+    /// Outputs the note followed by the octave number (e.g., "A4" for A in the 4th octave).
     pub fn format(
         self: Pitch,
         comptime fmt: []const u8,

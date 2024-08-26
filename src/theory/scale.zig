@@ -31,6 +31,7 @@ pub const Scale = struct {
         whole_tone,
     };
 
+    /// Initializes a new Scale with the given tonic note and scale pattern.
     pub fn init(tonic: Note, pattern: Pattern) Scale {
         var scale = Scale{
             .tonic = tonic,
@@ -80,6 +81,7 @@ pub const Scale = struct {
         return .{ "P1", "M2", "M3", "A4", "A5", "A6" };
     }
 
+    /// Returns the intervals that make up the scale.
     pub fn getIntervals(self: *Scale) []const Interval {
         if (self.intervals == null) {
             self.generateIntervals();
@@ -87,7 +89,7 @@ pub const Scale = struct {
         return self.intervals.?[0..self.count];
     }
 
-    // Returns the name of the scale pattern.
+    /// Returns the name of the scale pattern.
     pub fn getName(self: Scale) []const u8 {
         return switch (self.pattern) {
             .major => "Major",
@@ -106,6 +108,7 @@ pub const Scale = struct {
         };
     }
 
+    /// Returns the notes that make up the scale.
     pub fn getNotes(self: *Scale) []const Note {
         if (self.notes == null) {
             self.generateNotes();
@@ -130,7 +133,7 @@ pub const Scale = struct {
         log.debug("Generated notes: {any}", .{self.notes.?[0..self.count]});
     }
 
-    // Calculates semitone distances within the scale.
+    /// Returns the semitone distances between consecutive notes in the scale.
     pub fn getSemitones(self: *Scale) []const i8 {
         if (self.semitones == null) {
             self.generateSemitones();
@@ -145,7 +148,7 @@ pub const Scale = struct {
 
         log.debug("Generating semitones for scale with tonic: {}", .{self.tonic});
 
-        // Skip the first interval (P1)
+        // Skip the first interval (P1).
         for (intervals[1..], 0..) |interval, i| {
             const current_semitones = interval.getSemitones();
             semitones[i] = current_semitones - previous_semitones;
@@ -154,7 +157,7 @@ pub const Scale = struct {
             log.debug("Interval {}: {} semitones from previous note", .{ interval, semitones[i] });
         }
 
-        // Add the final interval (P8) to complete the octave
+        // Add the final interval (P8) to complete the octave.
         const octave_semitones = 12;
         semitones[intervals.len - 1] = octave_semitones - previous_semitones;
 
@@ -162,12 +165,14 @@ pub const Scale = struct {
         log.debug("Generated semitones: {any}", .{self.semitones.?[0..self.count]});
     }
 
-    // Checks if a note is in the scale.
+    /// Checks if a note is in the scale.
     pub fn contains(self: *Scale, note: Note) bool {
         return self.degreeOf(note) != null;
     }
 
-    // Finds the scale degree of a given note.
+    /// Finds the scale degree of a given note.
+    ///
+    /// Returns null if the note is not in the scale.
     pub fn degreeOf(self: *Scale, note: Note) ?u8 {
         const scale_notes = self.getNotes();
         const note_pitch_class = note.getPitchClass();
@@ -180,7 +185,10 @@ pub const Scale = struct {
         return null;
     }
 
-    // Retrieves the note at a given scale degree.
+    /// Retrieves the note at a given scale degree.
+    ///
+    /// The scale degree should be 1-indexed (1 for the tonic, 2 for the supertonic, etc.).
+    /// Returns null if the given degree is out of range for the scale.
     pub fn nthDegree(self: *Scale, n: u8) ?Note {
         if (n == 0 or n > self.count) {
             return null;
@@ -190,7 +198,9 @@ pub const Scale = struct {
         return scale_notes[n - 1]; // scale degrees are 1-indexed
     }
 
-    // Finds the scale spelling for a given note.
+    /// Returns the enharmonic equivalent of the given note that fits the scale.
+    ///
+    /// Returns null if no enharmonic equivalent exists in the scale.
     pub fn getScaleSpelling(self: *Scale, note: Note) ?Note {
         if (self.degreeOf(note)) |d| {
             return self.nthDegree(d);
@@ -198,6 +208,9 @@ pub const Scale = struct {
         return null;
     }
 
+    /// Formats the Scale for output.
+    ///
+    /// Outputs the tonic note followed by the scale name (e.g., "C Major").
     pub fn format(
         self: Scale,
         comptime fmt: []const u8,

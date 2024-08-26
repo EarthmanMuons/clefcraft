@@ -36,7 +36,7 @@ pub const Interval = struct {
         fourteenth,
         double_octave,
 
-        pub fn fromInt(int: i8) !Number {
+        fn fromInt(int: i8) !Number {
             const minimum = 1;
             const maximum = @typeInfo(Number).Enum.fields.len;
 
@@ -47,7 +47,7 @@ pub const Interval = struct {
             return @enumFromInt(int);
         }
 
-        pub fn isPerfect(self: Number) bool {
+        fn isPerfect(self: Number) bool {
             return switch (self) {
                 .unison, .fourth, .fifth, .octave, .eleventh, .twelfth, .double_octave => true,
                 else => false,
@@ -55,23 +55,27 @@ pub const Interval = struct {
         }
     };
 
-    // Convenience constructors.
+    /// Creates a perfect interval with the given number.
     pub fn perf(number: i8) !Interval {
         return try create(.perfect, number);
     }
 
+    /// Creates a major interval with the given number.
     pub fn maj(number: i8) !Interval {
         return try create(.major, number);
     }
 
+    /// Creates a minor interval with the given number.
     pub fn min(number: i8) !Interval {
         return try create(.minor, number);
     }
 
+    /// Creates an augmented interval with the given number.
     pub fn aug(number: i8) !Interval {
         return try create(.augmented, number);
     }
 
+    /// Creates a diminished interval with the given number.
     pub fn dim(number: i8) !Interval {
         return try create(.diminished, number);
     }
@@ -86,6 +90,7 @@ pub const Interval = struct {
         return .{ .quality = quality, .number = number };
     }
 
+    /// Parses a string representation of an interval and returns the corresponding Interval.
     pub fn fromString(str: []const u8) !Interval {
         if (str.len < 2) return error.InvalidStringFormat;
 
@@ -115,6 +120,7 @@ pub const Interval = struct {
         return Number.fromInt(num);
     }
 
+    /// Returns the number of semitones in the interval.
     pub fn getSemitones(self: Interval) i8 {
         const base_semitones = baseSemitones(self.number);
 
@@ -148,6 +154,7 @@ pub const Interval = struct {
         };
     }
 
+    /// Calculates the interval between two pitches.
     pub fn betweenPitches(from: Pitch, to: Pitch) !Interval {
         const diatonic_steps = from.diatonicStepsTo(to);
         const semitones = from.semitonesTo(to);
@@ -181,6 +188,7 @@ pub const Interval = struct {
         }
     }
 
+    /// Applies the interval to a given pitch, returning the resulting pitch.
     pub fn applyToPitch(self: Interval, pitch: Pitch) !Pitch {
         const start_letter = @intFromEnum(pitch.note.letter);
         const steps = @intFromEnum(self.number) - 1;
@@ -202,6 +210,7 @@ pub const Interval = struct {
         return .{ .note = new_note, .octave = new_pitch.octave };
     }
 
+    /// Returns the inversion of the interval.
     pub fn invert(self: Interval) Interval {
         const new_quality: Quality = switch (self.quality) {
             .perfect => .perfect,
@@ -231,15 +240,17 @@ pub const Interval = struct {
         return .{ .quality = new_quality, .number = new_number };
     }
 
+    /// Checks if the interval is compound (larger than an octave).
     pub fn isCompound(self: Interval) bool {
         return @intFromEnum(self.number) > constants.diatonic_degrees;
     }
 
+    /// Checks if the interval is simple (an octave or smaller).
     pub fn isSimple(self: Interval) bool {
         return !self.isCompound();
     }
 
-    // Checks if the given combination of quality and number would make a valid interval.
+    /// Checks if the given combination of quality and number is musically valid.
     pub fn isValid(quality: Quality, number: Number) bool {
         if (number.isPerfect()) {
             return switch (quality) {
@@ -254,6 +265,9 @@ pub const Interval = struct {
         }
     }
 
+    /// Formats the Interval for output.
+    ///
+    /// Outputs the interval in standard notation (e.g., "P5" for perfect fifth).
     pub fn format(
         self: Interval,
         comptime fmt: []const u8,
@@ -274,6 +288,7 @@ pub const Interval = struct {
         try writer.print("{s}{d}", .{ quality_str, @intFromEnum(self.number) });
     }
 
+    /// Returns a formatter for the interval's shorthand representation.
     pub fn fmtShorthand(self: Interval) std.fmt.Formatter(formatShorthand) {
         return .{ .data = self };
     }
@@ -298,6 +313,7 @@ pub const Interval = struct {
         try writer.print("{s}{d}", .{ quality_str, @intFromEnum(self.number) });
     }
 
+    /// Returns a formatter for the interval's full name.
     pub fn fmtName(self: Interval) std.fmt.Formatter(formatName) {
         return .{ .data = self };
     }

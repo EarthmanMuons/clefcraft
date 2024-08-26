@@ -19,6 +19,9 @@ pub const Note = struct {
         sharp,
         double_sharp,
 
+        /// Converts a semitone offset to an Accidental, returning null for natural (0).
+        ///
+        /// Returns an error if the offset is outside the valid range (-2 to 2).
         pub fn fromSemitoneOffset(semitones: i8) !?Accidental {
             return switch (semitones) {
                 -2 => .double_flat,
@@ -30,6 +33,9 @@ pub const Note = struct {
             };
         }
 
+        /// Returns the semitone offset for this Accidental.
+        ///
+        /// Double flat: -2, Flat: -1, Natural: 0, Sharp: 1, Double sharp: 2
         pub fn getSemitoneOffset(self: Accidental) i8 {
             return switch (self) {
                 .double_flat => -2,
@@ -41,7 +47,7 @@ pub const Note = struct {
         }
     };
 
-    // Helpers for creating notes and modifying accidentals.
+    /// Helper constants for creating natural notes.
     pub const c = Note{ .letter = .c, .accidental = null };
     pub const d = Note{ .letter = .d, .accidental = null };
     pub const e = Note{ .letter = .e, .accidental = null };
@@ -50,28 +56,34 @@ pub const Note = struct {
     pub const a = Note{ .letter = .a, .accidental = null };
     pub const b = Note{ .letter = .b, .accidental = null };
 
+    /// Returns a new Note with the same letter and a double flat accidental.
     pub fn doubleFlat(self: Note) Note {
         return .{ .letter = self.letter, .accidental = .double_flat };
     }
 
+    /// Returns a new Note with the same letter and a flat accidental.
     pub fn flat(self: Note) Note {
         return .{ .letter = self.letter, .accidental = .flat };
     }
 
+    /// Returns a new Note with the same letter and an explicit natural accidental.
     pub fn natural(self: Note) Note {
         return .{ .letter = self.letter, .accidental = .natural };
     }
 
+    /// Returns a new Note with the same letter and a sharp accidental.
     pub fn sharp(self: Note) Note {
         return .{ .letter = self.letter, .accidental = .sharp };
     }
 
+    /// Returns a new Note with the same letter and a double sharp accidental.
     pub fn doubleSharp(self: Note) Note {
         return .{ .letter = self.letter, .accidental = .double_sharp };
     }
 
-    /// Returns a `Note` based on the given pitch class, using the default mapping.
+    /// Creates a Note from the given pitch class.
     ///
+    /// Uses the simplest default mapping:
     /// 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
     pub fn fromPitchClass(pitch_class: u4) Note {
         assert(0 <= pitch_class and pitch_class < constants.pitch_classes);
@@ -95,6 +107,7 @@ pub const Note = struct {
         return .{ .letter = letter, .accidental = accidental };
     }
 
+    /// Parses a string representation of a note and returns the corresponding Note.
     pub fn fromString(str: []const u8) !Note {
         if (str.len < 1) return error.InvalidStringFormat;
 
@@ -144,6 +157,7 @@ pub const Note = struct {
         return error.InvalidAccidental;
     }
 
+    /// Returns the pitch class of the note.
     pub fn getPitchClass(self: Note) u4 {
         const base_class: u4 = switch (self.letter) {
             .c => 0,
@@ -160,6 +174,9 @@ pub const Note = struct {
         return @intCast(result);
     }
 
+    /// Formats the Note for output.
+    ///
+    /// Use '{c}' in the format string for ASCII output, otherwise Unicode is used.
     pub fn format(
         self: Note,
         comptime fmt: []const u8,
@@ -199,6 +216,7 @@ pub const Note = struct {
         return note_table[letter_index + row_offset];
     }
 
+    /// Returns a formatter for the note's German representation.
     pub fn fmtGerman(self: Note) std.fmt.Formatter(formatGerman) {
         return .{ .data = self };
     }
@@ -215,6 +233,11 @@ pub const Note = struct {
         try writer.writeAll(self.formatImpl(.german, encoding));
     }
 
+    /// Returns a formatter for the note's solfège representation.
+    pub fn fmtSolfege(self: Note) std.fmt.Formatter(formatSolfege) {
+        return .{ .data = self };
+    }
+
     fn formatSolfege(
         self: Note,
         comptime fmt: []const u8,
@@ -225,10 +248,6 @@ pub const Note = struct {
         const use_ascii = std.mem.indexOfScalar(u8, fmt, 'c') != null;
         const encoding: Encoding = if (use_ascii) .ascii else .unicode;
         try writer.writeAll(self.formatImpl(.solfege, encoding));
-    }
-
-    pub fn fmtSolfege(self: Note) std.fmt.Formatter(formatSolfege) {
-        return .{ .data = self };
     }
 };
 
