@@ -108,6 +108,46 @@ pub const Pitch = struct {
         return self.octave + offset;
     }
 
+    /// Returns a new Pitch with the desired accidental, maintaining the same pitch class.
+    pub fn toEnharmonic(self: Pitch, desired_accidental: Note.Accidental) Pitch {
+        const current_pc = self.note.getPitchClass();
+        var new_letter = self.note.letter;
+        var new_octave = self.octave;
+
+        log.debug("Start - Current: {}, Current PC: {}, Desired accidental: {}", .{ self, current_pc, desired_accidental });
+
+        // Determine the direction of change
+        const direction: i8 = switch (desired_accidental) {
+            .flat, .double_flat => 1, // Move forward in the circle of fifths
+            .sharp, .double_sharp => -1, // Move backward in the circle of fifths
+            .natural => return self, // No change needed for natural
+        };
+
+        // Adjust the letter
+        const letter_value = @intFromEnum(new_letter);
+        new_letter = @enumFromInt(@mod(letter_value + direction + 7, 7));
+
+        log.debug("After letter adjustment - New letter: {}", .{new_letter});
+
+        // Adjust octave if crossing C
+        if (new_letter == .c and self.note.letter == .b) {
+            new_octave += 1;
+        } else if (self.note.letter == .c and new_letter == .b) {
+            new_octave -= 1;
+        }
+
+        log.debug("After octave adjustment - New octave: {}", .{new_octave});
+
+        const result = Pitch{
+            .note = Note{ .letter = new_letter, .accidental = desired_accidental },
+            .octave = new_octave,
+        };
+
+        log.debug("End - Result: {}", .{result});
+
+        return result;
+    }
+
     /// Converts the pitch to its corresponding MIDI note number.
     pub fn toMidiNumber(self: Pitch) !u7 {
         const midi_zero_pitch = Pitch{ .note = Note.c, .octave = -1 };
@@ -286,6 +326,25 @@ test "MIDI number roundtrip consistency" {
     for (0..128) |midi_number| {
         const pitch = Pitch.fromMidiNumber(@as(u7, @intCast(midi_number)));
         try testing.expectEqual(midi_number, try pitch.toMidiNumber());
+    }
+}
+
+test "enharmonic spelling" {
+    const test_cases = .{
+        .{ "C#4", Note.Accidental.flat, "Db4" },
+        .{ "Eb3", Note.Accidental.sharp, "D#3" },
+        .{ "B4", Note.Accidental.flat, "Cb5" },
+        .{ "C4", Note.Accidental.sharp, "B#3" },
+        .{ "F#2", Note.Accidental.flat, "Gb2" },
+        .{ "Ab5", Note.Accidental.sharp, "G#5" },
+    };
+
+    inline for (test_cases) |case| {
+        const input = Pitch.fromString(case[0]) catch unreachable;
+        const expected = Pitch.fromString(case[2]) catch unreachable;
+        const result = input.toEnharmonic(case[1]);
+        log.debug("Input: {s} ({}), Desired: {}, Result: {}, Expected: {s} ({})", .{ case[0], input, case[1], result, case[2], expected });
+        try testing.expectEqual(expected, result);
     }
 }
 

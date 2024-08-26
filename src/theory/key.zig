@@ -6,10 +6,10 @@ const Note = @import("note.zig").Note;
 
 pub const Key = struct {
     tonic: Note,
-    mode: KeyMode,
-};
+    mode: Mode,
 
-pub const KeyMode = enum {
-    major,
-    minor,
+    pub const Mode = enum {
+        major,
+        minor,
+    };
 };
