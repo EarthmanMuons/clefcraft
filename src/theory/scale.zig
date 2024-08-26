@@ -11,9 +11,9 @@ pub const Scale = struct {
     tonic: Note,
     pattern: Pattern,
     count: usize = undefined,
-    intervals: ?[13]Interval = null,
-    notes: ?[13]Note = null,
-    semitones: ?[13]i8 = null,
+    intervals: ?[12]Interval = null,
+    notes: ?[12]Note = null,
+    semitones: ?[12]i8 = null,
 
     pub const Pattern = enum {
         major,
@@ -41,20 +41,20 @@ pub const Scale = struct {
     }
 
     fn generateIntervals(self: *Scale) void {
-        var intervals: [13]Interval = undefined;
+        var intervals: [12]Interval = undefined;
         const interval_strings = switch (self.pattern) {
-            .major => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "M7", "P8" },
-            .natural_minor => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "m7", "P8" },
-            .harmonic_minor => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "M7", "P8" },
-            .melodic_minor => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "M6", "M7", "P8" },
-            .pentatonic_major => &[_][]const u8{ "P1", "M2", "M3", "P5", "M6", "P8" },
-            .pentatonic_minor => &[_][]const u8{ "P1", "m3", "P4", "P5", "m7", "P8" },
+            .major => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "M7" },
+            .natural_minor => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "m7" },
+            .harmonic_minor => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "m6", "M7" },
+            .melodic_minor => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "M6", "M7" },
+            .pentatonic_major => &[_][]const u8{ "P1", "M2", "M3", "P5", "M6" },
+            .pentatonic_minor => &[_][]const u8{ "P1", "m3", "P4", "P5", "m7" },
             .chromatic => &self.generateChromaticIntervals(),
-            .dorian => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "M6", "m7", "P8" },
-            .phrygian => &[_][]const u8{ "P1", "m2", "m3", "P4", "P5", "m6", "m7", "P8" },
-            .lydian => &[_][]const u8{ "P1", "M2", "M3", "A4", "P5", "M6", "M7", "P8" },
-            .mixolydian => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "m7", "P8" },
-            .locrian => &[_][]const u8{ "P1", "m2", "m3", "P4", "d5", "m6", "m7", "P8" },
+            .dorian => &[_][]const u8{ "P1", "M2", "m3", "P4", "P5", "M6", "m7" },
+            .phrygian => &[_][]const u8{ "P1", "m2", "m3", "P4", "P5", "m6", "m7" },
+            .lydian => &[_][]const u8{ "P1", "M2", "M3", "A4", "P5", "M6", "M7" },
+            .mixolydian => &[_][]const u8{ "P1", "M2", "M3", "P4", "P5", "M6", "m7" },
+            .locrian => &[_][]const u8{ "P1", "m2", "m3", "P4", "d5", "m6", "m7" },
             .whole_tone => &self.generateWholeToneIntervals(),
         };
 
@@ -67,17 +67,17 @@ pub const Scale = struct {
     }
 
     // TODO: these patterns change based on the tonic
-    fn generateChromaticIntervals(self: Scale) [13][]const u8 {
+    fn generateChromaticIntervals(self: Scale) [12][]const u8 {
         _ = self.tonic; // Unused for now
         // Placeholder: returns a single hard-coded list
-        return .{ "P1", "m2", "M2", "m3", "M3", "P4", "A4", "P5", "m6", "M6", "m7", "M7", "P8" };
+        return .{ "P1", "m2", "M2", "m3", "M3", "P4", "A4", "P5", "m6", "M6", "m7", "M7" };
     }
 
     // TODO: these patterns change based on the tonic
-    fn generateWholeToneIntervals(self: Scale) [7][]const u8 {
+    fn generateWholeToneIntervals(self: Scale) [6][]const u8 {
         _ = self.tonic; // Unused for now
         // Placeholder: returns a single hard-coded list
-        return .{ "P1", "M2", "M3", "A4", "A5", "A6", "P8" };
+        return .{ "P1", "M2", "M3", "A4", "A5", "A6" };
     }
 
     pub fn getIntervals(self: *Scale) []const Interval {
@@ -114,7 +114,7 @@ pub const Scale = struct {
     }
 
     fn generateNotes(self: *Scale) void {
-        var notes: [13]Note = undefined;
+        var notes: [12]Note = undefined;
         const reference_pitch = Pitch{ .note = self.tonic, .octave = 4 };
         const intervals = self.getIntervals();
 
@@ -135,11 +135,11 @@ pub const Scale = struct {
         if (self.semitones == null) {
             self.generateSemitones();
         }
-        return self.semitones.?[0 .. self.count - 1]; // exclude the last interval (P8)
+        return self.semitones.?[0..self.count];
     }
 
     fn generateSemitones(self: *Scale) void {
-        var semitones: [13]i8 = undefined;
+        var semitones: [12]i8 = undefined;
         var previous_semitones: i8 = 0;
         const intervals = self.getIntervals();
 
@@ -151,11 +151,15 @@ pub const Scale = struct {
             semitones[i] = current_semitones - previous_semitones;
             previous_semitones = current_semitones;
 
-            log.debug("Interval {}: {} semitones from previous note", .{ i + 2, semitones[i] });
+            log.debug("Interval {}: {} semitones from previous note", .{ interval, semitones[i] });
         }
 
+        // Add the final interval (P8) to complete the octave
+        const octave_semitones = 12;
+        semitones[intervals.len - 1] = octave_semitones - previous_semitones;
+
         self.semitones = semitones;
-        log.debug("Generated semitones: {any}", .{self.semitones.?[0 .. self.count - 1]});
+        log.debug("Generated semitones: {any}", .{self.semitones.?[0..self.count]});
     }
 
     // Checks if a note is in the scale.
@@ -229,8 +233,7 @@ test "scale creation and interval retrieval" {
     try testing.expectEqual(try Interval.perf(5), intervals[4]);
     try testing.expectEqual(try Interval.maj(6), intervals[5]);
     try testing.expectEqual(try Interval.maj(7), intervals[6]);
-    try testing.expectEqual(try Interval.perf(8), intervals[7]);
-    try testing.expectEqual(@as(usize, 8), intervals.len);
+    try testing.expectEqual(@as(usize, 7), intervals.len);
 }
 
 test "scale creation and note retrieval" {
@@ -244,15 +247,12 @@ test "scale creation and note retrieval" {
     try testing.expectEqual(Note.g, notes[4]);
     try testing.expectEqual(Note.a, notes[5]);
     try testing.expectEqual(Note.b, notes[6]);
-    try testing.expectEqual(Note.c, notes[7]);
-    try testing.expectEqual(8, notes.len);
+    try testing.expectEqual(7, notes.len);
 }
 
 test "semitones calculation" {
     var c_major = Scale.init(Note.c, .major);
     const semitones = c_major.getSemitones();
-
-    log.debug("C Major scale semitones: {any}", .{semitones});
 
     const expected = [_]i8{ 2, 2, 1, 2, 2, 2, 1 };
     try std.testing.expectEqualSlices(i8, &expected, semitones);
@@ -265,16 +265,16 @@ test "scale degrees" {
     try testing.expectEqual(4, c_major.degreeOf(Note.f));
     try testing.expectEqual(null, c_major.degreeOf(Note.f.sharp()));
 
-    try testing.expectEqual(Note.c, c_major.nthDegree(1).?);
-    try testing.expectEqual(Note.g, c_major.nthDegree(5).?);
-    try testing.expectEqual(Note.c, c_major.nthDegree(8).?);
+    try testing.expectEqual(Note.c, c_major.nthDegree(1));
+    try testing.expectEqual(Note.g, c_major.nthDegree(5));
+    try testing.expectEqual(null, c_major.nthDegree(8));
 }
 
 test "scale spellings" {
     var c_major = Scale.init(Note.c, .major);
 
-    try testing.expectEqual(Note.e, c_major.getScaleSpelling(Note.f.flat()).?);
-    try testing.expectEqual(Note.b, c_major.getScaleSpelling(Note.c.flat()).?);
+    try testing.expectEqual(Note.e, c_major.getScaleSpelling(Note.f.flat()));
+    try testing.expectEqual(Note.b, c_major.getScaleSpelling(Note.c.flat()));
     try testing.expectEqual(null, c_major.getScaleSpelling(Note.f.sharp()));
 }
 
