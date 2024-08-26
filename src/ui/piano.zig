@@ -4,7 +4,7 @@ const log = std.log.scoped(.piano);
 const rl = @import("raylib");
 
 const Coord = @import("coord.zig").Coord;
-const KeySignature = @import("../theory.old/key_signature.zig").KeySignature;
+const KeySignature = @import("../theory_v1/key_signature.zig").KeySignature;
 const MidiOutput = @import("../midi/output.zig").MidiOutput;
 const Mouse = @import("mouse.zig").Mouse;
 
