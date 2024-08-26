@@ -195,7 +195,7 @@ pub const Interval = struct {
         const end_letter = @mod(start_letter + steps, constants.diatonic_degrees);
         const octave_change = @divFloor(start_letter + steps, constants.diatonic_degrees);
 
-        var new_note = Note{ .letter = @enumFromInt(end_letter), .accidental = null };
+        var new_note = Note{ .letter = @enumFromInt(end_letter), .accidental = .natural };
         const new_pitch = Pitch{
             .note = new_note,
             .octave = pitch.octave + octave_change,

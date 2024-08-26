@@ -97,14 +97,11 @@ pub const Pitch = struct {
 
     /// Returns the effective octave of the pitch, accounting for accidentals.
     pub fn getEffectiveOctave(self: Pitch) i16 {
-        var offset: i16 = 0;
-        if (self.note.accidental) |acc| {
-            offset += switch (acc) {
-                .flat, .double_flat => if (self.note.letter == .c) -1 else 0,
-                .sharp, .double_sharp => if (self.note.letter == .b) 1 else 0,
-                .natural => 0,
-            };
-        }
+        const offset: i16 = switch (self.note.accidental) {
+            .flat, .double_flat => if (self.note.letter == .c) -1 else 0,
+            .natural => 0,
+            .sharp, .double_sharp => if (self.note.letter == .b) 1 else 0,
+        };
         return self.octave + offset;
     }
 
@@ -262,7 +259,7 @@ test "invalid string formats" {
 }
 
 test "string roundtrip consistency" {
-    const test_cases = .{ "C-2", "A0", "C4", "C♯4", "F♭3", "B♮7", "G𝄫2", "E𝄪6" };
+    const test_cases = .{ "C-2", "A0", "C4", "C♯4", "F♭3", "G𝄫2", "E𝄪6" };
 
     inline for (test_cases) |input| {
         const pitch = try Pitch.fromString(input);

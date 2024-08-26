@@ -8,7 +8,7 @@ const note_names = @import("note_names.zig");
 
 pub const Note = struct {
     letter: Letter,
-    accidental: ?Accidental,
+    accidental: Accidental,
 
     pub const Letter = enum { c, d, e, f, g, a, b };
 
@@ -22,11 +22,11 @@ pub const Note = struct {
         /// Converts a semitone offset to an Accidental, returning null for natural (0).
         ///
         /// Returns an error if the offset is outside the valid range (-2 to 2).
-        pub fn fromSemitoneOffset(semitones: i8) !?Accidental {
+        pub fn fromSemitoneOffset(semitones: i8) !Accidental {
             return switch (semitones) {
                 -2 => .double_flat,
                 -1 => .flat,
-                0 => null,
+                0 => .natural,
                 1 => .sharp,
                 2 => .double_sharp,
                 else => return error.InvalidSemitoneOffset,
@@ -48,13 +48,13 @@ pub const Note = struct {
     };
 
     /// Helper constants for creating natural notes.
-    pub const c = Note{ .letter = .c, .accidental = null };
-    pub const d = Note{ .letter = .d, .accidental = null };
-    pub const e = Note{ .letter = .e, .accidental = null };
-    pub const f = Note{ .letter = .f, .accidental = null };
-    pub const g = Note{ .letter = .g, .accidental = null };
-    pub const a = Note{ .letter = .a, .accidental = null };
-    pub const b = Note{ .letter = .b, .accidental = null };
+    pub const c = Note{ .letter = .c, .accidental = .natural };
+    pub const d = Note{ .letter = .d, .accidental = .natural };
+    pub const e = Note{ .letter = .e, .accidental = .natural };
+    pub const f = Note{ .letter = .f, .accidental = .natural };
+    pub const g = Note{ .letter = .g, .accidental = .natural };
+    pub const a = Note{ .letter = .a, .accidental = .natural };
+    pub const b = Note{ .letter = .b, .accidental = .natural };
 
     /// Returns a new Note with the same letter and a double flat accidental.
     pub fn doubleFlat(self: Note) Note {
@@ -86,7 +86,7 @@ pub const Note = struct {
     /// Uses the simplest default mapping:
     /// 0:C, 1:C♯, 2:D, 3:D♯, 4:E, 5:F, 6:F♯, 7:G, 8:G♯, 9:A, 10:A♯, 11:B
     pub fn fromPitchClass(pitch_class: u4) Note {
-        assert(0 <= pitch_class and pitch_class < constants.pitch_classes);
+        assert(pitch_class < constants.pitch_classes);
 
         const letter = switch (pitch_class) {
             0, 1 => Letter.c,
@@ -101,7 +101,7 @@ pub const Note = struct {
 
         const accidental = switch (pitch_class) {
             1, 3, 6, 8, 10 => Accidental.sharp,
-            else => null,
+            else => Accidental.natural,
         };
 
         return .{ .letter = letter, .accidental = accidental };
@@ -123,7 +123,7 @@ pub const Note = struct {
             else => return error.InvalidLetter,
         };
 
-        const accidental = if (str.len > 1) try parseAccidental(str[1..]) else null;
+        const accidental = if (str.len > 1) try parseAccidental(str[1..]) else .natural;
 
         return .{ .letter = letter, .accidental = accidental };
     }
@@ -168,7 +168,7 @@ pub const Note = struct {
             .a => 9,
             .b => 11,
         };
-        const semitone_offset = if (self.accidental) |acc| acc.getSemitoneOffset() else 0;
+        const semitone_offset = self.accidental.getSemitoneOffset();
 
         const result = @mod(base_class + semitone_offset, constants.pitch_classes);
         return @intCast(result);
@@ -205,15 +205,15 @@ pub const Note = struct {
 
         const letter_index = @as(usize, @intFromEnum(self.letter));
 
-        const row_offset: usize = if (self.accidental) |acc| switch (acc) {
-            .double_flat => 7,
-            .flat => 14,
-            .natural => 21,
-            .sharp => 28,
-            .double_sharp => 35,
-        } else 0; // no accidental
+        const row_offset: usize = switch (self.accidental) {
+            .double_flat => 0,
+            .flat => 1,
+            .natural => 2,
+            .sharp => 3,
+            .double_sharp => 4,
+        };
 
-        return note_table[letter_index + row_offset];
+        return note_table[letter_index + row_offset * 7];
     }
 
     /// Returns a formatter for the note's German representation.
