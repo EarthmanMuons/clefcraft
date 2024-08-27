@@ -39,8 +39,23 @@ pub const Note = struct {
         return .{ .midi = @intCast(midi), .name = .{ .let = let, .acc = acc } };
     }
 
+    pub fn fromFrequency(freq: f64) Note {
+        const a4_freq = 440.0;
+        const a4_midi = 69;
+        const midi_float = a4_midi + c.semis_per_oct * @log2(freq / a4_freq);
+        const midi: u7 = @intFromFloat(@round(midi_float));
+        return Note.fromMidi(midi);
+    }
+
     pub fn fromMidi(midi: u7) Note {
         return .{ .midi = midi, .name = spellWithSharps(midi) };
+    }
+
+    pub fn frequency(self: Note) f64 {
+        const a4_freq = 440.0;
+        const a4_midi = 69;
+        const midi: f64 = @floatFromInt(self.midi);
+        return a4_freq * @exp2((midi - a4_midi) / c.semis_per_oct);
     }
 
     pub fn octave(self: Note) i8 {
@@ -58,6 +73,10 @@ pub const Note = struct {
 
     pub fn pitchClass(self: Note) u4 {
         return @intCast(@mod(self.midi, c.semis_per_oct));
+    }
+
+    pub fn isEnharmonic(self: Note, other: Note) bool {
+        return self.midi == other.midi;
     }
 
     pub fn spellWithSharps(midi: u7) Spelling {
@@ -123,12 +142,14 @@ pub const Note = struct {
 test "Note initialization" {
     try testing.expectError(error.NoteOutOfRange, Note.init(.c, .flat, -1));
     try testing.expectEqual(0, (try Note.init(.c, .natural, -1)).midi);
+    try testing.expectEqual(21, (try Note.init(.a, .natural, 0)).midi);
     try testing.expectEqual(58, (try Note.init(.c, .double_flat, 4)).midi);
     try testing.expectEqual(59, (try Note.init(.c, .flat, 4)).midi);
     try testing.expectEqual(60, (try Note.init(.c, .natural, 4)).midi);
     try testing.expectEqual(61, (try Note.init(.c, .sharp, 4)).midi);
     try testing.expectEqual(62, (try Note.init(.c, .double_sharp, 4)).midi);
     try testing.expectEqual(69, (try Note.init(.a, .natural, 4)).midi);
+    try testing.expectEqual(108, (try Note.init(.c, .natural, 8)).midi);
     try testing.expectEqual(127, (try Note.init(.g, .natural, 9)).midi);
     try testing.expectError(error.NoteOutOfRange, Note.init(.g, .sharp, 9));
 }
@@ -151,6 +172,23 @@ test "Note properties" {
     try testing.expectEqual(Note.Accidental.flat, df4.name.acc);
     try testing.expectEqual(4, df4.octave());
     try testing.expectEqual(1, df4.pitchClass());
+}
+
+test "Note frequencies" {
+    const epsilon = 0.01;
+    try testing.expectApproxEqAbs(8.175799, (try Note.init(.c, .natural, -1)).frequency(), epsilon);
+    try testing.expectApproxEqAbs(27.50000, (try Note.init(.a, .natural, 0)).frequency(), epsilon);
+    try testing.expectApproxEqAbs(261.6256, (try Note.init(.c, .natural, 4)).frequency(), epsilon);
+    try testing.expectApproxEqAbs(440.0000, (try Note.init(.a, .natural, 4)).frequency(), epsilon);
+    try testing.expectApproxEqAbs(4186.009, (try Note.init(.c, .natural, 8)).frequency(), epsilon);
+    try testing.expectApproxEqAbs(12543.85, (try Note.init(.g, .natural, 9)).frequency(), epsilon);
+
+    try testing.expectEqual(0, (Note.fromFrequency(8.175799).midi));
+    try testing.expectEqual(21, (Note.fromFrequency(27.50000).midi));
+    try testing.expectEqual(60, (Note.fromFrequency(261.6256).midi));
+    try testing.expectEqual(69, (Note.fromFrequency(440.0000).midi));
+    try testing.expectEqual(108, (Note.fromFrequency(4186.009).midi));
+    try testing.expectEqual(127, (Note.fromFrequency(12543.85).midi));
 }
 
 test "Note formatting" {
