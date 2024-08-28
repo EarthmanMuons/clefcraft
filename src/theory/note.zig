@@ -5,6 +5,14 @@ const testing = std.testing;
 
 const c = @import("constants.zig");
 
+/// Represents a musical note using Western music theory conventions.
+///
+/// This struct encapsulates the concept of a note, including its pitch (represented
+/// by a MIDI number), spelling (letter name and accidental), and various operations
+/// for working with notes in different contexts.
+///
+/// This implementation assumes 12-tone equal temperament (12-TET) and uses the
+/// international standard pitch of A4 = 440 Hz (A440).
 pub const Note = struct {
     midi: u7,
     name: Spelling,
@@ -17,6 +25,8 @@ pub const Note = struct {
     pub const Letter = enum { c, d, e, f, g, a, b };
     pub const Accidental = enum { double_flat, flat, natural, sharp, double_sharp };
 
+    /// Creates a note from a letter, accidental, and octave.
+    /// Returns an error if the resulting note is out of the valid MIDI range.
     pub fn init(let: Letter, acc: Accidental, oct: i8) !Note {
         const base: i16 = switch (let) {
             .c => 0,
@@ -42,6 +52,8 @@ pub const Note = struct {
         return .{ .midi = @intCast(midi), .name = .{ .let = let, .acc = acc } };
     }
 
+    /// Creates a note from the given frequency in Hz.
+    /// Uses 12-TET and A440.
     pub fn fromFrequency(freq: f64) Note {
         assert(freq > 0);
         const a4_freq = 440.0;
@@ -51,10 +63,15 @@ pub const Note = struct {
         return Note.fromMidi(midi);
     }
 
+    /// Creates a note from the given MIDI number.
+    /// The resulting note will be spelled with sharps.
     pub fn fromMidi(midi: u7) Note {
         return .{ .midi = midi, .name = spellWithSharps(midi) };
     }
 
+    /// Creates a note from a string representation in Scientific Pitch Notation.
+    /// Supports Unicode and ASCII representations of accidentals.
+    /// Returns an error for invalid input.
     pub fn fromString(str: []const u8) !Note {
         if (str.len == 0) return error.EmptyString;
 
@@ -113,6 +130,8 @@ pub const Note = struct {
         return Note.init(let, acc, oct);
     }
 
+    /// Returns the frequency of the note in Hz.
+    /// Uses 12-TET and A440.
     pub fn frequency(self: Note) f64 {
         const a4_freq = 440.0;
         const a4_midi = 69;
@@ -120,10 +139,12 @@ pub const Note = struct {
         return a4_freq * @exp2((midi - a4_midi) / c.semis_per_oct);
     }
 
+    /// Returns the octave of the note, accounting for accidentals.
+    /// Follows Scientific Pitch Notation conventions.
     pub fn octave(self: Note) i8 {
         const oct = @divFloor(@as(i8, self.midi), c.semis_per_oct) - 1;
 
-        // Handle octave boundaries to maintain proper Scientific Pitch Notation.
+        // Handle notes that cross octave boundaries.
         const offset: i8 = switch (self.name.acc) {
             .flat, .double_flat => if (self.name.let == .c) 1 else 0,
             .natural => 0,
@@ -133,14 +154,18 @@ pub const Note = struct {
         return oct + offset;
     }
 
+    /// Returns the pitch class of the note.
     pub fn pitchClass(self: Note) u4 {
         return @intCast(@mod(self.midi, c.semis_per_oct));
     }
 
+    /// Checks if the note is enharmonic with another note.
     pub fn isEnharmonic(self: Note, other: Note) bool {
         return self.midi == other.midi;
     }
 
+    /// Spells a note using sharps based on its MIDI number.
+    /// For example, MIDI 61 will be spelled as C♯, not D♭.
     pub fn spellWithSharps(midi: u7) Spelling {
         const pc = @mod(midi, c.semis_per_oct);
         return switch (pc) {
@@ -160,6 +185,8 @@ pub const Note = struct {
         };
     }
 
+    /// Spells a note using flats based on its MIDI number.
+    /// For example, MIDI 61 will be spelled as D♭, not C♯.
     pub fn spellWithFlats(midi: u7) Spelling {
         const pc = @mod(midi, c.semis_per_oct);
         return switch (pc) {
@@ -179,8 +206,11 @@ pub const Note = struct {
         };
     }
 
-    // pub fn respell(self: Note, ???) Note { }
+    // /// Respells a note according to the given musical context.
+    // pub fn respell(self: Note, context: ???) Note { }
 
+    /// Formats the note for output in Scientific Pitch Notation.
+    /// Uses Unicode symbols for accidentals.
     pub fn format(
         self: Note,
         comptime fmt: []const u8,

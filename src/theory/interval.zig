@@ -1,6 +1,7 @@
 const std = @import("std");
 const assert = std.debug.assert;
 const log = std.log.scoped(.interval);
+const testing = std.testing;
 
 const c = @import("constants.zig");
 const Note = @import("note.zig").Note;
@@ -11,6 +12,8 @@ pub const Interval = struct {
 
     pub const Quality = enum { perfect, major, minor, augmented, diminished };
 
+    /// Creates an interval from a quality and number.
+    /// Returns an error if the resulting interval is musically invalid.
     pub fn init(qual: Quality, num: u7) !Interval {
         if (!isValid(qual, num)) {
             return error.InvalidInterval;
@@ -35,6 +38,8 @@ pub const Interval = struct {
         }
     }
 
+    /// Creates an interval from the given string representation.
+    /// Returns an error for invalid input.
     pub fn fromString(str: []const u8) !Interval {
         if (str.len == 0) return error.EmptyString;
 
@@ -191,6 +196,32 @@ pub const Interval = struct {
     /// Augmented fifteenth.
     pub const A15 = Interval{ .qual = .augmented, .num = 15 };
 
+    /// Returns a formatter for the interval's shorthand representation.
+    pub fn fmtShorthand(self: Interval) std.fmt.Formatter(formatShorthand) {
+        return .{ .data = self };
+    }
+
+    fn formatShorthand(
+        self: Interval,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = fmt;
+        _ = options;
+        try writer.print("{s}{d}", .{
+            switch (self.qual) {
+                .perfect => "perf",
+                .major => "maj",
+                .minor => "min",
+                .augmented => "aug",
+                .diminished => "dim",
+            },
+            self.num,
+        });
+    }
+
+    /// Formats the interval for output in standard notation.
     pub fn format(
         self: Interval,
         comptime fmt: []const u8,
