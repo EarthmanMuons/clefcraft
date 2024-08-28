@@ -36,7 +36,7 @@ pub const Interval = struct {
     }
 
     pub fn fromString(str: []const u8) !Interval {
-        if (str.len < 2) return error.InvalidStringFormat;
+        if (str.len == 0) return error.EmptyString;
 
         const qual = switch (str[0]) {
             'P' => .perfect,
@@ -46,7 +46,7 @@ pub const Interval = struct {
             'd' => .diminished,
             else => error.InvalidQuality,
         };
-        const num = try std.fmt.parseInt(u7, str[1..], 10);
+        const num = std.fmt.parseInt(u7, str[1..], 10) catch return error.InvalidNumber;
 
         if (!isValid(qual, num)) {
             return error.InvalidInterval;

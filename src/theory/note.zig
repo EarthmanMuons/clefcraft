@@ -123,7 +123,7 @@ pub const Note = struct {
     pub fn octave(self: Note) i8 {
         const oct = @divFloor(@as(i8, self.midi), c.semis_per_oct) - 1;
 
-        // Handle octave boundary edge cases to maintain Scientific Pitch Notation.
+        // Handle octave boundaries to maintain proper Scientific Pitch Notation.
         const offset: i8 = switch (self.name.acc) {
             .flat, .double_flat => if (self.name.let == .c) 1 else 0,
             .natural => 0,
