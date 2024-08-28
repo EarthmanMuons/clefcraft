@@ -45,7 +45,9 @@ pub const Note = struct {
             .double_sharp => 2,
         };
         const oct_semis = (@as(i16, oct) + 1) * c.semis_per_oct;
+
         const midi = base + offset + oct_semis;
+
         if (midi < 0 or midi > c.midi_max) {
             return error.NoteOutOfRange;
         }
@@ -54,12 +56,15 @@ pub const Note = struct {
 
     /// Creates a note from the given frequency in Hz.
     /// Uses 12-TET and A440.
+    /// The resulting note will be spelled with sharps.
     pub fn fromFrequency(freq: f64) Note {
         assert(freq > 0);
+
         const a4_freq = 440.0;
         const a4_midi = 69;
         const midi_float = a4_midi + c.semis_per_oct * @log2(freq / a4_freq);
         const midi: u7 = @intFromFloat(@round(midi_float));
+
         return Note.fromMidi(midi);
     }
 
@@ -124,7 +129,6 @@ pub const Note = struct {
 
         const oct_str = str[iter.i..];
         if (oct_str.len == 0) return error.MissingOctave;
-
         const oct = std.fmt.parseInt(i8, oct_str, 10) catch return error.InvalidOctave;
 
         return Note.init(let, acc, oct);

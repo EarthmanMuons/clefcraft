@@ -68,12 +68,14 @@ pub const Interval = struct {
     /// Returns the number of semitones in the interval.
     pub fn semitones(self: Interval) u7 {
         const base = baseSemitones(self.num);
+
         const offset: i8 = switch (self.qual) {
             .perfect, .major => 0,
             .minor => -1,
             .augmented => 1,
             .diminished => if (isPerfect(self.num)) -1 else -2,
         };
+
         return @intCast(base + offset);
     }
 
