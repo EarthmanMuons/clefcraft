@@ -25,14 +25,15 @@ pub const Note = struct {
             .a => 9,
             .b => 11,
         };
-        const offset: i4 = switch (acc) {
+        const offset: i16 = switch (acc) {
             .double_flat => -2,
             .flat => -1,
             .natural => 0,
             .sharp => 1,
             .double_sharp => 2,
         };
-        const midi = base + offset + (oct + 1) * c.semis_per_oct;
+        const oct_semis = (@as(i16, oct) + 1) * c.semis_per_oct;
+        const midi = base + offset + oct_semis;
         if (midi < 0 or midi > c.midi_max) {
             return error.NoteOutOfRange;
         }
@@ -51,7 +52,63 @@ pub const Note = struct {
         return .{ .midi = midi, .name = spellWithSharps(midi) };
     }
 
-    // pub fn fromString(str: []const u8) !Interval {}
+    pub fn fromString(str: []const u8) !Note {
+        if (str.len == 0) return error.EmptyString;
+
+        var iter = (try std.unicode.Utf8View.init(str)).iterator();
+
+        const let: Letter = switch (iter.nextCodepoint().?) {
+            'C', 'c' => .c,
+            'D', 'd' => .d,
+            'E', 'e' => .e,
+            'F', 'f' => .f,
+            'G', 'g' => .g,
+            'A', 'a' => .a,
+            'B', 'b' => .b,
+            else => return error.InvalidLetter,
+        };
+
+        var acc: Accidental = .natural;
+        if (iter.nextCodepoint()) |cp| {
+            switch (cp) {
+                '𝄫' => acc = .double_flat,
+                '♭', 'b' => {
+                    acc = .flat;
+                    if (iter.nextCodepoint()) |next_cp| {
+                        if (next_cp == cp) {
+                            acc = .double_flat;
+                        } else {
+                            // Move iterator back if it's not a double flat.
+                            iter.i -= try std.unicode.utf8CodepointSequenceLength(next_cp);
+                        }
+                    }
+                },
+                '♯', '#' => {
+                    acc = .sharp;
+                    if (iter.nextCodepoint()) |next_cp| {
+                        if (next_cp == cp) {
+                            acc = .double_sharp;
+                        } else {
+                            // Move iterator back if it's not a double sharp.
+                            iter.i -= try std.unicode.utf8CodepointSequenceLength(next_cp);
+                        }
+                    }
+                },
+                '𝄪', 'x' => acc = .double_sharp,
+                else => {
+                    // Move iterator back if it's not an accidental.
+                    iter.i -= try std.unicode.utf8CodepointSequenceLength(cp);
+                },
+            }
+        }
+
+        const oct_str = str[iter.i..];
+        if (oct_str.len == 0) return error.MissingOctave;
+
+        const oct = std.fmt.parseInt(i8, oct_str, 10) catch return error.InvalidOctave;
+
+        return Note.init(let, acc, oct);
+    }
 
     pub fn frequency(self: Note) f64 {
         const a4_freq = 440.0;
@@ -143,7 +200,7 @@ pub const Note = struct {
     }
 };
 
-test "Note initialization" {
+test "initialization" {
     try testing.expectError(error.NoteOutOfRange, Note.init(.c, .flat, -1));
     try testing.expectEqual(0, (try Note.init(.c, .natural, -1)).midi);
     try testing.expectEqual(21, (try Note.init(.a, .natural, 0)).midi);
@@ -158,7 +215,7 @@ test "Note initialization" {
     try testing.expectError(error.NoteOutOfRange, Note.init(.g, .sharp, 9));
 }
 
-test "Note properties" {
+test "properties" {
     const c4 = try Note.init(.c, .natural, 4);
     try testing.expectEqual(Note.Letter.c, c4.name.let);
     try testing.expectEqual(Note.Accidental.natural, c4.name.acc);
@@ -178,7 +235,39 @@ test "Note properties" {
     try testing.expectEqual(1, df4.pitchClass());
 }
 
-test "Note frequencies" {
+test "basic parsing" {
+    try testing.expectEqual(0, (try Note.fromString("C-1")).midi);
+    try testing.expectEqual(60, (try Note.fromString("C4")).midi);
+    try testing.expectEqual(69, (try Note.fromString("A4")).midi);
+}
+
+test "Unicode support" {
+    try testing.expectEqual(58, (try Note.fromString("C𝄫4")).midi);
+    try testing.expectEqual(58, (try Note.fromString("C♭♭4")).midi);
+    try testing.expectEqual(59, (try Note.fromString("C♭4")).midi);
+    try testing.expectEqual(61, (try Note.fromString("C♯4")).midi);
+    try testing.expectEqual(62, (try Note.fromString("C♯♯4")).midi);
+    try testing.expectEqual(62, (try Note.fromString("C𝄪4")).midi);
+}
+
+test "ASCII support" {
+    try testing.expectEqual(58, (try Note.fromString("Cbb4")).midi);
+    try testing.expectEqual(59, (try Note.fromString("Cb4")).midi);
+    try testing.expectEqual(61, (try Note.fromString("C#4")).midi);
+    try testing.expectEqual(62, (try Note.fromString("C##4")).midi);
+    try testing.expectEqual(62, (try Note.fromString("Cx4")).midi);
+}
+
+test "parser error handling" {
+    try testing.expectError(error.EmptyString, Note.fromString(""));
+    try testing.expectError(error.InvalidLetter, Note.fromString("H4"));
+    try testing.expectError(error.MissingOctave, Note.fromString("C"));
+    try testing.expectError(error.InvalidOctave, Note.fromString("C#X"));
+    try testing.expectError(error.NoteOutOfRange, Note.fromString("C-2"));
+    try testing.expectError(error.NoteOutOfRange, Note.fromString("G10"));
+}
+
+test "frequencies" {
     const epsilon = 0.01;
     try testing.expectApproxEqAbs(8.175799, (try Note.init(.c, .natural, -1)).frequency(), epsilon);
     try testing.expectApproxEqAbs(27.50000, (try Note.init(.a, .natural, 0)).frequency(), epsilon);
@@ -195,7 +284,7 @@ test "Note frequencies" {
     try testing.expectEqual(127, (Note.fromFrequency(12543.85).midi));
 }
 
-test "Note formatting" {
+test "formatting" {
     try testing.expectFmt("C𝄫4", "{}", .{try Note.init(.c, .double_flat, 4)});
     try testing.expectFmt("C♭4", "{}", .{try Note.init(.c, .flat, 4)});
     try testing.expectFmt("C4", "{}", .{try Note.init(.c, .natural, 4)});
