@@ -210,18 +210,28 @@ pub const Note = struct {
     // pub fn respell(self: Note, context: ???) Note { }
 
     /// Formats the note for output in Scientific Pitch Notation.
-    /// Uses Unicode symbols for accidentals.
+    /// Uses Unicode symbols for accidentals by default.
+    /// If the format specifier 'c' is used, it outputs ASCII symbols instead.
     pub fn format(
         self: Note,
         comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
         writer: anytype,
     ) !void {
-        _ = fmt;
         _ = options;
+        const use_ascii = std.mem.indexOfScalar(u8, fmt, 'c') != null;
+
         try writer.print("{c}{s}{d}", .{
             std.ascii.toUpper(@tagName(self.name.let)[0]),
-            switch (self.name.acc) {
+            if (use_ascii)
+                switch (self.name.acc) {
+                    .double_flat => "bb",
+                    .flat => "b",
+                    .natural => "",
+                    .sharp => "#",
+                    .double_sharp => "x",
+                }
+            else switch (self.name.acc) {
                 .double_flat => "𝄫",
                 .flat => "♭",
                 .natural => "",
@@ -274,7 +284,7 @@ test "basic parsing" {
     try testing.expectEqual(69, (try Note.fromString("A4")).midi);
 }
 
-test "Unicode support" {
+test "Unicode parsing" {
     try testing.expectEqual(58, (try Note.fromString("C𝄫4")).midi);
     try testing.expectEqual(58, (try Note.fromString("C♭♭4")).midi);
     try testing.expectEqual(59, (try Note.fromString("C♭4")).midi);
@@ -283,7 +293,7 @@ test "Unicode support" {
     try testing.expectEqual(62, (try Note.fromString("C𝄪4")).midi);
 }
 
-test "ASCII support" {
+test "ASCII parsing" {
     try testing.expectEqual(58, (try Note.fromString("Cbb4")).midi);
     try testing.expectEqual(59, (try Note.fromString("Cb4")).midi);
     try testing.expectEqual(61, (try Note.fromString("C#4")).midi);
@@ -291,7 +301,7 @@ test "ASCII support" {
     try testing.expectEqual(62, (try Note.fromString("Cx4")).midi);
 }
 
-test "parser error handling" {
+test "parsing errors" {
     try testing.expectError(error.EmptyString, Note.fromString(""));
     try testing.expectError(error.InvalidLetter, Note.fromString("H4"));
     try testing.expectError(error.MissingOctave, Note.fromString("C"));
@@ -323,4 +333,12 @@ test "formatting" {
     try testing.expectFmt("C4", "{}", .{try Note.init(.c, .natural, 4)});
     try testing.expectFmt("C♯4", "{}", .{try Note.init(.c, .sharp, 4)});
     try testing.expectFmt("C𝄪4", "{}", .{try Note.init(.c, .double_sharp, 4)});
+}
+
+test "ASCII formatting" {
+    try testing.expectFmt("Cbb4", "{c}", .{try Note.init(.c, .double_flat, 4)});
+    try testing.expectFmt("Cb4", "{c}", .{try Note.init(.c, .flat, 4)});
+    try testing.expectFmt("C4", "{c}", .{try Note.init(.c, .natural, 4)});
+    try testing.expectFmt("C#4", "{c}", .{try Note.init(.c, .sharp, 4)});
+    try testing.expectFmt("Cx4", "{c}", .{try Note.init(.c, .double_sharp, 4)});
 }
