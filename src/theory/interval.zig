@@ -22,10 +22,7 @@ pub const Interval = struct {
     }
 
     fn isValid(qual: Quality, num: u7) bool {
-        const simplified = @mod(num - 1, c.notes_per_oct) + 1;
-        const is_perfect = simplified == 1 or simplified == 4 or simplified == 5;
-
-        if (is_perfect) {
+        if (isPerfect(num)) {
             return switch (qual) {
                 .perfect, .augmented, .diminished => true,
                 .major, .minor => false,
@@ -36,6 +33,11 @@ pub const Interval = struct {
                 .major, .minor, .augmented, .diminished => true,
             };
         }
+    }
+
+    fn isPerfect(num: u7) bool {
+        const simplified = @mod(num - 1, c.notes_per_oct) + 1;
+        return simplified == 1 or simplified == 4 or simplified == 5;
     }
 
     /// Creates an interval from the given string representation.
@@ -63,13 +65,23 @@ pub const Interval = struct {
 
     // pub fn invert(self: Interval) Interval {}
 
-    // pub fn semitones(self: Interval) u7 {}
+    /// Returns the number of semitones in the interval.
+    pub fn semitones(self: Interval) u7 {
+        const base = baseSemitones(self.num);
+        const offset: i8 = switch (self.qual) {
+            .perfect, .major => 0,
+            .minor => -1,
+            .augmented => 1,
+            .diminished => if (isPerfect(self.num)) -1 else -2,
+        };
+        return @intCast(base + offset);
+    }
 
     fn baseSemitones(num: u7) i8 {
         const simplified = @mod(num - 1, c.notes_per_oct) + 1;
         const oct_offset = (num - 1) / c.notes_per_oct * c.semis_per_oct;
 
-        const base = switch (simplified) {
+        const base: i8 = switch (simplified) {
             1 => 0, // Unison
             2 => 2, // Second
             3 => 4, // Third
@@ -81,6 +93,16 @@ pub const Interval = struct {
         };
 
         return @intCast(base + oct_offset);
+    }
+
+    /// Checks if the interval is compound (larger than an octave).
+    pub fn isCompound(self: Interval) bool {
+        return self.semitones() > c.semis_per_oct;
+    }
+
+    /// Checks if the interval is simple (an octave or smaller).
+    pub fn isSimple(self: Interval) bool {
+        return !self.isCompound();
     }
 
     // pub fn between(from: Note, to: Note) Interval {}
@@ -134,8 +156,6 @@ pub const Interval = struct {
     /// Major fourteenth.
     pub const M14 = Interval{ .qual = .major, .num = 14 };
 
-    /// Diminished first.
-    pub const d1 = Interval{ .qual = .diminished, .num = 1 };
     /// Diminished second.
     pub const d2 = Interval{ .qual = .diminished, .num = 2 };
     /// Diminished third.
@@ -193,8 +213,6 @@ pub const Interval = struct {
     pub const A13 = Interval{ .qual = .augmented, .num = 13 };
     /// Augmented fourteenth.
     pub const A14 = Interval{ .qual = .augmented, .num = 14 };
-    /// Augmented fifteenth.
-    pub const A15 = Interval{ .qual = .augmented, .num = 15 };
 
     /// Returns a formatter for the interval's shorthand representation.
     pub fn fmtShorthand(self: Interval) std.fmt.Formatter(formatShorthand) {
@@ -242,3 +260,15 @@ pub const Interval = struct {
         });
     }
 };
+
+test "semitones" {
+    try testing.expectEqual(0, Interval.P1.semitones());
+    try testing.expectEqual(0, Interval.d2.semitones());
+    try testing.expectEqual(1, Interval.m2.semitones());
+    try testing.expectEqual(1, Interval.A1.semitones());
+    try testing.expectEqual(2, Interval.M2.semitones());
+    try testing.expectEqual(12, Interval.P8.semitones());
+    try testing.expectEqual(14, Interval.M9.semitones());
+    try testing.expectEqual(21, Interval.M13.semitones());
+    try testing.expectEqual(24, Interval.P15.semitones());
+}
