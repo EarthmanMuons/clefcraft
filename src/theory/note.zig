@@ -311,20 +311,20 @@ test "parsing errors" {
 }
 
 test "frequencies" {
-    const epsilon = 0.01;
-    try testing.expectApproxEqAbs(8.175799, (try Note.init(.c, .natural, -1)).frequency(), epsilon);
-    try testing.expectApproxEqAbs(27.50000, (try Note.init(.a, .natural, 0)).frequency(), epsilon);
-    try testing.expectApproxEqAbs(261.6256, (try Note.init(.c, .natural, 4)).frequency(), epsilon);
-    try testing.expectApproxEqAbs(440.0000, (try Note.init(.a, .natural, 4)).frequency(), epsilon);
+    const epsilon = 0.001;
+    try testing.expectApproxEqAbs(8.176, (try Note.init(.c, .natural, -1)).frequency(), epsilon);
+    try testing.expectApproxEqAbs(27.5, (try Note.init(.a, .natural, 0)).frequency(), epsilon);
+    try testing.expectApproxEqAbs(261.626, (try Note.init(.c, .natural, 4)).frequency(), epsilon);
+    try testing.expectApproxEqAbs(440.0, (try Note.init(.a, .natural, 4)).frequency(), epsilon);
     try testing.expectApproxEqAbs(4186.009, (try Note.init(.c, .natural, 8)).frequency(), epsilon);
-    try testing.expectApproxEqAbs(12543.85, (try Note.init(.g, .natural, 9)).frequency(), epsilon);
+    try testing.expectApproxEqAbs(12543.854, (try Note.init(.g, .natural, 9)).frequency(), epsilon);
 
-    try testing.expectEqual(0, (Note.fromFrequency(8.175799).midi));
-    try testing.expectEqual(21, (Note.fromFrequency(27.50000).midi));
-    try testing.expectEqual(60, (Note.fromFrequency(261.6256).midi));
-    try testing.expectEqual(69, (Note.fromFrequency(440.0000).midi));
+    try testing.expectEqual(0, (Note.fromFrequency(8.176).midi));
+    try testing.expectEqual(21, (Note.fromFrequency(27.5).midi));
+    try testing.expectEqual(60, (Note.fromFrequency(261.626).midi));
+    try testing.expectEqual(69, (Note.fromFrequency(440.0).midi));
     try testing.expectEqual(108, (Note.fromFrequency(4186.009).midi));
-    try testing.expectEqual(127, (Note.fromFrequency(12543.85).midi));
+    try testing.expectEqual(127, (Note.fromFrequency(12543.854).midi));
 }
 
 test "formatting" {
