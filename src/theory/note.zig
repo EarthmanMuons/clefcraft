@@ -172,6 +172,12 @@ pub const Note = struct {
         return @intCast(let_diff + oct_diff * c.notes_per_oct);
     }
 
+    /// Calculates the number of semitones between this note and another note.
+    /// A positive result means the second note is higher, negative means lower.
+    pub fn semitonesTo(self: Note, other: Note) i8 {
+        return @as(i8, other.midi) - @as(i8, self.midi);
+    }
+
     /// Checks if the note is enharmonic with another note.
     pub fn isEnharmonic(self: Note, other: Note) bool {
         return self.midi == other.midi;
@@ -383,6 +389,21 @@ test "enharmonic diatonic steps" {
     try testing.expectEqual(-1, cf4.diatonicStepsTo(b3));
     try testing.expectEqual(2, d4.diatonicStepsTo(fs4));
     try testing.expectEqual(3, d4.diatonicStepsTo(gf4));
+}
+
+test "semitones" {
+    const c4 = try Note.init(.c, .natural, 4);
+    const e4 = try Note.init(.e, .natural, 4);
+    const g4 = try Note.init(.g, .natural, 4);
+    const c5 = try Note.init(.c, .natural, 5);
+    const f5 = try Note.init(.f, .natural, 5);
+
+    try testing.expectEqual(0, c4.semitonesTo(c4));
+    try testing.expectEqual(4, c4.semitonesTo(e4));
+    try testing.expectEqual(-4, e4.semitonesTo(c4));
+    try testing.expectEqual(7, c4.semitonesTo(g4));
+    try testing.expectEqual(12, c4.semitonesTo(c5));
+    try testing.expectEqual(17, c4.semitonesTo(f5));
 }
 
 test "formatting" {
