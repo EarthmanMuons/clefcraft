@@ -163,6 +163,15 @@ pub const Note = struct {
         return @intCast(@mod(self.midi, c.semis_per_oct));
     }
 
+    /// Calculates the number of diatonic steps between this note and another note.
+    /// A positive result means the second note is higher, negative means lower.
+    pub fn diatonicStepsTo(self: Note, other: Note) i8 {
+        const let_diff = @intFromEnum(other.name.let) - @intFromEnum(self.name.let);
+        const oct_diff = other.octave() - self.octave();
+
+        return @intCast(let_diff + oct_diff * c.notes_per_oct);
+    }
+
     /// Checks if the note is enharmonic with another note.
     pub fn isEnharmonic(self: Note, other: Note) bool {
         return self.midi == other.midi;
@@ -263,6 +272,18 @@ test "initialization" {
 }
 
 test "properties" {
+    const b3 = try Note.init(.b, .natural, 3);
+    try testing.expectEqual(Note.Letter.b, b3.name.let);
+    try testing.expectEqual(Note.Accidental.natural, b3.name.acc);
+    try testing.expectEqual(3, b3.octave());
+    try testing.expectEqual(11, b3.pitchClass());
+
+    const cf4 = try Note.init(.c, .flat, 4);
+    try testing.expectEqual(Note.Letter.c, cf4.name.let);
+    try testing.expectEqual(Note.Accidental.flat, cf4.name.acc);
+    try testing.expectEqual(4, cf4.octave());
+    try testing.expectEqual(11, cf4.pitchClass());
+
     const c4 = try Note.init(.c, .natural, 4);
     try testing.expectEqual(Note.Letter.c, c4.name.let);
     try testing.expectEqual(Note.Accidental.natural, c4.name.acc);
@@ -284,6 +305,8 @@ test "properties" {
 
 test "basic parsing" {
     try testing.expectEqual(0, (try Note.fromString("C-1")).midi);
+    try testing.expectEqual(59, (try Note.fromString("B3")).midi);
+    try testing.expectEqual(59, (try Note.fromString("Cb4")).midi);
     try testing.expectEqual(60, (try Note.fromString("C4")).midi);
     try testing.expectEqual(69, (try Note.fromString("A4")).midi);
 }
@@ -329,6 +352,37 @@ test "frequencies" {
     try testing.expectEqual(69, (Note.fromFrequency(440.0).midi));
     try testing.expectEqual(108, (Note.fromFrequency(4186.009).midi));
     try testing.expectEqual(127, (Note.fromFrequency(12543.854).midi));
+}
+
+test "simple diatonic steps" {
+    const c4 = try Note.init(.c, .natural, 4);
+    const d4 = try Note.init(.d, .natural, 4);
+    const g4 = try Note.init(.g, .natural, 4);
+    const c5 = try Note.init(.c, .natural, 5);
+    const c6 = try Note.init(.c, .natural, 6);
+
+    try testing.expectEqual(-7, c5.diatonicStepsTo(c4));
+    try testing.expectEqual(0, c4.diatonicStepsTo(c4));
+    try testing.expectEqual(1, c4.diatonicStepsTo(d4));
+    try testing.expectEqual(4, c4.diatonicStepsTo(g4));
+    try testing.expectEqual(7, c4.diatonicStepsTo(c5));
+    try testing.expectEqual(14, c4.diatonicStepsTo(c6));
+}
+
+test "enharmonic diatonic steps" {
+    const b3 = try Note.init(.b, .natural, 3);
+    const cf4 = try Note.init(.c, .flat, 4);
+    const c4 = try Note.init(.c, .natural, 4);
+    const d4 = try Note.init(.d, .natural, 4);
+    const fs4 = try Note.init(.f, .sharp, 4);
+    const gf4 = try Note.init(.g, .flat, 4);
+
+    try testing.expect(b3.isEnharmonic(cf4));
+    try testing.expect(fs4.isEnharmonic(gf4));
+    try testing.expectEqual(-1, c4.diatonicStepsTo(b3));
+    try testing.expectEqual(-1, cf4.diatonicStepsTo(b3));
+    try testing.expectEqual(2, d4.diatonicStepsTo(fs4));
+    try testing.expectEqual(3, d4.diatonicStepsTo(gf4));
 }
 
 test "formatting" {
