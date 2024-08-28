@@ -1,4 +1,6 @@
 const std = @import("std");
+const assert = std.debug.assert;
+const log = std.log.scoped(.note);
 const testing = std.testing;
 
 const c = @import("constants.zig");
@@ -41,6 +43,7 @@ pub const Note = struct {
     }
 
     pub fn fromFrequency(freq: f64) Note {
+        assert(freq > 0);
         const a4_freq = 440.0;
         const a4_midi = 69;
         const midi_float = a4_midi + c.semis_per_oct * @log2(freq / a4_freq);

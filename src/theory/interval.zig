@@ -1,4 +1,6 @@
 const std = @import("std");
+const assert = std.debug.assert;
+const log = std.log.scoped(.interval);
 
 const c = @import("constants.zig");
 const Note = @import("note.zig").Note;
