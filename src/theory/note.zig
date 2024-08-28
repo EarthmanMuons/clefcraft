@@ -33,7 +33,7 @@ pub const Note = struct {
             .double_sharp => 2,
         };
         const midi = base + offset + (oct + 1) * c.semis_per_oct;
-        if (midi < 0 or c.midi_max < midi) {
+        if (midi < 0 or midi > c.midi_max) {
             return error.NoteOutOfRange;
         }
         return .{ .midi = @intCast(midi), .name = .{ .let = let, .acc = acc } };
@@ -50,6 +50,8 @@ pub const Note = struct {
     pub fn fromMidi(midi: u7) Note {
         return .{ .midi = midi, .name = spellWithSharps(midi) };
     }
+
+    // pub fn fromString(str: []const u8) !Interval {}
 
     pub fn frequency(self: Note) f64 {
         const a4_freq = 440.0;
@@ -116,6 +118,8 @@ pub const Note = struct {
             else => unreachable,
         };
     }
+
+    // pub fn respell(self: Note, ???) Note { }
 
     pub fn format(
         self: Note,

@@ -14,4 +14,5 @@ test {
     // _ = @import("theory_v1/pitch.zig");
     // _ = @import("theory_v1/scale.zig");
     _ = @import("theory/note.zig");
+    _ = @import("theory/interval.zig");
 }
