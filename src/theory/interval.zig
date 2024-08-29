@@ -108,49 +108,34 @@ pub const Interval = struct {
     }
 
     /// Calculates the interval between two notes.
-    // pub fn between(from: Note, to: Note) Interval {
-    //     // const steps = from.diatonicStepsTo(to);
-    //     // const semis = from.semitonesTo(to);
+    /// The interval is always calculated from the lower note to the higher note,
+    /// regardless of the order of the input arguments.
+    pub fn between(lhs: Note, rhs: Note) Interval {
+        const steps = lhs.diatonicStepsTo(rhs);
+        const semis = lhs.semitonesTo(rhs);
 
-    //     // const num = try Number.fromInt(diatonic_steps);
-    //     // const qual = try calcQuality(semitones, number);
+        const num: u7 = @intCast(@abs(steps) + 1);
+        const base = baseSemitones(num);
+        const offset = @as(i16, @abs(semis)) - base;
 
-    //     assert(isValid(qual, num));
-    //     return .{ .qual = qual, .num = num };
-    // }
+        const qual = if (isPerfect(num))
+            switch (offset) {
+                0 => Quality.perfect,
+                1 => Quality.augmented,
+                -1 => Quality.diminished,
+                else => unreachable,
+            }
+        else switch (offset) {
+            0 => Quality.major,
+            -1 => Quality.minor,
+            1 => Quality.augmented,
+            -2 => Quality.diminished,
+            else => unreachable,
+        };
 
-    // pub fn between(from: Note, to: Note) Interval {
-    //     const diatonic_steps = from.diatonicStepsTo(to);
-    //     const semitones = from.semitonesTo(to);
-
-    //     const number = try Number.fromInt(diatonic_steps);
-    //     const quality = try calcQuality(semitones, number);
-
-    //     assert(isValid(quality, number));
-    //     return .{ .quality = quality, .number = number };
-    // }
-
-    // fn calcQuality(semitones: i8, number: Number) !Quality {
-    //     const base_semitones = baseSemitones(number);
-    //     const quality_offset = semitones - base_semitones;
-
-    //     if (number.isPerfect()) {
-    //         return switch (quality_offset) {
-    //             0 => .perfect,
-    //             1 => .augmented,
-    //             -1 => .diminished,
-    //             else => error.InvalidQualityOffset,
-    //         };
-    //     } else {
-    //         return switch (quality_offset) {
-    //             0 => .major,
-    //             -1 => .minor,
-    //             1 => .augmented,
-    //             -2 => .diminished,
-    //             else => error.InvalidQualityOffset,
-    //         };
-    //     }
-    // }
+        assert(isValid(qual, num));
+        return .{ .qual = qual, .num = num };
+    }
 
     /// Unison.
     pub const P1 = Interval{ .qual = .perfect, .num = 1 };
@@ -318,36 +303,28 @@ test "semitones" {
     try testing.expectEqual(24, Interval.P15.semitones());
 }
 
-// test "between notes" {
-//     const c4 = try Note.fromString("C4");
-//     const e4 = try Note.fromString("E4");
-//     const g4 = try Note.fromString("G4");
-//     const c5 = try Note.fromString("C5");
-//     const f5 = try Note.fromString("F5");
+test "calculation between notes" {
+    const c4 = try Note.fromString("C4");
+    const e4 = try Note.fromString("E4");
+    const g4 = try Note.fromString("G4");
+    const c5 = try Note.fromString("C5");
+    const f5 = try Note.fromString("F5");
 
-//     try testing.expectEqual(Interval.M3, Interval.between(c4, e4));
-//     try testing.expectEqual(Interval.P5, Interval.between(c4, g4));
-//     try testing.expectEqual(Interval.P4, Interval.between(c4, f5));
-//     try testing.expectEqual(Interval.m3, Interval.between(e4, g4));
-//     try testing.expectEqual(Interval.P8, Interval.between(c4, c5));
-// }
+    try testing.expectEqual(Interval.P5, Interval.between(c4, g4));
+    try testing.expectEqual(Interval.P11, Interval.between(c4, f5));
+    try testing.expectEqual(Interval.m3, Interval.between(e4, g4));
+    try testing.expectEqual(Interval.P8, Interval.between(c4, c5));
+    // Order doesn't matter.
+    try testing.expectEqual(Interval.M3, Interval.between(c4, e4));
+    try testing.expectEqual(Interval.M3, Interval.between(e4, c4));
+}
 
-// test "between descending notes" {
-//     const c4 = try Note.fromString("C4");
-//     const e4 = try Note.fromString("E4");
-//     const c5 = try Note.fromString("C5");
-//     const f5 = try Note.fromString("F5");
+test "calculation between enharmonic notes" {
+    const d4 = try Note.fromString("D4");
+    const fs4 = try Note.fromString("F#4");
+    const gf4 = try Note.fromString("Gb4");
 
-//     try testing.expectEqual(Interval.m3, Interval.between(e4, c4));
-//     try testing.expectEqual(Interval.P4, Interval.between(f5, c5));
-// }
-
-// test "between enharmonic notes" {
-//     const d4 = try Note.fromString("D4");
-//     const fs4 = try Note.fromString("F#4");
-//     const gf4 = try Note.fromString("Gb4");
-
-//     try testing.expect(fs4.isEnharmonic(gb4));
-//     try testing.expectEqual(Interval.M3, Interval.between(d4, fs4));
-//     try testing.expectEqual(Interval.d4, Interval.between(d4, gb4));
-// }
+    try testing.expect(fs4.isEnharmonic(gf4));
+    try testing.expectEqual(Interval.M3, Interval.between(d4, fs4));
+    try testing.expectEqual(Interval.d4, Interval.between(d4, gf4));
+}

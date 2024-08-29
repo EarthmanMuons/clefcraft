@@ -166,7 +166,7 @@ pub const Note = struct {
     /// Calculates the number of diatonic steps between this note and another note.
     /// A positive result means the second note is higher, negative means lower.
     pub fn diatonicStepsTo(self: Note, other: Note) i8 {
-        const let_diff = @intFromEnum(other.name.let) - @intFromEnum(self.name.let);
+        const let_diff = @as(i8, @intFromEnum(other.name.let)) - @as(i8, @intFromEnum(self.name.let));
         const oct_diff = other.octave() - self.octave();
 
         return @intCast(let_diff + oct_diff * c.notes_per_oct);
