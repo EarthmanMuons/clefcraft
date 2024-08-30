@@ -62,6 +62,7 @@ pub const Interval = struct {
     }
 
     /// Applies the interval to a given note, returning the resulting note.
+    /// Returns an error if the resulting note is invalid.
     pub fn applyTo(self: Interval, note: Note) !Note {
         const new_midi = @as(i16, note.midi) + self.semitones();
 
