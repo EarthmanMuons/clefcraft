@@ -18,7 +18,7 @@ pub const Note = struct {
     name: Spelling,
 
     pub const Spelling = struct {
-        let: Letter,
+        ltr: Letter,
         acc: Accidental,
     };
 
@@ -31,7 +31,7 @@ pub const Note = struct {
         a,
         b,
 
-        /// Converts a Letter to its corresponding semitone value.
+        /// Converts the letter to its corresponding semitone value.
         pub fn semitones(self: Letter) u4 {
             return switch (self) {
                 .c => 0,
@@ -49,23 +49,23 @@ pub const Note = struct {
 
     /// Creates a note from a letter, accidental, and octave.
     /// Returns an error if the resulting note is out of the valid MIDI range.
-    pub fn init(let: Letter, acc: Accidental, oct: i8) !Note {
-        const base: i16 = let.semitones();
-        const offset: i16 = switch (acc) {
+    pub fn init(ltr: Letter, acc: Accidental, oct: i8) !Note {
+        const base_sem: i16 = ltr.semitones();
+        const acc_offset: i16 = switch (acc) {
             .double_flat => -2,
             .flat => -1,
             .natural => 0,
             .sharp => 1,
             .double_sharp => 2,
         };
-        const oct_semis = (@as(i16, oct) + 1) * c.semis_per_oct;
+        const oct_sem = (@as(i16, oct) + 1) * c.sem_per_oct;
 
-        const midi = base + offset + oct_semis;
+        const midi = base_sem + acc_offset + oct_sem;
 
         if (midi < 0 or midi > c.midi_max) {
             return error.NoteOutOfRange;
         }
-        return .{ .midi = @intCast(midi), .name = .{ .let = let, .acc = acc } };
+        return .{ .midi = @intCast(midi), .name = .{ .ltr = ltr, .acc = acc } };
     }
 
     /// Creates a note from the given frequency in Hz.
@@ -76,7 +76,7 @@ pub const Note = struct {
 
         const a4_freq = 440.0;
         const a4_midi = 69;
-        const midi_float = a4_midi + c.semis_per_oct * @log2(freq / a4_freq);
+        const midi_float = a4_midi + c.sem_per_oct * @log2(freq / a4_freq);
         const midi: u7 = @intFromFloat(@round(midi_float));
 
         return Note.fromMidi(midi);
@@ -96,7 +96,7 @@ pub const Note = struct {
 
         var iter = (try std.unicode.Utf8View.init(str)).iterator();
 
-        const let: Letter = switch (iter.nextCodepoint().?) {
+        const ltr: Letter = switch (iter.nextCodepoint().?) {
             'C', 'c' => .c,
             'D', 'd' => .d,
             'E', 'e' => .e,
@@ -145,7 +145,7 @@ pub const Note = struct {
         if (oct_str.len == 0) return error.MissingOctave;
         const oct = std.fmt.parseInt(i8, oct_str, 10) catch return error.InvalidOctave;
 
-        return Note.init(let, acc, oct);
+        return Note.init(ltr, acc, oct);
     }
 
     /// Returns the frequency of the note in Hz.
@@ -154,19 +154,19 @@ pub const Note = struct {
         const a4_freq = 440.0;
         const a4_midi = 69;
         const midi: f64 = @floatFromInt(self.midi);
-        return a4_freq * @exp2((midi - a4_midi) / c.semis_per_oct);
+        return a4_freq * @exp2((midi - a4_midi) / c.sem_per_oct);
     }
 
     /// Returns the octave of the note, accounting for accidentals.
     /// Follows Scientific Pitch Notation conventions.
     pub fn octave(self: Note) i8 {
-        const oct = @divFloor(@as(i8, self.midi), c.semis_per_oct) - 1;
+        const oct = @divFloor(@as(i8, self.midi), c.sem_per_oct) - 1;
 
         // Handle notes that cross octave boundaries.
         const offset: i8 = switch (self.name.acc) {
-            .flat, .double_flat => if (self.name.let == .c) 1 else 0,
+            .flat, .double_flat => if (self.name.ltr == .c) 1 else 0,
             .natural => 0,
-            .sharp, .double_sharp => if (self.name.let == .b) -1 else 0,
+            .sharp, .double_sharp => if (self.name.ltr == .b) -1 else 0,
         };
 
         return oct + offset;
@@ -174,16 +174,16 @@ pub const Note = struct {
 
     /// Returns the pitch class of the note.
     pub fn pitchClass(self: Note) u4 {
-        return @intCast(@mod(self.midi, c.semis_per_oct));
+        return @intCast(@mod(self.midi, c.sem_per_oct));
     }
 
     /// Calculates the number of diatonic steps between this note and another note.
     /// A positive result means the second note is higher, negative means lower.
     pub fn diatonicStepsTo(self: Note, other: Note) i8 {
-        const let_diff = @as(i8, @intFromEnum(other.name.let)) - @as(i8, @intFromEnum(self.name.let));
+        const ltr_diff = @as(i8, @intFromEnum(other.name.ltr)) - @as(i8, @intFromEnum(self.name.ltr));
         const oct_diff = other.octave() - self.octave();
 
-        return @intCast(let_diff + oct_diff * c.notes_per_oct);
+        return @intCast(ltr_diff + oct_diff * c.ltr_per_oct);
     }
 
     /// Calculates the number of semitones between this note and another note.
@@ -200,20 +200,20 @@ pub const Note = struct {
     /// Spells a note using sharps based on its MIDI number.
     /// For example, MIDI 61 will be spelled as C♯, not D♭.
     pub fn spellWithSharps(midi: u7) Spelling {
-        const pc = @mod(midi, c.semis_per_oct);
+        const pc = @mod(midi, c.sem_per_oct);
         return switch (pc) {
-            0 => .{ .let = .c, .acc = .natural },
-            1 => .{ .let = .c, .acc = .sharp },
-            2 => .{ .let = .d, .acc = .natural },
-            3 => .{ .let = .d, .acc = .sharp },
-            4 => .{ .let = .e, .acc = .natural },
-            5 => .{ .let = .f, .acc = .natural },
-            6 => .{ .let = .f, .acc = .sharp },
-            7 => .{ .let = .g, .acc = .natural },
-            8 => .{ .let = .g, .acc = .sharp },
-            9 => .{ .let = .a, .acc = .natural },
-            10 => .{ .let = .a, .acc = .sharp },
-            11 => .{ .let = .b, .acc = .natural },
+            0 => .{ .ltr = .c, .acc = .natural },
+            1 => .{ .ltr = .c, .acc = .sharp },
+            2 => .{ .ltr = .d, .acc = .natural },
+            3 => .{ .ltr = .d, .acc = .sharp },
+            4 => .{ .ltr = .e, .acc = .natural },
+            5 => .{ .ltr = .f, .acc = .natural },
+            6 => .{ .ltr = .f, .acc = .sharp },
+            7 => .{ .ltr = .g, .acc = .natural },
+            8 => .{ .ltr = .g, .acc = .sharp },
+            9 => .{ .ltr = .a, .acc = .natural },
+            10 => .{ .ltr = .a, .acc = .sharp },
+            11 => .{ .ltr = .b, .acc = .natural },
             else => unreachable,
         };
     }
@@ -221,20 +221,20 @@ pub const Note = struct {
     /// Spells a note using flats based on its MIDI number.
     /// For example, MIDI 61 will be spelled as D♭, not C♯.
     pub fn spellWithFlats(midi: u7) Spelling {
-        const pc = @mod(midi, c.semis_per_oct);
+        const pc = @mod(midi, c.sem_per_oct);
         return switch (pc) {
-            0 => .{ .let = .c, .acc = .natural },
-            1 => .{ .let = .d, .acc = .flat },
-            2 => .{ .let = .d, .acc = .natural },
-            3 => .{ .let = .e, .acc = .flat },
-            4 => .{ .let = .e, .acc = .natural },
-            5 => .{ .let = .f, .acc = .natural },
-            6 => .{ .let = .g, .acc = .flat },
-            7 => .{ .let = .g, .acc = .natural },
-            8 => .{ .let = .a, .acc = .flat },
-            9 => .{ .let = .a, .acc = .natural },
-            10 => .{ .let = .b, .acc = .flat },
-            11 => .{ .let = .b, .acc = .natural },
+            0 => .{ .ltr = .c, .acc = .natural },
+            1 => .{ .ltr = .d, .acc = .flat },
+            2 => .{ .ltr = .d, .acc = .natural },
+            3 => .{ .ltr = .e, .acc = .flat },
+            4 => .{ .ltr = .e, .acc = .natural },
+            5 => .{ .ltr = .f, .acc = .natural },
+            6 => .{ .ltr = .g, .acc = .flat },
+            7 => .{ .ltr = .g, .acc = .natural },
+            8 => .{ .ltr = .a, .acc = .flat },
+            9 => .{ .ltr = .a, .acc = .natural },
+            10 => .{ .ltr = .b, .acc = .flat },
+            11 => .{ .ltr = .b, .acc = .natural },
             else => unreachable,
         };
     }
@@ -255,7 +255,7 @@ pub const Note = struct {
         const use_ascii = std.mem.indexOfScalar(u8, fmt, 'c') != null;
 
         try writer.print("{c}{s}{d}", .{
-            std.ascii.toUpper(@tagName(self.name.let)[0]),
+            std.ascii.toUpper(@tagName(self.name.ltr)[0]),
             if (use_ascii)
                 switch (self.name.acc) {
                     .double_flat => "bb",
@@ -293,31 +293,31 @@ test "initialization" {
 
 test "properties" {
     const b3 = try Note.init(.b, .natural, 3);
-    try testing.expectEqual(Note.Letter.b, b3.name.let);
+    try testing.expectEqual(Note.Letter.b, b3.name.ltr);
     try testing.expectEqual(Note.Accidental.natural, b3.name.acc);
     try testing.expectEqual(3, b3.octave());
     try testing.expectEqual(11, b3.pitchClass());
 
     const cf4 = try Note.init(.c, .flat, 4);
-    try testing.expectEqual(Note.Letter.c, cf4.name.let);
+    try testing.expectEqual(Note.Letter.c, cf4.name.ltr);
     try testing.expectEqual(Note.Accidental.flat, cf4.name.acc);
     try testing.expectEqual(4, cf4.octave());
     try testing.expectEqual(11, cf4.pitchClass());
 
     const c4 = try Note.init(.c, .natural, 4);
-    try testing.expectEqual(Note.Letter.c, c4.name.let);
+    try testing.expectEqual(Note.Letter.c, c4.name.ltr);
     try testing.expectEqual(Note.Accidental.natural, c4.name.acc);
     try testing.expectEqual(4, c4.octave());
     try testing.expectEqual(0, c4.pitchClass());
 
     const cs4 = try Note.init(.c, .sharp, 4);
-    try testing.expectEqual(Note.Letter.c, cs4.name.let);
+    try testing.expectEqual(Note.Letter.c, cs4.name.ltr);
     try testing.expectEqual(Note.Accidental.sharp, cs4.name.acc);
     try testing.expectEqual(4, cs4.octave());
     try testing.expectEqual(1, cs4.pitchClass());
 
     const df4 = try Note.init(.d, .flat, 4);
-    try testing.expectEqual(Note.Letter.d, df4.name.let);
+    try testing.expectEqual(Note.Letter.d, df4.name.ltr);
     try testing.expectEqual(Note.Accidental.flat, df4.name.acc);
     try testing.expectEqual(4, df4.octave());
     try testing.expectEqual(1, df4.pitchClass());

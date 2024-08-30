@@ -36,8 +36,8 @@ pub const Interval = struct {
     }
 
     fn isPerfect(num: u7) bool {
-        const simplified = @mod(num - 1, c.notes_per_oct) + 1;
-        return simplified == 1 or simplified == 4 or simplified == 5;
+        const simple_inter = @mod(num - 1, c.ltr_per_oct) + 1;
+        return simple_inter == 1 or simple_inter == 4 or simple_inter == 5;
     }
 
     /// Creates an interval from the given string representation.
@@ -65,12 +65,12 @@ pub const Interval = struct {
     pub fn applyTo(self: Interval, note: Note) !Note {
         const new_midi = @as(i16, note.midi) + self.semitones();
 
-        const let_index = @intFromEnum(note.name.let);
-        const new_let_index = @mod(let_index + self.num - 1, c.notes_per_oct);
-        const new_let: Note.Letter = @enumFromInt(new_let_index);
+        const ltr_index = @intFromEnum(note.name.ltr);
+        const new_ltr_index = @mod(ltr_index + self.num - 1, c.ltr_per_oct);
+        const new_ltr: Note.Letter = @enumFromInt(new_ltr_index);
 
-        const expected_pc = new_let.semitones();
-        const actual_pc = @mod(new_midi, c.semis_per_oct);
+        const expected_pc = new_ltr.semitones();
+        const actual_pc = @mod(new_midi, c.sem_per_oct);
 
         const acc_diff = actual_pc - expected_pc;
         const new_acc: Note.Accidental = switch (acc_diff) {
@@ -82,10 +82,9 @@ pub const Interval = struct {
             else => return error.InvalidInterval,
         };
 
-        const new_oct: i8 = @intCast(@divFloor(new_midi, c.semis_per_oct) - 1);
-        std.debug.print("self: {}, note: {}, new_let: {s}, new_acc: {s}, new_oct: {}\n", .{ self, note, @tagName(new_let), @tagName(new_acc), new_oct });
+        const new_oct: i8 = @intCast(@divFloor(new_midi, c.sem_per_oct) - 1);
 
-        return Note.init(new_let, new_acc, new_oct);
+        return Note.init(new_ltr, new_acc, new_oct);
     }
 
     /// Returns the inversion of the interval.
@@ -98,23 +97,23 @@ pub const Interval = struct {
             .diminished => .augmented,
         };
 
-        const simplified = @mod(self.num - 1, c.notes_per_oct) + 1;
-        const oct_offset = @divFloor(self.num - 1, c.notes_per_oct) * c.notes_per_oct;
+        const simple_inter = @mod(self.num - 1, c.ltr_per_oct) + 1;
+        const oct_offset = @divFloor(self.num - 1, c.ltr_per_oct) * c.ltr_per_oct;
 
         var new_num: u7 = undefined;
 
-        if (simplified == 1) {
+        if (simple_inter == 1) {
             // Special handling for unison and octave-based intervals.
             if (self.num == 1) {
                 // Unison inverts to octave.
                 new_num = 8;
             } else {
                 // Octave, double octave, etc. invert to the next lower octave.
-                new_num = @intCast(oct_offset - c.notes_per_oct + 1);
+                new_num = @intCast(oct_offset - c.ltr_per_oct + 1);
             }
         } else {
             // For all other intervals, inversion adds up to 9
-            const new_simple = 9 - simplified;
+            const new_simple = 9 - simple_inter;
             new_num = new_simple + oct_offset;
         }
 
@@ -136,16 +135,16 @@ pub const Interval = struct {
     }
 
     fn baseSemitones(num: u7) i8 {
-        const simple_inter = @mod(num - 1, c.notes_per_oct) + 1;
+        const simple_inter = @mod(num - 1, c.ltr_per_oct) + 1;
         const base_sem = @as(Note.Letter, @enumFromInt(simple_inter - 1)).semitones();
-        const oct_offset = (num - 1) / c.notes_per_oct * c.semis_per_oct;
+        const oct_offset = (num - 1) / c.ltr_per_oct * c.sem_per_oct;
 
         return @intCast(base_sem + oct_offset);
     }
 
     /// Checks if the interval is compound (larger than an octave).
     pub fn isCompound(self: Interval) bool {
-        return self.semitones() > c.semis_per_oct;
+        return self.semitones() > c.sem_per_oct;
     }
 
     /// Checks if the interval is simple (an octave or smaller).
@@ -157,21 +156,21 @@ pub const Interval = struct {
     /// The interval is always calculated from the lower note to the higher note,
     /// regardless of the order of the input arguments.
     pub fn between(lhs: Note, rhs: Note) Interval {
-        const steps = lhs.diatonicStepsTo(rhs);
-        const semis = lhs.semitonesTo(rhs);
+        const ltr_steps = lhs.diatonicStepsTo(rhs);
+        const num: u7 = @intCast(@abs(ltr_steps) + 1);
 
-        const num: u7 = @intCast(@abs(steps) + 1);
-        const base = baseSemitones(num);
-        const offset = @as(i16, @abs(semis)) - base;
+        const sem = lhs.semitonesTo(rhs);
+        const base_sem = baseSemitones(num);
+        const qual_offset = @as(i16, @abs(sem)) - base_sem;
 
         const qual = if (isPerfect(num))
-            switch (offset) {
+            switch (qual_offset) {
                 0 => Quality.perfect,
                 1 => Quality.augmented,
                 -1 => Quality.diminished,
                 else => unreachable,
             }
-        else switch (offset) {
+        else switch (qual_offset) {
             0 => Quality.major,
             -1 => Quality.minor,
             1 => Quality.augmented,
