@@ -63,7 +63,38 @@ pub const Interval = struct {
 
     // pub fn applyTo(self: Interval, note: Note) Note {}
 
-    // pub fn invert(self: Interval) Interval {}
+    /// Returns the inversion of the interval.
+    pub fn invert(self: Interval) Interval {
+        const new_qual: Quality = switch (self.qual) {
+            .perfect => .perfect,
+            .major => .minor,
+            .minor => .major,
+            .augmented => .diminished,
+            .diminished => .augmented,
+        };
+
+        const simplified = @mod(self.num - 1, c.notes_per_oct) + 1;
+        const oct_offset = @divFloor(self.num - 1, c.notes_per_oct) * c.notes_per_oct;
+
+        var new_num: u7 = undefined;
+
+        if (simplified == 1) {
+            // Special handling for unison and octave-based intervals.
+            if (self.num == 1) {
+                // Unison inverts to octave.
+                new_num = 8;
+            } else {
+                // Octave, double octave, etc. invert to the next lower octave.
+                new_num = @intCast(oct_offset - c.notes_per_oct + 1);
+            }
+        } else {
+            // For all other intervals, inversion adds up to 9
+            const new_simple = 9 - simplified;
+            new_num = new_simple + oct_offset;
+        }
+
+        return .{ .qual = new_qual, .num = new_num };
+    }
 
     /// Returns the number of semitones in the interval.
     pub fn semitones(self: Interval) u7 {
@@ -192,7 +223,7 @@ pub const Interval = struct {
     pub const d3 = Interval{ .qual = .diminished, .num = 3 };
     /// Diminished fourth.
     pub const d4 = Interval{ .qual = .diminished, .num = 4 };
-    /// Diminished fifth.
+    /// Diminished fifth, tritone.
     pub const d5 = Interval{ .qual = .diminished, .num = 5 };
     /// Diminished sixth.
     pub const d6 = Interval{ .qual = .diminished, .num = 6 };
@@ -221,7 +252,7 @@ pub const Interval = struct {
     pub const A2 = Interval{ .qual = .augmented, .num = 2 };
     /// Augmented third.
     pub const A3 = Interval{ .qual = .augmented, .num = 3 };
-    /// Augmented fourth.
+    /// Augmented fourth, tritone.
     pub const A4 = Interval{ .qual = .augmented, .num = 4 };
     /// Augmented fifth.
     pub const A5 = Interval{ .qual = .augmented, .num = 5 };
@@ -327,4 +358,21 @@ test "calculation between enharmonic notes" {
     try testing.expect(fs4.isEnharmonic(gf4));
     try testing.expectEqual(Interval.M3, Interval.between(d4, fs4));
     try testing.expectEqual(Interval.d4, Interval.between(d4, gf4));
+}
+
+test "simple inversions" {
+    try testing.expectEqual(Interval.P8, Interval.P1.invert());
+    try testing.expectEqual(Interval.m3, Interval.M6.invert());
+    try testing.expectEqual(Interval.M6, Interval.m3.invert());
+    try testing.expectEqual(Interval.m2, Interval.M7.invert());
+    try testing.expectEqual(Interval.P4, Interval.P5.invert());
+    try testing.expectEqual(Interval.d5, Interval.A4.invert());
+    try testing.expectEqual(Interval.P1, Interval.P8.invert());
+}
+
+test "compound inversions" {
+    try testing.expectEqual(Interval.m13, Interval.M10.invert());
+    try testing.expectEqual(Interval.d10, Interval.A13.invert());
+    try testing.expectEqual(Interval.P12, Interval.P11.invert());
+    try testing.expectEqual(Interval.P8, Interval.P15.invert());
 }
