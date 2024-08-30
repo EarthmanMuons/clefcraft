@@ -22,21 +22,35 @@ pub const Note = struct {
         acc: Accidental,
     };
 
-    pub const Letter = enum { c, d, e, f, g, a, b };
+    pub const Letter = enum {
+        c,
+        d,
+        e,
+        f,
+        g,
+        a,
+        b,
+
+        /// Converts a Letter to its corresponding semitone value.
+        pub fn semitones(self: Letter) u4 {
+            return switch (self) {
+                .c => 0,
+                .d => 2,
+                .e => 4,
+                .f => 5,
+                .g => 7,
+                .a => 9,
+                .b => 11,
+            };
+        }
+    };
+
     pub const Accidental = enum { double_flat, flat, natural, sharp, double_sharp };
 
     /// Creates a note from a letter, accidental, and octave.
     /// Returns an error if the resulting note is out of the valid MIDI range.
     pub fn init(let: Letter, acc: Accidental, oct: i8) !Note {
-        const base: i16 = switch (let) {
-            .c => 0,
-            .d => 2,
-            .e => 4,
-            .f => 5,
-            .g => 7,
-            .a => 9,
-            .b => 11,
-        };
+        const base: i16 = let.semitones();
         const offset: i16 = switch (acc) {
             .double_flat => -2,
             .flat => -1,

@@ -61,7 +61,32 @@ pub const Interval = struct {
         return .{ .qual = qual, .num = num };
     }
 
-    // pub fn applyTo(self: Interval, note: Note) Note {}
+    /// Applies the interval to a given note, returning the resulting note.
+    pub fn applyTo(self: Interval, note: Note) !Note {
+        const new_midi = @as(i16, note.midi) + self.semitones();
+
+        const let_index = @intFromEnum(note.name.let);
+        const new_let_index = @mod(let_index + self.num - 1, c.notes_per_oct);
+        const new_let: Note.Letter = @enumFromInt(new_let_index);
+
+        const expected_pc = new_let.semitones();
+        const actual_pc = @mod(new_midi, c.semis_per_oct);
+
+        const acc_diff = actual_pc - expected_pc;
+        const new_acc: Note.Accidental = switch (acc_diff) {
+            -2 => .double_flat,
+            -1 => .flat,
+            0 => .natural,
+            1 => .sharp,
+            2 => .double_sharp,
+            else => return error.InvalidInterval,
+        };
+
+        const new_oct: i8 = @intCast(@divFloor(new_midi, c.semis_per_oct) - 1);
+        std.debug.print("self: {}, note: {}, new_let: {s}, new_acc: {s}, new_oct: {}\n", .{ self, note, @tagName(new_let), @tagName(new_acc), new_oct });
+
+        return Note.init(new_let, new_acc, new_oct);
+    }
 
     /// Returns the inversion of the interval.
     pub fn invert(self: Interval) Interval {
@@ -98,34 +123,24 @@ pub const Interval = struct {
 
     /// Returns the number of semitones in the interval.
     pub fn semitones(self: Interval) u7 {
-        const base = baseSemitones(self.num);
+        const base_sem = baseSemitones(self.num);
 
-        const offset: i8 = switch (self.qual) {
+        const qual_offset: i8 = switch (self.qual) {
             .perfect, .major => 0,
             .minor => -1,
             .augmented => 1,
             .diminished => if (isPerfect(self.num)) -1 else -2,
         };
 
-        return @intCast(base + offset);
+        return @intCast(base_sem + qual_offset);
     }
 
     fn baseSemitones(num: u7) i8 {
-        const simplified = @mod(num - 1, c.notes_per_oct) + 1;
+        const simple_inter = @mod(num - 1, c.notes_per_oct) + 1;
+        const base_sem = @as(Note.Letter, @enumFromInt(simple_inter - 1)).semitones();
         const oct_offset = (num - 1) / c.notes_per_oct * c.semis_per_oct;
 
-        const base: i8 = switch (simplified) {
-            1 => 0, // Unison
-            2 => 2, // Second
-            3 => 4, // Third
-            4 => 5, // Fourth
-            5 => 7, // Fifth
-            6 => 9, // Sixth
-            7 => 11, // Seventh
-            else => unreachable,
-        };
-
-        return @intCast(base + oct_offset);
+        return @intCast(base_sem + oct_offset);
     }
 
     /// Checks if the interval is compound (larger than an octave).
@@ -358,6 +373,29 @@ test "calculation between enharmonic notes" {
     try testing.expect(fs4.isEnharmonic(gf4));
     try testing.expectEqual(Interval.M3, Interval.between(d4, fs4));
     try testing.expectEqual(Interval.d4, Interval.between(d4, gf4));
+}
+
+test "application to notes" {
+    const c4 = try Note.fromString("C4");
+    const e4 = try Note.fromString("E4");
+    const g4 = try Note.fromString("G4");
+    const c5 = try Note.fromString("C5");
+
+    try testing.expectEqual(e4, try Interval.M3.applyTo(c4));
+    try testing.expectEqual(g4, try Interval.P5.applyTo(c4));
+    try testing.expectEqual(c5, try Interval.P8.applyTo(c4));
+
+    const fs4 = try Note.fromString("F#4");
+    const as4 = try Note.fromString("A#4");
+    try testing.expectEqual(as4, try Interval.M3.applyTo(fs4));
+
+    const bf3 = try Note.fromString("Bb3");
+    const af4 = try Note.fromString("Ab4");
+    try testing.expectEqual(af4, try Interval.m7.applyTo(bf3));
+
+    const e5 = try Note.fromString("E5");
+    const cx6 = try Note.fromString("Cx6");
+    try testing.expectEqual(cx6, try Interval.A6.applyTo(e5));
 }
 
 test "simple inversions" {
