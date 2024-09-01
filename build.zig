@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    const raylib_artifact = raylib_dep.artifact("raylib");
+    const raylib_artifact = raylib_dep.artifact("raylib"); // raylib C library
 
     const rtmidi_dep = b.dependency("rtmidi_z", .{
         .target = target,
@@ -32,6 +32,7 @@ pub fn build(b: *std.Build) void {
     });
     exe.linkLibrary(raylib_artifact);
     exe.root_module.addImport("raylib", raylib_dep.module("raylib"));
+    exe.root_module.addImport("raygui", raylib_dep.module("raygui"));
     exe.root_module.addImport("rtmidi", rtmidi_dep.module("rtmidi_z"));
     b.installArtifact(exe);
 

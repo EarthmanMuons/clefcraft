@@ -4,8 +4,8 @@
     .minimum_zig_version = "0.12.0",
     .dependencies = .{
         .@"raylib-zig" = .{
-            .url = "https://github.com/Not-Nik/raylib-zig/archive/6cc4aec3c478b88559e7d7e40b9e29d01de0a18b.tar.gz",
-            .hash = "1220ff1a9e774784fe3f11ffe71bc0186f9e62eb0fe1727f676d038b62665a5c74c5",
+            .url = "https://github.com/Not-Nik/raylib-zig/archive/e3e3a7518a308261551dc143bf347fd142bc80b3.tar.gz",
+            .hash = "12209ba41100c91e36311568875d56f90f73fea84521ec15fc83963078bbc8f0def1",
         },
         .rtmidi_z = .{
             .url = "https://github.com/ryleelyman/rtmidi_z/archive/74a1eaac4a679a7c71916b2ff2ec6881e5548124.tar.gz",
