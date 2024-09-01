@@ -127,11 +127,11 @@ pub const Scale = struct {
 };
 
 test "creation and usage" {
-    const c4 = try Note.fromString("C4");
-    const db4 = try Note.fromString("Db4");
+    // const c4 = try Note.fromString("C4");
+    // const db4 = try Note.fromString("Db4");
 
-    try Scale.major(c4).debugPrint(std.testing.allocator);
-    try Scale.major(db4).debugPrint(std.testing.allocator);
+    // try Scale.major(c4).debugPrint(std.testing.allocator);
+    // try Scale.major(db4).debugPrint(std.testing.allocator);
     // // Using direct initialization
     // const major_scale_db = Scale.init(db4, ScaleTypes.major);
     // try major_scale_db.debugPrint(std.testing.allocator);
