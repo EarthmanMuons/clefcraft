@@ -10,11 +10,12 @@ const Mouse = @import("ui/mouse.zig").Mouse;
 const padding = 16; // pixels
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // const allocator = gpa.allocator();
 
     var mouse: Mouse = .{};
-    var app = try Application.init(allocator, padding);
+    // var app = try Application.init(allocator, padding);
+    var app = try Application.init(padding);
     const app_name = "ClefCraft";
 
     var midi_output = try MidiOutput.init(app_name);

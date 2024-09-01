@@ -242,6 +242,47 @@ pub const Note = struct {
     // /// Respells a note according to the given musical context.
     // pub fn respell(self: Note, context: ???) Note { }
 
+    fn formatAccidental(acc: Accidental, use_ascii: bool) []const u8 {
+        return if (use_ascii)
+            switch (acc) {
+                .double_flat => "bb",
+                .flat => "b",
+                .natural => "",
+                .sharp => "#",
+                .double_sharp => "x",
+            }
+        else switch (acc) {
+            .double_flat => "𝄫",
+            .flat => "♭",
+            .natural => "",
+            .sharp => "♯",
+            .double_sharp => "𝄪",
+        };
+    }
+
+    /// Returns a formatter for the note's pitch class representation.
+    pub fn fmtPitchClass(self: Note) std.fmt.Formatter(formatPitchClass) {
+        return .{ .data = self };
+    }
+
+    /// Formats the note for output as a pitch class without an octave.
+    /// Uses Unicode symbols for accidentals by default.
+    /// If the format specifier 'c' is used, it outputs ASCII symbols instead.
+    fn formatPitchClass(
+        self: Note,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = options;
+        const use_ascii = std.mem.indexOfScalar(u8, fmt, 'c') != null;
+
+        try writer.print("{c}{s}", .{
+            std.ascii.toUpper(@tagName(self.name.ltr)[0]),
+            formatAccidental(self.name.acc, use_ascii),
+        });
+    }
+
     /// Formats the note for output in Scientific Pitch Notation.
     /// Uses Unicode symbols for accidentals by default.
     /// If the format specifier 'c' is used, it outputs ASCII symbols instead.
@@ -256,21 +297,7 @@ pub const Note = struct {
 
         try writer.print("{c}{s}{d}", .{
             std.ascii.toUpper(@tagName(self.name.ltr)[0]),
-            if (use_ascii)
-                switch (self.name.acc) {
-                    .double_flat => "bb",
-                    .flat => "b",
-                    .natural => "",
-                    .sharp => "#",
-                    .double_sharp => "x",
-                }
-            else switch (self.name.acc) {
-                .double_flat => "𝄫",
-                .flat => "♭",
-                .natural => "",
-                .sharp => "♯",
-                .double_sharp => "𝄪",
-            },
+            formatAccidental(self.name.acc, use_ascii),
             self.octave(),
         });
     }

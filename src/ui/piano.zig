@@ -4,9 +4,9 @@ const log = std.log.scoped(.piano);
 const rl = @import("raylib");
 
 const Coord = @import("coord.zig").Coord;
-const KeySignature = @import("../theory_v1/key_signature.zig").KeySignature;
 const MidiOutput = @import("../midi/output.zig").MidiOutput;
 const Mouse = @import("mouse.zig").Mouse;
+const Tonality = @import("../theory/tonality.zig").Tonality;
 
 const key_count = 88;
 const key_spacing = 2;
@@ -121,10 +121,10 @@ pub const Piano = struct {
         }
     }
 
-    pub fn draw(self: *const Piano, key_sig: KeySignature) void {
+    pub fn draw(self: *const Piano, tonality: Tonality) void {
         // Draw the white keys first, then the black keys on top.
-        for (self.keys) |key| if (!key.is_black) key.draw(key_sig);
-        for (self.keys) |key| if (key.is_black) key.draw(key_sig);
+        for (self.keys) |key| if (!key.is_black) key.draw(tonality);
+        for (self.keys) |key| if (key.is_black) key.draw(tonality);
 
         // Draw subtle red key felt and a fade at the top of all keys.
         rl.drawRectangle(
@@ -170,7 +170,7 @@ const Key = struct {
         };
     }
 
-    fn draw(self: Key, key_sig: KeySignature) void {
+    fn draw(self: Key, tonality: Tonality) void {
         const border_color = rl.Color.dark_gray;
 
         switch (self.state) {
@@ -204,26 +204,29 @@ const Key = struct {
         );
 
         if (self.state == .pressed) {
-            self.drawLabel(key_sig, rl.Color.black, true);
+            self.drawLabel(tonality, rl.Color.black, true);
         } else if (self.isMiddleC()) {
-            self.drawLabel(key_sig, rl.Color.light_gray, false);
+            self.drawLabel(tonality, rl.Color.light_gray, false);
         }
     }
 
     fn drawLabel(
         self: Key,
-        key_sig: KeySignature,
+        tonality: Tonality,
         text_color: rl.Color,
         draw_background: bool,
     ) void {
-        const note = key_sig.noteFromMidi(self.midi_number);
-        const note_name = if (self.state != .pressed and self.isMiddleC()) "C4" else note.pitch.asText();
+        const note = tonality.spell(self.midi_number);
 
         // raylib's drawText() function requires a '0' sentinel.
-        const note_name_z: [:0]const u8 = @ptrCast(note_name);
+        var note_name_buffer: [8]u8 = undefined;
+        const note_name = if (self.state != .pressed and self.isMiddleC())
+            std.fmt.bufPrintZ(&note_name_buffer, "C4", .{}) catch unreachable
+        else
+            std.fmt.bufPrintZ(&note_name_buffer, "{c}", .{note.fmtPitchClass()}) catch unreachable;
 
         const font_size = 17;
-        const text_width = rl.measureText(note_name_z, font_size);
+        const text_width = rl.measureText(note_name, font_size);
 
         const rect_width = text_width + 8; // add padding to sides
         const rect_height = 22;
@@ -246,7 +249,7 @@ const Key = struct {
         const text_x = rect_x + @divFloor(rect_width - text_width, 2);
         const text_y = (rect_y + (rect_height - font_size) / 2) + 1;
         rl.drawText(
-            note_name_z,
+            note_name,
             text_x,
             text_y,
             font_size,

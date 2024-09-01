@@ -194,7 +194,7 @@ test "creation and usage" {
 
 // // Create a C major scale with key-based spelling
 // const c_major_key = Scale.init(c4, ScaleType.major, .{
-//     .spelling = Spelling.Context.init(.key_based).withKey(Key.C),
+//     .spelling = Spelling.Context.init(.key_based).withTonality(Tonality.C),
 // });
 
 // // Create a scale with custom spelling function
