@@ -36,34 +36,35 @@ pub const TonalitySelector = struct {
     const buttons = blk: {
         @setEvalBranchQuota(3000);
         const sharps = [_]NoteButton{
-            .{ .label = "C#", .note = .{ .midi = 61, .name = .{ .ltr = .c, .acc = .sharp } }, .x = 0, .y = 0 },
-            .{ .label = "D#", .note = .{ .midi = 63, .name = .{ .ltr = .d, .acc = .sharp } }, .x = 1, .y = 0 },
-            .{ .label = "F#", .note = .{ .midi = 66, .name = .{ .ltr = .f, .acc = .sharp } }, .x = 3, .y = 0 },
-            .{ .label = "G#", .note = .{ .midi = 68, .name = .{ .ltr = .g, .acc = .sharp } }, .x = 4, .y = 0 },
-            .{ .label = "A#", .note = .{ .midi = 70, .name = .{ .ltr = .a, .acc = .sharp } }, .x = 5, .y = 0 },
+            .{ .label = "C#", .note = .{ .midi = 61, .name = .{ .ltr = .c, .acc = .sharp } }, .x = 1, .y = 0 },
+            .{ .label = "D#", .note = .{ .midi = 63, .name = .{ .ltr = .d, .acc = .sharp } }, .x = 2, .y = 0 },
+            .{ .label = "F#", .note = .{ .midi = 66, .name = .{ .ltr = .f, .acc = .sharp } }, .x = 4, .y = 0 },
+            .{ .label = "G#", .note = .{ .midi = 68, .name = .{ .ltr = .g, .acc = .sharp } }, .x = 5, .y = 0 },
+            .{ .label = "A#", .note = .{ .midi = 70, .name = .{ .ltr = .a, .acc = .sharp } }, .x = 6, .y = 0 },
         };
         const naturals = [_]NoteButton{
-            .{ .label = "C", .note = .{ .midi = 60, .name = .{ .ltr = .c, .acc = .natural } }, .x = 0, .y = 1 },
-            .{ .label = "D", .note = .{ .midi = 62, .name = .{ .ltr = .d, .acc = .natural } }, .x = 1, .y = 1 },
-            .{ .label = "E", .note = .{ .midi = 64, .name = .{ .ltr = .e, .acc = .natural } }, .x = 2, .y = 1 },
-            .{ .label = "F", .note = .{ .midi = 65, .name = .{ .ltr = .f, .acc = .natural } }, .x = 3, .y = 1 },
-            .{ .label = "G", .note = .{ .midi = 67, .name = .{ .ltr = .g, .acc = .natural } }, .x = 4, .y = 1 },
-            .{ .label = "A", .note = .{ .midi = 69, .name = .{ .ltr = .a, .acc = .natural } }, .x = 5, .y = 1 },
-            .{ .label = "B", .note = .{ .midi = 71, .name = .{ .ltr = .b, .acc = .natural } }, .x = 6, .y = 1 },
+            .{ .label = "C", .note = .{ .midi = 60, .name = .{ .ltr = .c, .acc = .natural } }, .x = 1, .y = 1 },
+            .{ .label = "D", .note = .{ .midi = 62, .name = .{ .ltr = .d, .acc = .natural } }, .x = 2, .y = 1 },
+            .{ .label = "E", .note = .{ .midi = 64, .name = .{ .ltr = .e, .acc = .natural } }, .x = 3, .y = 1 },
+            .{ .label = "F", .note = .{ .midi = 65, .name = .{ .ltr = .f, .acc = .natural } }, .x = 4, .y = 1 },
+            .{ .label = "G", .note = .{ .midi = 67, .name = .{ .ltr = .g, .acc = .natural } }, .x = 5, .y = 1 },
+            .{ .label = "A", .note = .{ .midi = 69, .name = .{ .ltr = .a, .acc = .natural } }, .x = 6, .y = 1 },
+            .{ .label = "B", .note = .{ .midi = 71, .name = .{ .ltr = .b, .acc = .natural } }, .x = 7, .y = 1 },
         };
         const flats = [_]NoteButton{
-            .{ .label = "Db", .note = .{ .midi = 61, .name = .{ .ltr = .d, .acc = .flat } }, .x = 0, .y = 2 },
-            .{ .label = "Eb", .note = .{ .midi = 63, .name = .{ .ltr = .e, .acc = .flat } }, .x = 1, .y = 2 },
-            .{ .label = "Gb", .note = .{ .midi = 66, .name = .{ .ltr = .g, .acc = .flat } }, .x = 3, .y = 2 },
-            .{ .label = "Ab", .note = .{ .midi = 68, .name = .{ .ltr = .a, .acc = .flat } }, .x = 4, .y = 2 },
-            .{ .label = "Bb", .note = .{ .midi = 70, .name = .{ .ltr = .b, .acc = .flat } }, .x = 5, .y = 2 },
+            .{ .label = "Cb", .note = .{ .midi = 59, .name = .{ .ltr = .c, .acc = .flat } }, .x = 0, .y = 2 },
+            .{ .label = "Db", .note = .{ .midi = 61, .name = .{ .ltr = .d, .acc = .flat } }, .x = 1, .y = 2 },
+            .{ .label = "Eb", .note = .{ .midi = 63, .name = .{ .ltr = .e, .acc = .flat } }, .x = 2, .y = 2 },
+            .{ .label = "Gb", .note = .{ .midi = 66, .name = .{ .ltr = .g, .acc = .flat } }, .x = 4, .y = 2 },
+            .{ .label = "Ab", .note = .{ .midi = 68, .name = .{ .ltr = .a, .acc = .flat } }, .x = 5, .y = 2 },
+            .{ .label = "Bb", .note = .{ .midi = 70, .name = .{ .ltr = .b, .acc = .flat } }, .x = 6, .y = 2 },
         };
         break :blk sharps ++ naturals ++ flats;
     };
 
     const mode_buttons = [_]ModeButton{
-        .{ .label = "Major", .mode = .major, .x = 7, .y = 0 },
-        .{ .label = "Minor", .mode = .minor, .x = 7, .y = 1 },
+        .{ .label = "Major", .mode = .major, .x = 8, .y = 0 },
+        .{ .label = "Minor", .mode = .minor, .x = 8, .y = 1 },
     };
 
     pub fn init(pos: Coord, initial_tonality: Tonality) TonalitySelector {
@@ -77,14 +78,24 @@ pub const TonalitySelector = struct {
         for (buttons) |button| {
             if (self.isButtonClicked(button.x, button.y, mouse)) {
                 self.selected_tonality.tonic = button.note;
-                log.debug("tonality set to note: {}", .{button.note.fmtPitchClass()});
+                log.debug("tonality set to {} {s} ({}♯ / {}♭)", .{
+                    button.note.fmtPitchClass(),
+                    @tagName(self.selected_tonality.mode),
+                    self.selected_tonality.accidentals().sharps,
+                    self.selected_tonality.accidentals().flats,
+                });
             }
         }
 
         for (mode_buttons) |button| {
             if (self.isModeButtonClicked(button.x, button.y, mouse)) {
                 self.selected_tonality.mode = button.mode;
-                log.debug("tonality set to mode: {s}", .{@tagName(button.mode)});
+                log.debug("tonality set to {} {s} ({}♯ / {}♭)", .{
+                    self.selected_tonality.tonic.fmtPitchClass(),
+                    @tagName(button.mode),
+                    self.selected_tonality.accidentals().sharps,
+                    self.selected_tonality.accidentals().flats,
+                });
             }
         }
     }

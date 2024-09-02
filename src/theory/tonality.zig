@@ -22,7 +22,39 @@ pub const Tonality = struct {
             .major => self.tonic.pitchClass(),
             .minor => @mod(self.tonic.pitchClass() + 3, c.sem_per_oct),
         };
-        return circle_of_fifths[relative_major_tonic];
+        var sf = circle_of_fifths[relative_major_tonic];
+
+        // Handle edge cases
+        if (self.mode == .major) {
+            sf = switch (self.tonic.name.ltr) {
+                .d => if (self.tonic.name.acc == .flat) -5 else sf,
+                .c => switch (self.tonic.name.acc) {
+                    .sharp => 7,
+                    .flat => -7,
+                    else => sf,
+                },
+                .g => if (self.tonic.name.acc == .flat) -6 else sf,
+                .f => if (self.tonic.name.acc == .sharp) 6 else sf,
+                .b => if (self.tonic.name.acc == .natural) 5 else sf,
+                else => sf,
+            };
+        } else {
+            // Adjust for relative minor keys
+            sf = switch (self.tonic.name.ltr) {
+                .b => if (self.tonic.name.acc == .flat) -5 else sf, // Relative minor of Db
+                .a => switch (self.tonic.name.acc) {
+                    .sharp => 7, // Relative minor of C#
+                    .flat => -7, // Relative minor of Cb
+                    else => sf,
+                },
+                .e => if (self.tonic.name.acc == .flat) -6 else sf, // Relative minor of Gb
+                .d => if (self.tonic.name.acc == .sharp) 6 else sf, // Relative minor of F#
+                .g => if (self.tonic.name.acc == .sharp) 5 else sf, // Relative minor of B
+                else => sf,
+            };
+        }
+
+        return sf;
     }
 
     pub fn accidentals(self: Tonality) struct { sharps: u3, flats: u3 } {
@@ -74,6 +106,32 @@ test "behavior" {
 
     try testing.expectEqual(-1, f_major.sharpsOrFlats());
     try testing.expectEqual(-1, d_minor.sharpsOrFlats());
+
+    // Test cases with 6 or 7 accidentals
+    const f_sharp_major = Tonality.init(try Note.fromString("F#4"), .major);
+    const g_flat_major = Tonality.init(try Note.fromString("Gb4"), .major);
+
+    try testing.expectEqual(6, f_sharp_major.sharpsOrFlats());
+    try testing.expectEqual(-6, g_flat_major.sharpsOrFlats());
+
+    const c_sharp_major = Tonality.init(try Note.fromString("C#4"), .major);
+    const c_flat_major = Tonality.init(try Note.fromString("Cb4"), .major);
+
+    try testing.expectEqual(7, c_sharp_major.sharpsOrFlats());
+    try testing.expectEqual(-7, c_flat_major.sharpsOrFlats());
+
+    const b_major = Tonality.init(try Note.fromString("B4"), .major);
+    const d_flat_major = Tonality.init(try Note.fromString("Db4"), .major);
+
+    try testing.expectEqual(5, b_major.sharpsOrFlats());
+    try testing.expectEqual(-5, d_flat_major.sharpsOrFlats());
+
+    // Test relative minor keys
+    const g_sharp_minor = Tonality.init(try Note.fromString("G#4"), .minor);
+    const e_flat_minor = Tonality.init(try Note.fromString("Eb4"), .minor);
+
+    try testing.expectEqual(5, g_sharp_minor.sharpsOrFlats());
+    try testing.expectEqual(-6, e_flat_minor.sharpsOrFlats());
 
     // Test relative key relationships
     try testing.expectEqual(c_major.tonic.pitchClass(), a_minor.relativeMajor().tonic.pitchClass());
