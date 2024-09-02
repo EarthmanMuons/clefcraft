@@ -19,6 +19,8 @@ pub fn main() !void {
     var app = try Application.init(padding);
     const app_name = "ClefCraft";
 
+    try app.setupMidiInput();
+
     var midi_output = try MidiOutput.init(app_name);
     defer midi_output.deinit();
 
@@ -28,6 +30,9 @@ pub fn main() !void {
     rl.setConfigFlags(rl.ConfigFlags{ .window_highdpi = true });
     rl.initWindow(window_width, window_height, app_name);
     defer rl.closeWindow();
+
+    // // Set the default font size for raygui.
+    // rg.guiSetStyle(rg.GuiControl.default, @intFromEnum(rg.GuiDefaultProperty.text_size), 20);
 
     rl.setTargetFPS(60);
 

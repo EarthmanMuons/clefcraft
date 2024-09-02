@@ -18,6 +18,7 @@ const key_height_white = 160;
 pub const Piano = struct {
     keys: [key_count]Key,
     pos: Coord,
+    midi_key_states: [128]bool,
 
     pub fn init(pos: Coord) !Piano {
         var keys = [_]Key{.{}} ** key_count;
@@ -31,7 +32,11 @@ pub const Piano = struct {
             key.height = if (key.is_black) key_height_black else key_height_white;
         }
 
-        return Piano{ .keys = keys, .pos = pos };
+        return Piano{
+            .keys = keys,
+            .pos = pos,
+            .midi_key_states = [_]bool{false} ** 128,
+        };
     }
 
     pub fn width(_: Piano) i32 {
@@ -68,57 +73,49 @@ pub const Piano = struct {
 
         // Update all of the key states.
         for (&self.keys) |*key| {
+            const midi_pressed = self.midi_key_states[key.midi_number];
+            const mouse_pressed = (key == focused_key and mouse.is_pressed_left);
+
             switch (key.state) {
-                .disabled => {
-                    continue;
-                },
+                .disabled => continue,
                 .normal => {
-                    if (key == focused_key) {
+                    if (midi_pressed or mouse_pressed) {
+                        key.state = .pressed;
+                    } else if (key == focused_key) {
                         key.state = .focused;
                     }
                 },
                 .focused => {
-                    if (key != focused_key) {
-                        key.state = .normal;
-                    } else if (mouse.is_pressed_left) {
+                    if (midi_pressed or mouse_pressed) {
                         key.state = .pressed;
+                    } else if (key != focused_key) {
+                        key.state = .normal;
                     }
                 },
                 .pressed => {
-                    if (!mouse.is_pressed_left) {
+                    if (!midi_pressed and !mouse_pressed) {
                         key.state = if (key == focused_key) .focused else .normal;
                     }
                 },
             }
 
-            // Handle MIDI events.
-            switch (key.state) {
-                .disabled => {
-                    continue;
-                },
-                .pressed => {
-                    if (key.state_prev != .pressed) {
-                        log.debug("sending message note on for: {}", .{key.midi_number});
-                        try midi_output.noteOn(1, key.midi_number, 112);
-                    }
-                },
-                .focused => {
-                    if (key.state_prev == .pressed) {
-                        log.debug("sending message note off for: {}", .{key.midi_number});
-                        try midi_output.noteOff(1, key.midi_number, 0);
-                    }
-                },
-                .normal => {
-                    if (key.state_prev == .pressed) {
-                        log.debug("sending message note off for: {}", .{key.midi_number});
-                        try midi_output.noteOff(1, key.midi_number, 0);
-                    }
-                },
+            // Handle MIDI output events.
+            if (key.state == .pressed and key.state_prev != .pressed) {
+                log.debug("sending message note on for: {}", .{key.midi_number});
+                try midi_output.noteOn(1, key.midi_number, 112);
+            } else if (key.state != .pressed and key.state_prev == .pressed) {
+                log.debug("sending message note off for: {}", .{key.midi_number});
+                try midi_output.noteOff(1, key.midi_number, 0);
             }
 
             // Update the previous key state.
             key.state_prev = key.state;
         }
+    }
+
+    pub fn setKeyState(self: *Piano, midi_number: u7, is_pressed: bool) void {
+        self.midi_key_states[midi_number] = is_pressed;
+        log.debug("MIDI key state changed: number={}, pressed={}", .{ midi_number, is_pressed });
     }
 
     pub fn draw(self: *const Piano, tonality: Tonality) void {
@@ -160,6 +157,12 @@ const Key = struct {
         pressed,
         disabled,
     };
+
+    pub fn setState(self: *Key, new_state: State) void {
+        log.debug("Key state change: MIDI number={}, old state={}, new state={}", .{ self.midi_number, self.state, new_state });
+        self.state_prev = self.state;
+        self.state = new_state;
+    }
 
     fn color(self: Key) rl.Color {
         return switch (self.state) {

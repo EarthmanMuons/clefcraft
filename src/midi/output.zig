@@ -1,3 +1,4 @@
+const std = @import("std");
 const rtmidi = @import("rtmidi");
 
 pub const MidiOutput = struct {
