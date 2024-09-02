@@ -239,8 +239,24 @@ pub const Note = struct {
         };
     }
 
-    // /// Respells a note according to the given musical context.
-    // pub fn respell(self: Note, context: ???) Note { }
+    /// Respells a note according to the given target letter.
+    pub fn respell(self: Note, target_letter: Letter) Note {
+        const pc = self.pitchClass();
+        const target_pc = target_letter.semitones();
+        const semitone_diff = @mod(@as(i8, target_pc) - @as(i8, pc) + 12, 12);
+
+        var new_acc: Accidental = undefined;
+        switch (semitone_diff) {
+            2 => new_acc = .double_flat,
+            1 => new_acc = .flat,
+            0 => new_acc = .natural,
+            11 => new_acc = .sharp,
+            10 => new_acc = .double_sharp,
+            else => return self, // Cannot respell, return original note
+        }
+
+        return Note{ .midi = self.midi, .name = .{ .ltr = target_letter, .acc = new_acc } };
+    }
 
     fn formatAccidental(acc: Accidental, use_ascii: bool) []const u8 {
         return if (use_ascii)
@@ -445,6 +461,21 @@ test "semitones" {
     try testing.expectEqual(7, c4.semitonesTo(g4));
     try testing.expectEqual(12, c4.semitonesTo(c5));
     try testing.expectEqual(17, c4.semitonesTo(f5));
+}
+
+test "respelling" {
+    const c4 = try Note.init(.c, .natural, 4);
+    try testing.expectFmt("B#3", "{c}", .{c4.respell(.b)});
+
+    const b3 = try Note.init(.b, .natural, 3);
+    try testing.expectFmt("Cb4", "{c}", .{b3.respell(.c)});
+
+    const c_sharp4 = try Note.init(.c, .sharp, 4);
+    try testing.expectFmt("Db4", "{c}", .{c_sharp4.respell(.d)});
+    try testing.expectFmt("Bx3", "{c}", .{c_sharp4.respell(.b)});
+
+    const e4 = try Note.init(.e, .natural, 4);
+    try testing.expectFmt("Fb4", "{c}", .{e4.respell(.f)});
 }
 
 test "formatting" {
