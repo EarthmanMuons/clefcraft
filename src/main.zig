@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const rl = @import("raylib");
+const rg = @import("raygui");
 
 const Application = @import("ui/application.zig").Application;
 const Coord = @import("ui/coord.zig").Coord;
@@ -22,7 +23,7 @@ pub fn main() !void {
     defer midi_output.deinit();
 
     const window_width = app.piano.width() + (padding * 2);
-    const window_height = app.piano.height() + 140;
+    const window_height = app.piano.height() + 196;
 
     rl.setConfigFlags(rl.ConfigFlags{ .window_highdpi = true });
     rl.initWindow(window_width, window_height, app_name);

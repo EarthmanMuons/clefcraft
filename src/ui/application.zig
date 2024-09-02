@@ -14,9 +14,9 @@ pub const Application = struct {
     tonality_selector: TonalitySelector,
 
     pub fn init(padding: i32) !Application {
-        const piano = try Piano.init(Coord{ .x = padding, .y = 100 });
+        const piano = try Piano.init(Coord{ .x = padding, .y = 156 });
         const tonality = Tonality.init(try Note.fromString("C4"), .major);
-        const tonality_selector = TonalitySelector.init(Coord{ .x = padding, .y = 0 }, tonality);
+        const tonality_selector = TonalitySelector.init(Coord{ .x = padding, .y = 16 }, tonality);
 
         return .{
             .piano = piano,
