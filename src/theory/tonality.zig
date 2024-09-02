@@ -67,10 +67,30 @@ pub const Tonality = struct {
 
     pub fn spell(self: Tonality, midi: u7) Note {
         const sf = self.sharpsOrFlats();
-        return if (sf >= 0)
-            .{ .midi = midi, .name = Note.spellWithSharps(midi) }
+        var note = if (sf >= 0)
+            Note{ .midi = midi, .name = Note.spellWithSharps(midi) }
         else
-            .{ .midi = midi, .name = Note.spellWithFlats(midi) };
+            Note{ .midi = midi, .name = Note.spellWithFlats(midi) };
+
+        // Respell the edge cases for 6 or 7 accidentals.
+        if (@abs(sf) >= 6) {
+            const pc = note.pitchClass();
+            if (sf >= 6) {
+                // Handle the sharp keys.
+                if (pc == 5) return note.respell(.e); // Spell F as E#
+                if (sf == 7) {
+                    if (pc == 0) return note.respell(.b); // Spell C as B#
+                }
+            } else if (sf <= -6) {
+                // Handle the flat keys.
+                if (pc == 11) return note.respell(.c); // Spell B as Cb
+                if (sf == -7) {
+                    if (pc == 4) return note.respell(.f); // Spell E as Fb
+                }
+            }
+        }
+
+        return note;
     }
 
     pub fn relativeMajor(self: Tonality) Tonality {
@@ -136,4 +156,30 @@ test "behavior" {
     // Test relative key relationships
     try testing.expectEqual(c_major.tonic.pitchClass(), a_minor.relativeMajor().tonic.pitchClass());
     try testing.expectEqual(a_minor.tonic.pitchClass(), c_major.relativeMinor().tonic.pitchClass());
+}
+
+test "spelling edge cases" {
+    // Test C# major (7 sharps)
+    const c_sharp_major = Tonality.init(try Note.fromString("C#4"), .major);
+    try testing.expectFmt("B♯3", "{}", .{c_sharp_major.spell(60)}); // Spell C as B#
+    try testing.expectFmt("E♯4", "{}", .{c_sharp_major.spell(65)}); // Spell F as E#
+    try testing.expectFmt("C♯4", "{}", .{c_sharp_major.spell(61)}); // C# stays C#
+
+    // Test Cb major (7 flats)
+    const c_flat_major = Tonality.init(try Note.fromString("Cb4"), .major);
+    try testing.expectFmt("C♭4", "{}", .{c_flat_major.spell(59)}); // Spell B as Cb
+    try testing.expectFmt("F♭4", "{}", .{c_flat_major.spell(64)}); // Spell E as Fb
+    try testing.expectFmt("G♭4", "{}", .{c_flat_major.spell(66)}); // Gb stays Gb
+
+    // Test F# major (6 sharps)
+    const f_sharp_major = Tonality.init(try Note.fromString("F#4"), .major);
+    try testing.expectFmt("E♯4", "{}", .{f_sharp_major.spell(65)}); // Spell F as E#
+    try testing.expectFmt("F♯4", "{}", .{f_sharp_major.spell(66)}); // F# stays F#
+    try testing.expectFmt("C♯5", "{}", .{f_sharp_major.spell(73)}); // C# stays C#
+
+    // Test Gb major (6 flats)
+    const g_flat_major = Tonality.init(try Note.fromString("Gb4"), .major);
+    try testing.expectFmt("C♭5", "{}", .{g_flat_major.spell(71)}); // Spell B as Cb
+    try testing.expectFmt("E4", "{}", .{g_flat_major.spell(64)}); // E stays E
+    try testing.expectFmt("G♭4", "{}", .{g_flat_major.spell(66)}); // Gb stays Gb
 }
