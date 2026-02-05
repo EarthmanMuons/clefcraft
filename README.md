@@ -1,3 +1,18 @@
+## ⚠️ Project Archived
+
+ClefCraft is no longer actively developed.
+
+It was an early exploration of Western music theory analysis, implemented as a
+general-purpose library written in Zig, with the intention of eventually
+layering a user interface on top.
+
+That work has since been superseded by **WhatChord**, which carries forward the
+same core goals in a fully realized, actively maintained mobile application.
+
+👉 **WhatChord:** https://github.com/EarthmanMuons/whatchord
+
+This repository is preserved for historical reference.
+
 # ClefCraft
 
 **Exploration of Western music theory concepts with [Zig][].**
